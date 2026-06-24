@@ -43,12 +43,19 @@ Implement a lightweight terminal-first code reading tool named `cr`.
   - Prints old/new line numbers beside hunk lines.
   - For changed `.ets` and `.ts` files, prints file stats, structure, and marks likely modified symbols.
   - For other changed files, prints stats and compact diff hunks.
+- `cr browse`
+  - Opens the interactive review browser by default when running `cr` without a subcommand.
+  - Shows a changed-file list first, then a focused per-file diff view.
+  - Uses a fixed redraw area in interactive TTYs so navigation does not append repeated output.
+  - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return, `r` to refresh, and `q` to quit.
+  - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
+  - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
 
 ## Not doing
 
 - No tree-sitter or language server integration.
 - No perfect TypeScript or ArkTS syntax model.
-- No IDE UI, pager, or interactive mode.
+- No IDE UI, pager, third-party TUI framework, or mouse interaction.
 
 ## Design
 
@@ -100,6 +107,12 @@ Implement a lightweight terminal-first code reading tool named `cr`.
   - Use `git diff --unified=N -- <file>` for changed-text snippets, defaulting to `N=2`.
   - Render hunk bodies with old/new line-number columns while preserving the original `+`, `-`, and context text.
   - Hide Git metadata headers and truncate long hunk output to keep the terminal readable.
+- Browse:
+  - Keep `src/cr/cli.py` as the command parser and delegate interactive browse execution to `src/cr/browser.py`.
+  - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, mode, and filter query.
+  - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
+  - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.
+  - Preserve non-TTY line mode for tests, pipes, and terminals where raw-key mode is unavailable.
 - File tree:
   - Build a display-only path tree from changed file paths.
   - Add counts and code-symbol annotations only on leaves.
@@ -134,3 +147,4 @@ Implement a lightweight terminal-first code reading tool named `cr`.
 - Unit tests cover `--seen PATH` state markers and `--remaining` filtering in terminal, JSON, and prompt output.
 - Unit tests cover old/new line-numbered hunk rendering.
 - Unit tests cover the packaged `cr` console script entry point.
+- Unit tests cover interactive browser filtering, fixed-screen redraw rendering, and non-TTY filtered selection.

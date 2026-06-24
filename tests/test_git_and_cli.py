@@ -9,8 +9,14 @@ from unittest.mock import patch
 from contextlib import redirect_stdout
 from io import StringIO
 
+from cr.browser import (
+    BrowserState,
+    _draw_browse_screen,
+    _open_command,
+    filter_changes_by_query,
+)
 from cr.git import FileChange
-from cr.cli import _draw_browse_screen, _format_counts, _open_command
+from cr.cli import _format_counts
 from cr.terminal import TerminalStyle
 
 
@@ -44,7 +50,7 @@ class CliTests(unittest.TestCase):
         def fake_which(name):
             return f"/usr/local/bin/{name}" if name == "code" else None
 
-        with patch("cr.cli.shutil.which", side_effect=fake_which):
+        with patch("cr.browser.shutil.which", side_effect=fake_which):
             command = _open_command(Path("/tmp/Sample.ts"), 7)
 
         self.assertEqual(command, ["code", "-g", "/tmp/Sample.ts:7"])
@@ -53,8 +59,8 @@ class CliTests(unittest.TestCase):
         def fake_which(name):
             return "/usr/bin/open" if name == "open" else None
 
-        with patch("cr.cli.platform.system", return_value="Darwin"):
-            with patch("cr.cli.shutil.which", side_effect=fake_which):
+        with patch("cr.browser.platform.system", return_value="Darwin"):
+            with patch("cr.browser.shutil.which", side_effect=fake_which):
                 command = _open_command(Path("/tmp/Sample.ts"), 7)
 
         self.assertEqual(command, ["open", "/tmp/Sample.ts"])
@@ -67,18 +73,46 @@ class CliTests(unittest.TestCase):
             ref_range=None,
             link_scheme="file",
         )
-        changes = [FileChange("src/Sample.ts", 1, 1)]
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
         output = StringIO()
 
-        with patch("cr.cli.git.first_changed_line", return_value=3):
-            with patch("cr.cli.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+        with patch("cr.browser.git.first_changed_line", return_value=3):
+            with patch("cr.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
                 with redirect_stdout(output):
-                    _draw_browse_screen(changes, 0, "list", args, TerminalStyle(False))
+                    _draw_browse_screen(state, args, TerminalStyle(False))
 
         text = output.getvalue()
         self.assertTrue(text.startswith("\033[2J\033[H"))
         self.assertIn("> 1", text)
         self.assertIn("src/Sample.ts", text)
+
+    def test_browse_filter_matches_paths_and_clamps_selection(self):
+        changes = [
+            FileChange("src/pages/Home.ets", 1, 1),
+            FileChange("src/components/Button.ts", 2, 0),
+            FileChange("README.md", 1, 0),
+        ]
+        self.assertEqual(
+            [change.path for change in filter_changes_by_query(changes, "BUTTON")],
+            ["src/components/Button.ts"],
+        )
+
+        state = BrowserState(changes, selected=2)
+        state.set_filter("src/")
+        self.assertEqual(
+            [change.path for change in state.visible_changes],
+            ["src/pages/Home.ets", "src/components/Button.ts"],
+        )
+        self.assertEqual(state.selected, 0)
+
+        state.selected = 99
+        state.clamp_selection()
+        self.assertEqual(state.selected, 1)
+
+        state.set_filter("missing")
+        self.assertEqual(state.visible_changes, [])
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(state.mode, "list")
 
     def test_cli_diff_outline_and_review_in_temp_repo(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -244,6 +278,41 @@ struct SamplePage {
             self.assertIn("-export const first = 'old'", session.stdout)
             self.assertIn("+export const first = 'new'", session.stdout)
             self.assertIn("Changed files", session.stdout)
+
+    def test_cli_interactive_browser_filters_files_in_line_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "First.ts"
+            second = repo / "src" / "Second.ts"
+            first.parent.mkdir(parents=True)
+            first.write_text("export const first = 'old'\n", encoding="utf-8")
+            second.write_text("export const second = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            first.write_text("export const first = 'new'\n", encoding="utf-8")
+            second.write_text("export const second = 'new'\n", encoding="utf-8")
+
+            session = self._cr_input(
+                repo,
+                "filter First\nc\n/Second\nr\n1\nq\n",
+                "browse",
+                "--sort",
+                "path",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Filter: First (1/2 matches, c to clear)", session.stdout)
+            self.assertIn("Filter: Second (1/2 matches, c to clear)", session.stdout)
+            self.assertIn("File 1/1", session.stdout)
+            self.assertIn("Second.ts", session.stdout)
+            self.assertIn("-export const second = 'old'", session.stdout)
+            self.assertIn("+export const second = 'new'", session.stdout)
 
     def test_cli_interactive_browser_can_open_current_file(self):
         with tempfile.TemporaryDirectory() as tmp:

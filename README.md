@@ -38,7 +38,8 @@ Opens an interactive review browser. This is the default entry point when you ru
 $ cr
 Interactive review
   ↑/↓ or j/k: move    Enter/→: open file   ←/b: back to list
-  o: open in editor   n/p: next/previous   r: refresh   q: quit
+  /: filter files     c: clear filter      o: open in editor
+  n/p: next/previous  r: refresh           q: quit
 
 Changed files (2 files, +7 -4)
   1  README.md           +2 -1  modified
@@ -55,7 +56,7 @@ cr:file> o
 Opened src/pages/Home.ets:11
 ```
 
-The browser mirrors the common source-control flow in editors: a changed-file list first, then a focused diff view for one file, with quick next/previous navigation. In an interactive terminal, `cr` redraws a single full-screen review area instead of appending repeated output. Use arrow keys or `j/k` to move and Enter to open the selected file. Use `r` after editing files to refresh the change list. Press `o` to open the current file in an editor. In terminals that support OSC-8 links, file paths are clickable; some terminals only open `https` links, so `o` is the reliable local-file fallback. It supports the same scope filters as `diff`, plus `--context`, `--sort`, `--untracked`, `--color`, `--links`, `--link-scheme`, and `--open-cmd`:
+The browser mirrors the common source-control flow in editors: a changed-file list first, then a focused diff view for one file, with quick next/previous navigation. In an interactive terminal, `cr` redraws a single full-screen review area instead of appending repeated output. Use arrow keys or `j/k` to move and Enter to open the selected file. Press `/` to filter the changed-file list by path, and press `c` to clear the active filter. In non-interactive line mode, use `/query`, `filter query`, or `clear`. Use `r` after editing files to refresh the change list; the active filter is preserved and selection is clamped to the refreshed list. Press `o` to open the current file in an editor. In terminals that support OSC-8 links, file paths are clickable; some terminals only open `https` links, so `o` is the reliable local-file fallback. It supports the same scope filters as `diff`, plus `--context`, `--sort`, `--untracked`, `--color`, `--links`, `--link-scheme`, and `--open-cmd`:
 
 ```bash
 cr browse --code

@@ -46,6 +46,11 @@ from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
 
 BROWSER_WORKSPACE_STATE_VERSION = 1
 BUILD_STOP_KILL_GRACE_SECONDS = 2.0
+TASK_LABELS = {
+    "build": "Build",
+    "test": "Test",
+    "lint": "Lint",
+}
 
 
 @dataclass
@@ -195,6 +200,7 @@ class TaskRecord:
 class BuildState:
     command: list[str]
     process: subprocess.Popen[bytes]
+    kind: str = "build"
     lines: list[str] = field(default_factory=list)
     last_rendered_panel: list[str] = field(default_factory=list)
     partial: str = ""
@@ -508,7 +514,21 @@ def run_browser(args: argparse.Namespace) -> int:
                 _start_build(state, args)
                 needs_redraw = True
             else:
-                _run_build_foreground(args)
+                _run_task_foreground(args, "build")
+            continue
+        if command in {"test", "tests"}:
+            if raw_keys:
+                _start_task(state, args, "test")
+                needs_redraw = True
+            else:
+                _run_task_foreground(args, "test")
+            continue
+        if command == "lint":
+            if raw_keys:
+                _start_task(state, args, "lint")
+                needs_redraw = True
+            else:
+                _run_task_foreground(args, "lint")
             continue
         if command in {"stop", "cancel"}:
             _stop_build(state)
@@ -700,7 +720,7 @@ def run_browser(args: argparse.Namespace) -> int:
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, build, stop, rerun, "
-                    "staged, all, base, range, or q."
+                    "test, lint, staged, all, base, range, or q."
                 )
             )
             _show_browser_message(
@@ -1086,7 +1106,7 @@ def _build_panel_lines(
     command = " ".join(shlex.quote(part) for part in build.command)
     lines = [
         style.dim("─" * min(width, 100)),
-        f"{style.bold('Build')} {status}  {style.dim(command)}",
+        f"{style.bold(_task_label(build.kind))} {status}  {style.dim(command)}",
     ]
     if history:
         lines.append(_task_history_line(history[-3:]))
@@ -1121,6 +1141,27 @@ def _build_status(build: BuildState) -> str:
     return f"failed ({build.returncode})"
 
 
+def _task_label(kind: str) -> str:
+    return TASK_LABELS.get(kind, kind.replace("-", " ").title())
+
+
+def _task_name(kind: str) -> str:
+    return kind.replace("-", " ")
+
+
+def _missing_task_command_message(kind: str) -> str:
+    if kind == "build":
+        return (
+            "No build command configured. Set --build-cmd or CR_BUILD_CMD; "
+            "DouyinHarmony defaults to './remote buildEntry --app douyin'."
+        )
+    if kind == "test":
+        return "No test command configured. Set --test-cmd or CR_TEST_CMD."
+    if kind == "lint":
+        return "No lint command configured. Set --lint-cmd or CR_LINT_CMD."
+    return f"No {_task_name(kind)} command configured."
+
+
 def _record_completed_build(state: BrowserState) -> None:
     build = state.build
     if (
@@ -1132,7 +1173,7 @@ def _record_completed_build(state: BrowserState) -> None:
         return
     state.task_history.append(
         TaskRecord(
-            kind="build",
+            kind=build.kind,
             status=_build_status(build),
             command=build.command,
             returncode=build.returncode,
@@ -1318,7 +1359,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back to list",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/stop/rerun: repo build task",
+        "  : command prompt    build/test/lint/stop/rerun: repo tasks",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1348,11 +1389,13 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
             ),
         ),
         CommandGroup(
-            "Build task",
+            "Tasks",
             (
                 CommandEntry("build", "run configured repo build", "build"),
-                CommandEntry("stop / cancel", "stop running build", "stop"),
-                CommandEntry("rerun / rebuild", "run build again", "rerun"),
+                CommandEntry("test / tests", "run configured repo tests", "test"),
+                CommandEntry("lint", "run configured repo lint", "lint"),
+                CommandEntry("stop / cancel", "stop running task", "stop"),
+                CommandEntry("rerun / rebuild", "run recent task again", "rerun"),
             ),
         ),
         CommandGroup(
@@ -2213,17 +2256,25 @@ def _read_raw_key(timeout: float | None = None) -> str:
 
 
 def _start_build(state: BrowserState, args: argparse.Namespace) -> None:
+    _start_task(state, args, "build")
+
+
+def _start_task(
+    state: BrowserState,
+    args: argparse.Namespace,
+    kind: str,
+) -> None:
     repo = git.repo_root()
-    command = _build_command(repo, args.build_cmd)
+    command = _task_command(repo, args, kind)
     if command is None:
         state.build = _failed_build_state(
             [],
-            "No build command configured. Set --build-cmd or CR_BUILD_CMD; "
-            "DouyinHarmony defaults to './remote buildEntry --app douyin'.",
+            _missing_task_command_message(kind),
+            kind,
         )
         return
     if state.build is not None and state.build.running:
-        state.build.lines.append("Build is already running.")
+        state.build.lines.append(f"{_task_label(state.build.kind)} is already running.")
         return
     try:
         process = subprocess.Popen(
@@ -2234,13 +2285,19 @@ def _start_build(state: BrowserState, args: argparse.Namespace) -> None:
             start_new_session=True,
         )
     except OSError as exc:
-        state.build = _failed_build_state(command, f"Build failed to start: {exc}")
+        label = _task_label(kind)
+        state.build = _failed_build_state(
+            command,
+            f"{label} failed to start: {exc}",
+            kind,
+        )
         return
     if process.stdout is not None:
         os.set_blocking(process.stdout.fileno(), False)
     state.build = BuildState(
         command=command,
         process=process,
+        kind=kind,
         lines=[f"started in {repo}"],
         process_group_id=process.pid,
     )
@@ -2253,61 +2310,75 @@ def _stop_build(state: BrowserState) -> None:
         state.build = BuildState(
             command=[],
             process=process,
+            kind="build",
             lines=["No build is running."],
             returncode=0,
         )
         return
     if not state.build.running:
-        state.build.lines.append("No build is running.")
+        state.build.lines.append(f"No {_task_name(state.build.kind)} is running.")
         return
     state.build.stop_requested = True
-    state.build.lines.append("Stopping build...")
+    state.build.lines.append(f"Stopping {_task_name(state.build.kind)}...")
     state.build.stop_requested_at = time.monotonic()
     if state.build.process_group_id is not None and hasattr(os, "killpg"):
         try:
             os.killpg(state.build.process_group_id, signal.SIGTERM)
             return
         except OSError as exc:
-            state.build.lines.append(f"Build process group stop failed: {exc}")
+            state.build.lines.append(
+                f"{_task_label(state.build.kind)} process group stop failed: {exc}"
+            )
     try:
         state.build.process.terminate()
     except OSError as exc:
-        state.build.lines.append(f"Build stop failed: {exc}")
+        state.build.lines.append(f"{_task_label(state.build.kind)} stop failed: {exc}")
 
 
 def _rerun_build(state: BrowserState, args: argparse.Namespace) -> None:
     if state.build is not None and state.build.running:
-        state.build.lines.append("Build is already running. Stop it before rerun.")
+        state.build.lines.append(
+            f"{_task_label(state.build.kind)} is already running. Stop it before rerun."
+        )
         return
-    _start_build(state, args)
+    kind = state.build.kind if state.build is not None else "build"
+    _start_task(state, args, kind)
 
 
 def _run_build_foreground(args: argparse.Namespace) -> None:
+    _run_task_foreground(args, "build")
+
+
+def _run_task_foreground(args: argparse.Namespace, kind: str) -> None:
     repo = git.repo_root()
-    command = _build_command(repo, args.build_cmd)
+    command = _task_command(repo, args, kind)
     if command is None:
-        print(
-            "No build command configured. Set --build-cmd or CR_BUILD_CMD; "
-            "DouyinHarmony defaults to './remote buildEntry --app douyin'."
-        )
+        print(_missing_task_command_message(kind))
         return
-    print(f"Build: {' '.join(shlex.quote(part) for part in command)}")
+    label = _task_label(kind)
+    print(f"{label}: {' '.join(shlex.quote(part) for part in command)}")
     try:
         result = subprocess.run(command, cwd=repo, check=False)
     except OSError as exc:
-        print(f"Build failed to start: {exc}")
+        print(f"{label} failed to start: {exc}")
         return
     if result.returncode == 0:
-        print("Build succeeded.")
+        print(f"{label} succeeded.")
     else:
-        print(f"Build failed with exit code {result.returncode}.")
+        print(f"{label} failed with exit code {result.returncode}.")
 
 
-def _failed_build_state(command: list[str], message: str) -> BuildState:
+def _failed_build_state(
+    command: list[str],
+    message: str,
+    kind: str = "build",
+) -> BuildState:
     process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+    process.wait()
     return BuildState(
         command=command,
         process=process,
+        kind=kind,
         lines=[message],
         returncode=1,
         start_error=message,
@@ -2328,12 +2399,13 @@ def _poll_build(build: BuildState | None) -> None:
             build.partial = ""
         build.returncode = returncode
         if build.stop_requested:
-            message = "Build stopped."
+            message = f"{_task_label(build.kind)} stopped."
         else:
+            label = _task_label(build.kind)
             message = (
-                "Build succeeded."
+                f"{label} succeeded."
                 if returncode == 0
-                else f"Build failed with exit code {returncode}."
+                else f"{label} failed with exit code {returncode}."
             )
         build.lines.append(message)
         if build.process.stdout is not None:
@@ -2353,17 +2425,23 @@ def _maybe_escalate_build_stop(build: BuildState) -> None:
         return
     build.stop_escalated = True
     if build.process_group_id is not None and hasattr(os, "killpg"):
-        build.lines.append("Build did not stop; force killing process group.")
+        build.lines.append(
+            f"{_task_label(build.kind)} did not stop; force killing process group."
+        )
         try:
             os.killpg(build.process_group_id, signal.SIGKILL)
             return
         except OSError as exc:
-            build.lines.append(f"Build process group force kill failed: {exc}")
-    build.lines.append("Build did not stop; force killing build process.")
+            build.lines.append(
+                f"{_task_label(build.kind)} process group force kill failed: {exc}"
+            )
+    build.lines.append(
+        f"{_task_label(build.kind)} did not stop; force killing {_task_name(build.kind)} process."
+    )
     try:
         build.process.kill()
     except OSError as exc:
-        build.lines.append(f"Build force kill failed: {exc}")
+        build.lines.append(f"{_task_label(build.kind)} force kill failed: {exc}")
 
 
 def _drain_build_output(build: BuildState) -> None:
@@ -2399,6 +2477,22 @@ def _build_command(repo: Path, configured: str | None = None) -> list[str] | Non
         return shlex.split(template)
     if repo.name == "DouyinHarmony" and (repo / "remote").exists():
         return ["./remote", "buildEntry", "--app", "douyin"]
+    return None
+
+
+def _task_command(
+    repo: Path,
+    args: argparse.Namespace,
+    kind: str,
+) -> list[str] | None:
+    if kind == "build":
+        return _build_command(repo, getattr(args, "build_cmd", None))
+    if kind == "test":
+        template = getattr(args, "test_cmd", None) or os.environ.get("CR_TEST_CMD")
+        return shlex.split(template) if template else None
+    if kind == "lint":
+        template = getattr(args, "lint_cmd", None) or os.environ.get("CR_LINT_CMD")
+        return shlex.split(template) if template else None
     return None
 
 

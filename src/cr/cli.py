@@ -88,6 +88,16 @@ def _build_parser() -> argparse.ArgumentParser:
             "known repo build"
         ),
     )
+    browse.add_argument(
+        "--test-cmd",
+        metavar="CMD",
+        help="command used by browse 'test'; defaults to CR_TEST_CMD",
+    )
+    browse.add_argument(
+        "--lint-cmd",
+        metavar="CMD",
+        help="command used by browse 'lint'; defaults to CR_LINT_CMD",
+    )
     browse.set_defaults(func=cmd_browse)
 
     diff = subparsers.add_parser("diff", help="show current Git diff summary")

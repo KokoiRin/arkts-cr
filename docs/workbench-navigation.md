@@ -173,9 +173,11 @@ commands -> command palette
 
 This should be done behind tests and without breaking line-mode compatibility.
 
-### P1: Task command breadth
+### P0: Task command breadth
 
-After the navigation model is visible, add more task actions such as test/lint. They should extend Task Panel, not create new product navigation layers.
+Status: implemented.
+
+`build`, `test` / `tests`, and `lint` now extend Task Panel instead of creating new product navigation layers. `stop` / `cancel` operate on the current task, and `rerun` / `rebuild` repeat the most recent task kind.
 
 ## Architecture Check Cadence
 
@@ -186,5 +188,5 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, build lifecycle, and editor handoff.
-- The next deepening opportunity is likely a `BrowserNavigation` or `ReviewWorkspace` module whose interface hides scope/list/file transitions from the render loop.
-- Do not extract it until the product hierarchy above has at least one more concrete UI feature, otherwise the seam will have only one adapter and may become shallow indirection.
+- The next deepening opportunity is likely task-state naming (`BuildState` / `_poll_build` / `_record_completed_build`) because Task Panel now covers build/test/lint while some internals still carry build-specific names.
+- After that, consider a `BrowserNavigation` or `ReviewWorkspace` module whose interface hides scope/list/file transitions from the render loop.

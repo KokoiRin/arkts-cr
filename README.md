@@ -1,6 +1,6 @@
 # cr
 
-`cr` 是一个面向代码 review 和常用仓库操作的 terminal workbench / lightweight TUI。它的长期目标是把日常 IDE 里的高频动作收进一个舒服的终端界面：看改动、切 commit、跑 build、打开编辑器，以及后续更多仓库操作。
+`cr` 是一个面向代码 review 和常用仓库操作的 terminal workbench / lightweight TUI。它的长期目标是把日常 IDE 里的高频动作收进一个舒服的终端界面：看改动、切 commit、跑 build/test/lint、打开编辑器，以及后续更多仓库操作。
 
 日常使用时不用记很多命令：进入有改动的 Git 仓库，直接运行：
 
@@ -21,7 +21,7 @@ cr
 命令提示区      cr:list> / cr:file> / cr:commits>
 ```
 
-build 运行时只允许刷新后台任务面板；主工作区仍然可以继续浏览，最底下的命令提示不会被日志挤走。raw-key 模式里的普通操作反馈会显示在上下文区，不会追加到 prompt 下面。用户打开 `:` 或 `/` 这种临时输入后，界面会回到同一个固定 frame。
+build/test/lint 运行时只允许刷新后台任务面板；主工作区仍然可以继续浏览，最底下的命令提示不会被日志挤走。raw-key 模式里的普通操作反馈会显示在上下文区，不会追加到 prompt 下面。用户打开 `:` 或 `/` 这种临时输入后，界面会回到同一个固定 frame。
 
 ## 安装
 
@@ -165,27 +165,29 @@ allfiles / show all    回到全部改动文件
 cr --open-cmd 'code -g {fileline}'
 ```
 
-运行仓库编译：
+运行仓库任务：
 
 ```text
 :
 build
 ```
 
-编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。后台日志更新只重画这个面板；如果终端尺寸或页面状态已经变化，会先恢复完整 browser frame，避免日志和用户操作互相打乱。面板会保留当前 session 最近完成的 build 结果，方便重跑后仍能看到上一轮成功、失败或停止状态。
+任务会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。后台日志更新只重画这个面板；如果终端尺寸或页面状态已经变化，会先恢复完整 browser frame，避免日志和用户操作互相打乱。面板会保留当前 session 最近完成的任务结果，方便重跑后仍能看到上一轮成功、失败或停止状态。
 
-常用 build 命令：
+常用任务命令：
 
 ```text
 : build    启动编译
-: stop     停止正在运行的编译
-: rerun    重跑编译
+: test     运行测试
+: lint     运行 lint
+: stop     停止正在运行的任务
+: rerun    重跑最近一次任务
 ```
 
-build 面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。后台 build 会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个 build 进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
+任务面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。后台任务会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个任务进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓的 build 会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置 build，用 `--test-cmd` / `CR_TEST_CMD` 配置 test，用 `--lint-cmd` / `CR_LINT_CMD` 配置 lint：
 
 ```bash
-cr --build-cmd './remote buildEntry --app douyin'
+cr --build-cmd './remote buildEntry --app douyin' --test-cmd 'npm test' --lint-cmd 'npm run lint'
 ```
 
 这些参数都作用在默认的 `cr browse` 上。一般先直接 `cr`，只有工作区很大或很乱时再加参数。

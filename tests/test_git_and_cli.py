@@ -42,6 +42,7 @@ from cr.ui.browser import (
     _start_build,
     _stop_build,
     _switch_review_scope,
+    _task_command,
     filter_changes_by_query,
     ReviewScope,
 )
@@ -110,6 +111,33 @@ class CliTests(unittest.TestCase):
                 ["./custom", "build"],
             )
 
+    def test_task_command_resolves_configured_test_and_lint_commands(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            args = argparse_namespace(
+                build_cmd="./build.sh",
+                test_cmd="npm test -- --watch=false",
+                lint_cmd="npm run lint",
+            )
+
+            self.assertEqual(_task_command(repo, args, "build"), ["./build.sh"])
+            self.assertEqual(
+                _task_command(repo, args, "test"),
+                ["npm", "test", "--", "--watch=false"],
+            )
+            self.assertEqual(
+                _task_command(repo, args, "lint"),
+                ["npm", "run", "lint"],
+            )
+
+    def test_task_command_does_not_guess_test_or_lint_commands(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
+
+            self.assertIsNone(_task_command(repo, args, "test"))
+            self.assertIsNone(_task_command(repo, args, "lint"))
+
     def test_build_panel_collects_background_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -139,6 +167,63 @@ class CliTests(unittest.TestCase):
             self.assertIn("Build succeeded.", text)
             self.assertIn("compile line 1", text)
             self.assertIn("compile line 2", text)
+
+    def test_test_task_collects_background_output_and_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            command = f"{sys.executable} -c \"print('test line')\""
+            args = argparse_namespace(
+                build_cmd=None,
+                test_cmd=command,
+                lint_cmd=None,
+            )
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                from cr.ui.browser import _start_task
+
+                _start_task(state, args, "test")
+                for _ in range(100):
+                    _poll_build(state.build)
+                    if state.build and state.build.returncode is not None:
+                        break
+                    time.sleep(0.01)
+
+            self.assertIsNotNone(state.build)
+            if state.build.returncode is None:
+                state.build.process.terminate()
+                state.build.process.wait(timeout=1)
+            self.assertEqual(state.build.returncode, 0)
+            _poll_build(state.build)
+            _record_completed_build(state)
+            lines = _build_panel_lines(state.build, TerminalStyle(False), 5)
+            text = "\n".join(lines)
+            self.assertIn("Test succeeded.", text)
+            self.assertIn("test line", text)
+            self.assertEqual(state.task_history[0].kind, "test")
+
+    def test_lint_task_without_command_shows_configuration_hint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            args = argparse_namespace(
+                build_cmd=None,
+                test_cmd=None,
+                lint_cmd=None,
+            )
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                from cr.ui.browser import _start_task
+
+                _start_task(state, args, "lint")
+
+            self.assertIsNotNone(state.build)
+            self.assertEqual(state.build.kind, "lint")
+            self.assertEqual(_build_status(state.build), "failed to start")
+            self.assertIn(
+                "No lint command configured. Set --lint-cmd or CR_LINT_CMD.",
+                state.build.lines,
+            )
 
     def test_build_panel_renders_recent_task_history(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -532,6 +617,47 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(state.build.returncode, 0)
             self.assertEqual(output.read_text(encoding="utf-8"), "run\nrun\n")
+
+    def test_rerun_repeats_recent_test_task_kind(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            script = repo / "test_task.py"
+            output = repo / "test.out"
+            script.write_text(
+                "from pathlib import Path\n"
+                "path = Path('test.out')\n"
+                "path.write_text(path.read_text() + 'test\\n' if path.exists() else 'test\\n')\n",
+                encoding="utf-8",
+            )
+            args = argparse_namespace(
+                build_cmd=None,
+                test_cmd=f"{sys.executable} {script}",
+                lint_cmd=None,
+            )
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                from cr.ui.browser import _start_task
+
+                _start_task(state, args, "test")
+                for _ in range(100):
+                    _poll_build(state.build)
+                    if state.build and state.build.returncode is not None:
+                        break
+                    time.sleep(0.01)
+                self.assertEqual(state.build.kind, "test")
+                self.assertEqual(state.build.returncode, 0)
+
+                _rerun_build(state, args)
+                self.assertEqual(state.build.kind, "test")
+                for _ in range(100):
+                    _poll_build(state.build)
+                    if state.build and state.build.returncode is not None:
+                        break
+                    time.sleep(0.01)
+
+            self.assertEqual(state.build.returncode, 0)
+            self.assertEqual(output.read_text(encoding="utf-8"), "test\ntest\n")
 
     def test_build_rerun_keeps_previous_task_history(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1555,7 +1681,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Commands", text)
         self.assertIn("Navigation", text)
         self.assertIn("Review scope", text)
-        self.assertIn("Build task", text)
+        self.assertIn("Tasks", text)
         self.assertIn("Files", text)
         self.assertIn("Session", text)
         self.assertIn("staged", text)
@@ -1566,6 +1692,8 @@ class CliTests(unittest.TestCase):
         commands = [entry.command for entry in entries]
 
         self.assertIn("build", commands)
+        self.assertIn("test", commands)
+        self.assertIn("lint", commands)
         self.assertIn("staged", commands)
         self.assertIn("remaining", commands)
         self.assertNotIn("b", commands)
@@ -1699,6 +1827,45 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         start_build.assert_called_once()
+
+    def test_browser_test_command_starts_background_test_task(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+            build_cmd=None,
+            test_cmd="echo test",
+            lint_cmd=None,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[FileChange("src/Sample.ts", 1, 1)],
+                    ):
+                        with patch("cr.ui.browser._show_commits_when_empty"):
+                            with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                with patch(
+                                    "cr.ui.browser._read_browse_command",
+                                    side_effect=["test", "q"],
+                                ):
+                                    with patch("cr.ui.browser._draw_browse_screen"):
+                                        with patch("cr.ui.browser._start_task") as start_task:
+                                            from cr.ui.browser import run_browser
+
+                                            result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        self.assertEqual(start_task.call_args.args[2], "test")
 
     def test_command_palette_back_returns_to_list_without_changing_file_selection(self):
         args = argparse_namespace(
@@ -2554,7 +2721,7 @@ struct SamplePage {
             self.assertEqual(session.returncode, 0, session.stderr)
             self.assertGreaterEqual(session.stdout.count("Commands"), 3)
             self.assertIn("Review scope", session.stdout)
-            self.assertIn("Build task", session.stdout)
+            self.assertIn("Tasks", session.stdout)
             self.assertIn("cr:commands>", session.stdout)
             self.assertIn("Changed files", session.stdout)
 
@@ -2889,6 +3056,40 @@ struct SamplePage {
             self.assertEqual(
                 Path((repo / "build.out").read_text(encoding="utf-8").strip()).resolve(),
                 repo.resolve(),
+            )
+
+    def test_cli_interactive_browser_can_run_test_command(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            test_script = repo / "test.sh"
+            test_script.write_text(
+                "#!/bin/sh\necho test ran > test.out\n",
+                encoding="utf-8",
+            )
+            os.chmod(test_script, 0o755)
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            session = self._cr_input(
+                repo,
+                "test\nq\n",
+                "browse",
+                "--test-cmd",
+                "./test.sh",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Test: ./test.sh", session.stdout)
+            self.assertIn("Test succeeded.", session.stdout)
+            self.assertEqual(
+                (repo / "test.out").read_text(encoding="utf-8").strip(),
+                "test ran",
             )
 
     def test_cli_can_emit_clickable_file_links(self):

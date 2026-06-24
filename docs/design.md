@@ -60,18 +60,18 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Shows raw-key operation feedback such as opened files, invalid selections, and unknown commands in the context/status layer instead of appending stdout below the prompt.
   - Supports in-session review-scope switching with `worktree`, `staged`, `all`, `base REF`, and `range OLD..NEW`.
   - Keeps the input prompt on the final terminal row.
-  - Shows build output in a 5-10 line bottom task panel above the prompt while the main content remains usable.
-  - Updates build output by repainting only the task panel when the user is idle.
-  - Lets users stop a running build with `stop` / `cancel` and rerun the configured build with `rerun` / `rebuild`.
-  - Distinguishes build task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
-  - Shows compact session-local task history in the background task panel, starting with completed build results.
-  - Runs interactive background builds in an isolated process group and stops the group on `stop` / `cancel`, falling back to parent-process termination if group cleanup fails.
-  - Escalates stopped builds to force-kill after a short grace period when the process group does not exit.
+  - Shows build/test/lint output in a 5-10 line bottom task panel above the prompt while the main content remains usable.
+  - Updates task output by repainting only the task panel when the user is idle.
+  - Lets users stop a running task with `stop` / `cancel` and rerun the most recent task kind with `rerun` / `rebuild`.
+  - Distinguishes task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
+  - Shows compact session-local task history in the background task panel, starting with completed build/test/lint results.
+  - Runs interactive background tasks in an isolated process group and stops the group on `stop` / `cancel`, falling back to parent-process termination if group cleanup fails.
+  - Escalates stopped tasks to force-kill after a short grace period when the process group does not exit.
   - Provides an in-session command palette via `commands`, `cmds`, or `help commands`; raw command prompt empty input or `?` opens the same palette, and `/` filters executable commands inside the palette.
   - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return one visible navigation layer, `r` to refresh, and `q` to quit.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
-  - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` from the command prompt for repo builds.
+  - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` / `test` / `lint` from the command prompt for repo tasks.
   - Persists the default browser workspace in `.git/cr/browse-state.json`, restoring scope, filter, selected file, and list/file layer unless the user passes an explicit scope or pathspec.
 
 ## Not doing
@@ -199,6 +199,6 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
 - Unit tests cover Scope Home rendering, executable scope selection, recent commit handoff, line-mode compatibility, and preserving Home key behavior.
 - Unit tests cover executable command palette entries, command selection, palette rendering, and Enter execution without accidentally opening files.
 - Unit tests cover command palette filtering, empty results, file-filter isolation, clear behavior, and filtered command execution.
-- Unit tests cover task history rendering, completed-build single recording, rerun history retention, and workspace-state exclusion.
+- Unit tests cover task history rendering, completed-task single recording, rerun history retention, test/lint task command breadth, and workspace-state exclusion.
 - Unit tests cover review workflow behavior through the CLI while review command implementation lives under `cr.review`.
 - Unit tests cover interactive browser behavior while shared review-scope facts live under `cr.review.changes`.

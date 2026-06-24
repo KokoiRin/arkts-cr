@@ -145,9 +145,10 @@ allfiles / show all    回到全部改动文件
 note TEXT              给当前文件写一条 review 备注
 note                   清除当前文件的 review 备注
 notes                  汇总当前 workspace 的 review 备注
+copy notes             复制当前 review 备注汇总
 ```
 
-文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。有备注的文件行会显示 `note` 标记；单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`，并在有备注时显示完整 `note: ...`。`notes` 会按当前 changed-file 顺序汇总备注，并把不在当前变更里的持久化备注追加到末尾。
+文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。有备注的文件行会显示 `note` 标记；单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`，并在有备注时显示完整 `note: ...`。`notes` 会按当前 changed-file 顺序汇总备注，并把不在当前变更里的持久化备注追加到末尾。`copy notes` / `notes copy` 会复制同一份汇总文本，方便贴到聊天、AI prompt 或 PR comment。
 
 切换 review scope：
 
@@ -175,7 +176,7 @@ cr --open-cmd 'code -g {fileline}'
 cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 ```
 
-`copy path` / `copy anchor` 会把复制文本传给 copy 命令的 stdin，也支持 `{text}` 占位。`reveal` 支持 `{file}` 和 `{dir}` 占位。对应环境变量是 `CR_COPY_CMD` 和 `CR_REVEAL_CMD`。
+`copy path` / `copy anchor` / `copy notes` 会把复制文本传给 copy 命令的 stdin，也支持 `{text}` 占位。`reveal` 支持 `{file}` 和 `{dir}` 占位。对应环境变量是 `CR_COPY_CMD` 和 `CR_REVEAL_CMD`。
 如果文件动作失败，错误信息会带上当前使用的是 CLI、环境变量、平台 fallback 还是 missing；也可以在浏览器里输入 `: file actions` 主动查看 `open` / `copy` / `reveal` 的解析来源。
 
 常用文件动作：

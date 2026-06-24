@@ -434,6 +434,10 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to copy.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_REVIEW_NOTES:
+            message = _copy_review_notes(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.REVEAL_FILE:
             visible = state.visible_changes
             if visible:
@@ -619,7 +623,7 @@ class BrowserCommandExecutor:
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
-                    "copy anchor, reveal, note, notes, tasks, build, stop, rerun, test, "
+                    "copy anchor, copy notes, reveal, note, notes, tasks, build, stop, rerun, test, "
                     "lint, staged, all, base, range, or q."
                 )
             )
@@ -893,6 +897,20 @@ def _review_note_lines(state: BrowserState) -> list[str]:
         lines.append(f"{index}. {shorten_path(path)}: {notes[path]}")
         index += 1
     return lines
+
+
+def _copy_review_notes(state: BrowserState, args: argparse.Namespace) -> str:
+    lines = _review_note_lines(state)
+    note_count = len(lines) - 1
+    if note_count == 0:
+        return "No review notes to copy."
+    message = file_actions.copy_text(
+        "\n".join(lines),
+        getattr(args, "copy_cmd", None),
+    )
+    if message:
+        return message
+    return f"Copied {note_count} review notes"
 
 
 def _file_action_diagnostic_lines(args: argparse.Namespace) -> list[str]:
@@ -1385,7 +1403,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks help    note/notes    copy/path/actions",
+        "  : command prompt    build/test/lint/tasks help    note/notes/copy notes/actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1439,6 +1457,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("open", "open selected file in editor", "open"),
                 CommandEntry("copy path", "copy selected file path", "copy path"),
                 CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
+                CommandEntry("copy notes", "copy review notes summary", "copy notes"),
                 CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
                 CommandEntry("file actions", "show open/copy/reveal command sources", "file actions"),
                 CommandEntry("note TEXT", "set selected file review note"),

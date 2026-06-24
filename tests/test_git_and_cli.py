@@ -280,6 +280,14 @@ class CliTests(unittest.TestCase):
             BrowserCommandAction.SHOW_REVIEW_NOTES,
         )
         self.assertEqual(
+            parse_browser_command("copy notes").action,
+            BrowserCommandAction.COPY_REVIEW_NOTES,
+        )
+        self.assertEqual(
+            parse_browser_command("notes copy").action,
+            BrowserCommandAction.COPY_REVIEW_NOTES,
+        )
+        self.assertEqual(
             parse_browser_command("tasks").action,
             BrowserCommandAction.SHOW_TASK_DIAGNOSTICS,
         )
@@ -746,6 +754,130 @@ class CliTests(unittest.TestCase):
         self.assertTrue(frame.dirty)
         self.assertIn("Review notes:", state.status_message)
         self.assertIn("src/First.ts: check lifecycle edge case", state.status_message)
+
+    def test_browser_command_executor_copies_review_notes(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool {text}")
+        state = BrowserState(
+            [
+                FileChange("src/Second.ts", 2, 1),
+                FileChange("src/First.ts", 1, 0),
+            ],
+            selected=1,
+            page=BrowserPage.FILE_DETAIL,
+            review_notes={
+                "src/First.ts": "first current note",
+                "src/Second.ts": "second current note",
+                "docs/Old.md": "stale follow-up",
+            },
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text", return_value=None) as copy:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy notes"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 1)
+        self.assertIsNone(state.task)
+        copy.assert_called_once_with(
+            "\n".join(
+                [
+                    "Review notes:",
+                    "1. src/Second.ts: second current note",
+                    "2. src/First.ts: first current note",
+                    "3. docs/Old.md: stale follow-up",
+                ]
+            ),
+            "copy-tool {text}",
+        )
+        self.assertIn("Copied 3 review notes", output.getvalue())
+
+    def test_browser_command_executor_does_not_copy_empty_review_notes(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd=None)
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy notes"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        copy.assert_not_called()
+        self.assertIn("No review notes to copy.", output.getvalue())
+
+    def test_browser_command_executor_reports_copy_review_notes_failures(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool {text}")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            review_notes={"src/Sample.ts": "check lifecycle edge case"},
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.file_actions.copy_text",
+            return_value="Copy failed (cli copy-tool): missing copy",
+        ):
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("notes copy"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        self.assertIn("Copy failed (cli copy-tool): missing copy", output.getvalue())
+
+    def test_browser_command_executor_copies_review_notes_in_raw_status(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd=None)
+        frame = BrowserFrame()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            review_notes={"src/Sample.ts": "check lifecycle edge case"},
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            frame,
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.copy_text", return_value=None):
+            result = executor.execute(parse_browser_command("copy notes", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertTrue(frame.dirty)
+        self.assertIn("Copied 1 review notes", state.status_message)
 
     def test_browser_command_executor_runs_forward_navigation(self):
         from cr.ui.browser import parse_browser_command
@@ -3141,6 +3273,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("tasks", commands)
         self.assertIn("tasks help", commands)
         self.assertIn("notes", commands)
+        self.assertIn("copy notes", commands)
         self.assertIn("staged", commands)
         self.assertIn("forward", commands)
         self.assertIn("remaining", commands)

@@ -20,6 +20,7 @@ from cr.ui.browser import (
     _build_status,
     _browse_command_lines,
     _command_palette_entries,
+    _filtered_command_palette_entries,
     _browse_file_lines,
     _browse_file_screen_lines,
     _browser_workspace_state_path,
@@ -929,6 +930,24 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("range OLD..NEW", commands)
         self.assertNotIn("Enter / 1..N", commands)
 
+    def test_command_palette_filter_matches_command_group_and_description(self):
+        build_state = BrowserState([], mode="commands", command_filter_text="build")
+        stage_state = BrowserState([], mode="commands", command_filter_text="scope")
+        reopen_state = BrowserState([], mode="commands", command_filter_text="editor")
+
+        self.assertIn(
+            "build",
+            [entry.command for entry in _filtered_command_palette_entries(build_state)],
+        )
+        self.assertIn(
+            "staged",
+            [entry.command for entry in _filtered_command_palette_entries(stage_state)],
+        )
+        self.assertIn(
+            "open",
+            [entry.command for entry in _filtered_command_palette_entries(reopen_state)],
+        )
+
     def test_commands_mode_selection_does_not_change_selected_file(self):
         state = BrowserState(
             [
@@ -966,6 +985,29 @@ class CliTests(unittest.TestCase):
         self.assertIn("Command palette", text)
         self.assertIn("Enter: run selected command", text)
         self.assertIn("> ", text)
+
+    def test_command_palette_screen_shows_filter_and_empty_results(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            mode="commands",
+            command_filter_text="zz-missing",
+        )
+        output = StringIO()
+
+        with redirect_stdout(output):
+            _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("Filter: zz-missing", text)
+        self.assertIn("No matching commands.", text)
+        self.assertNotIn("run configured repo build", text)
 
     def test_command_palette_enter_executes_selected_command_not_file_open(self):
         args = argparse_namespace(
@@ -1059,6 +1101,118 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn(("commands", 1), frames)
         self.assertEqual(frames[-1], ("list", 1))
+
+    def test_command_palette_filter_prompt_does_not_change_file_filter(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+        frames: list[tuple[str, str, str]] = []
+
+        def capture_draw(state, args, style, frame=None):
+            frames.append((state.mode, state.filter_text, state.command_filter_text))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[FileChange("src/Sample.ts", 1, 1)],
+                    ):
+                        with patch("cr.ui.browser._show_commits_when_empty"):
+                            with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                with patch(
+                                    "cr.ui.browser._read_browse_command",
+                                    side_effect=[
+                                        "filter_prompt",
+                                        "commands",
+                                        "filter_prompt",
+                                        "q",
+                                    ],
+                                ):
+                                    with patch(
+                                        "cr.ui.browser._read_filter_query",
+                                        side_effect=["Sample", "build"],
+                                    ):
+                                        with patch(
+                                            "cr.ui.browser._draw_browse_screen",
+                                            side_effect=capture_draw,
+                                        ):
+                                            from cr.ui.browser import run_browser
+
+                                            result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        self.assertIn(("commands", "Sample", ""), frames)
+        self.assertEqual(frames[-1], ("commands", "Sample", "build"))
+
+    def test_command_palette_enter_executes_filtered_command(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[FileChange("src/Sample.ts", 1, 1)],
+                    ):
+                        with patch("cr.ui.browser._show_commits_when_empty"):
+                            with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                with patch(
+                                    "cr.ui.browser._read_browse_command",
+                                    side_effect=[
+                                        "commands",
+                                        "filter_prompt",
+                                        "enter",
+                                        "q",
+                                    ],
+                                ):
+                                    with patch(
+                                        "cr.ui.browser._read_filter_query",
+                                        return_value="build",
+                                    ):
+                                        with patch("cr.ui.browser._draw_browse_screen"):
+                                            with patch("cr.ui.browser._start_build") as start_build:
+                                                from cr.ui.browser import run_browser
+
+                                                result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        start_build.assert_called_once()
+
+    def test_command_palette_clear_keeps_file_filter(self):
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            mode="commands",
+            filter_text="Sample",
+            command_filter_text="build",
+            command_selected=3,
+        )
+
+        state.clear_command_filter()
+
+        self.assertEqual(state.filter_text, "Sample")
+        self.assertEqual(state.command_filter_text, "")
+        self.assertEqual(state.command_selected, 0)
 
     def test_browse_screen_only_measures_visible_list_rows(self):
         changes = [FileChange(f"src/File{index}.ts", 1, 0) for index in range(30)]

@@ -82,7 +82,7 @@ q             退出
 : commands
 ```
 
-在真实 TUI 里按 `:` 后直接回车，或输入 `?`，也会打开 command palette。可以用 `↑/↓` 或 `j/k` 选择命令，按 `Enter` 执行；按 `b` 回到文件列表。需要参数的命令，比如 `base main` 和 `range main..HEAD`，仍然通过 `:` 输入。
+在真实 TUI 里按 `:` 后直接回车，或输入 `?`，也会打开 command palette。可以用 `↑/↓` 或 `j/k` 选择命令，按 `Enter` 执行；按 `/` 搜索命令，按 `c` 清除命令搜索，按 `b` 回到文件列表。需要参数的命令，比如 `base main` 和 `range main..HEAD`，仍然通过 `:` 输入。
 
 如果终端不支持真实 TUI，`cr` 会退回行模式。行模式里可以输入：
 

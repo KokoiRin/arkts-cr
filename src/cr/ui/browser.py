@@ -67,6 +67,7 @@ class BrowserState:
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
     command_selected: int = 0
+    command_filter_text: str = ""
 
     @property
     def visible_changes(self) -> list[git.FileChange]:
@@ -79,7 +80,7 @@ class BrowserState:
         if self.mode == "commits":
             total = len(self.commits)
         elif self.mode == "commands":
-            total = len(_command_palette_entries())
+            total = len(_filtered_command_palette_entries(self))
         else:
             total = len(self.visible_changes)
         if total == 0:
@@ -110,6 +111,15 @@ class BrowserState:
 
     def clear_filter(self) -> None:
         self.set_filter("")
+
+    def set_command_filter(self, query: str) -> None:
+        self.command_filter_text = query.strip()
+        self.command_selected = 0
+        self.command_scroll = 0
+        self.clamp_selection()
+
+    def clear_command_filter(self) -> None:
+        self.set_command_filter("")
 
 
 @dataclass
@@ -299,11 +309,16 @@ def run_browser(args: argparse.Namespace) -> int:
             command = palette_command.command
 
         if command == "filter_prompt":
-            query = _read_filter_query()
+            query = _read_filter_query(
+                "command filter> " if state.mode == "commands" else "filter> "
+            )
             if raw_keys:
                 frame.dirty = True
             if query != "__interrupt__":
-                state.set_filter(query)
+                if state.mode == "commands":
+                    state.set_command_filter(query)
+                else:
+                    state.set_filter(query)
                 needs_redraw = True
             elif raw_keys:
                 needs_redraw = True
@@ -325,7 +340,10 @@ def run_browser(args: argparse.Namespace) -> int:
             needs_redraw = True
             continue
         if command in {"c", "clear"}:
-            state.clear_filter()
+            if state.mode == "commands":
+                state.clear_command_filter()
+            else:
+                state.clear_filter()
             needs_redraw = True
             continue
         if command in {"m", "seen", "done"}:
@@ -525,7 +543,7 @@ def run_browser(args: argparse.Namespace) -> int:
             if state.mode == "file":
                 state.file_scroll = _max_file_scroll(state, args, style)
             elif state.mode == "commands":
-                total = len(_command_palette_entries())
+                total = len(_filtered_command_palette_entries(state))
                 if total:
                     state.command_selected = total - 1
             else:
@@ -881,7 +899,7 @@ def _move_selection(state: BrowserState, delta: int) -> None:
     if state.mode == "commits":
         total = len(state.commits)
     elif state.mode == "commands":
-        total = len(_command_palette_entries())
+        total = len(_filtered_command_palette_entries(state))
     else:
         total = len(state.visible_changes)
     if not total:
@@ -1222,8 +1240,22 @@ def _command_palette_entries() -> list[PaletteCommand]:
     return entries
 
 
-def _selected_palette_command(state: BrowserState) -> PaletteCommand | None:
+def _filtered_command_palette_entries(state: BrowserState) -> list[PaletteCommand]:
+    query = state.command_filter_text.strip().casefold()
     entries = _command_palette_entries()
+    if not query:
+        return entries
+
+    def haystack(entry: PaletteCommand) -> str:
+        return " ".join(
+            [entry.group, entry.label, entry.command, entry.description]
+        ).casefold()
+
+    return [entry for entry in entries if query in haystack(entry)]
+
+
+def _selected_palette_command(state: BrowserState) -> PaletteCommand | None:
+    entries = _filtered_command_palette_entries(state)
     if not entries:
         return None
     state.clamp_selection()
@@ -1260,14 +1292,17 @@ def _browse_command_palette_screen_lines(
     style: TerminalStyle,
     max_lines: int,
 ) -> list[str]:
-    entries = _command_palette_entries()
+    entries = _filtered_command_palette_entries(state)
     lines = [
         style.bold("Command palette"),
-        "Enter: run selected command   b/←: back to files",
-        "",
+        "/: filter commands   c: clear filter   Enter: run selected command   b/←: back",
     ]
+    if state.command_filter_text:
+        lines.append(f"Filter: {state.command_filter_text}")
+    lines.append("")
     if not entries:
-        return [*lines, "No executable commands."][:max_lines]
+        message = "No matching commands." if state.command_filter_text else "No executable commands."
+        return [*lines, message][:max_lines]
     state.clamp_selection()
     command_width = max(len(entry.label) for entry in entries)
     row_capacity = max(1, max_lines - len(lines) - 1)
@@ -1838,9 +1873,9 @@ def _read_browse_command(
     return key
 
 
-def _read_filter_query() -> str:
+def _read_filter_query(prompt: str = "filter> ") -> str:
     try:
-        return input("filter> ").strip()
+        return input(prompt).strip()
     except (EOFError, KeyboardInterrupt):
         print()
         return "__interrupt__"

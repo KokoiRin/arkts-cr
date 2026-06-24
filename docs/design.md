@@ -60,7 +60,7 @@ Implement a terminal-first code review workbench named `cr`.
   - Distinguishes build task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
   - Runs interactive background builds in an isolated process group and stops the group on `stop` / `cancel`, falling back to parent-process termination if group cleanup fails.
   - Escalates stopped builds to force-kill after a short grace period when the process group does not exit.
-  - Provides an in-session command palette via `commands`, `cmds`, or `help commands`; raw command prompt empty input or `?` opens the same palette.
+  - Provides an in-session command palette via `commands`, `cmds`, or `help commands`; raw command prompt empty input or `?` opens the same palette, and `/` filters executable commands inside the palette.
   - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return one visible navigation layer, `r` to refresh, and `q` to quit.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
@@ -137,7 +137,7 @@ Implement a terminal-first code review workbench named `cr`.
   - Reuse `src/cr/review/changes.py` for changed-file selection, sorting, code-file detection, hunk rendering, and modified-symbol facts so `browse`, `review`, and `diff` share one implementation of review-scope rules.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, mode, and filter query.
   - Treat argparse scope fields as the source of truth for the active review scope; browser commands update those fields and reload through the shared review selection path.
-  - Treat `commands` mode as the command palette layer: raw-key users can select executable commands and run them with Enter, while parameterized commands remain available through `:` input.
+  - Treat `commands` mode as the command palette layer: raw-key users can filter/select executable commands and run them with Enter, while parameterized commands remain available through `:` input.
   - Treat browser screen layout as one module-owned concept: content height, background task height, task panel start row, and prompt row are calculated together.
   - Treat raw-key rendering as one browser frame, not independent stdout writes: full redraw records the current layout and task-panel snapshot; partial task-panel refreshes are allowed only while that frame remains valid.
   - Restore the fixed browser frame after temporary line input (`:` commands or `/` filters), so the next visual update cannot be a stale bottom-panel patch.
@@ -186,5 +186,6 @@ Implement a terminal-first code review workbench named `cr`.
 - Unit tests cover browse progress markers, remaining-only filtering, unmarking, persistence, and seen/todo rendering.
 - Unit tests cover browser frame state, safe build-panel partial refresh, stale-layout refusal, and line-input frame restoration.
 - Unit tests cover executable command palette entries, command selection, palette rendering, and Enter execution without accidentally opening files.
+- Unit tests cover command palette filtering, empty results, file-filter isolation, clear behavior, and filtered command execution.
 - Unit tests cover review workflow behavior through the CLI while review command implementation lives under `cr.review`.
 - Unit tests cover interactive browser behavior while shared review-scope facts live under `cr.review.changes`.

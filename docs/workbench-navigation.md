@@ -326,6 +326,12 @@ Status: implemented.
 
 `open`, `copy path`, `copy anchor`, `copy diff`, `save diff`, and `reveal` now operate on the selected changed file through the browser command parser, command palette, and action executor. `copy diff` copies a compact Markdown review snippet for the current file; `save diff [PATH]` writes the same snippet to disk, defaulting to `.cr/handoff/review-diff.md`; `open` remains the editor handoff to the first changed line.
 
+### P0: File Detail hunk navigation
+
+Status: implemented.
+
+`next hunk` / `]` and `prev hunk` / `[` now move within the current File Detail diff by jumping between rendered hunk headers. The command stays inside the selected file and preserves Review Scope, filters, notes, progress, and task state. `cr.ui.file_detail_navigation` owns hunk header detection and target scroll calculation, while `BrowserCommandExecutor` applies the result.
+
 ### P0: File action configuration
 
 Status: implemented.

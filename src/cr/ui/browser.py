@@ -34,6 +34,7 @@ from .commands import BrowserCommand, BrowserCommandAction, parse_browser_comman
 from . import commit_picker
 from . import command_catalog as command_catalog_module
 from .command_catalog import CommandEntry, CommandGroup, PaletteCommand
+from . import file_detail_navigation
 from . import file_actions
 from . import frame as frame_module
 from .frame import BrowserFrame, ScreenLayout
@@ -604,6 +605,14 @@ class BrowserCommandExecutor:
             else:
                 _move_selection(state, -_page_step())
             return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.NEXT_HUNK:
+            message = _jump_file_hunk(state, args, style, "next")
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.PREVIOUS_HUNK:
+            message = _jump_file_hunk(state, args, style, "previous")
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.HOME:
             if state.page == BrowserPage.FILE_DETAIL:
                 state.file_scroll = 0
@@ -670,10 +679,10 @@ class BrowserCommandExecutor:
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
-                    "copy anchor, copy diff, save diff, copy notes, copy prompt, "
-                    "save prompt, reveal, stage, unstage, note, notes, tasks, "
-                    "build, stop, rerun, test, lint, source staged, staged, all, "
-                    "base, range, or q."
+                    "copy anchor, copy diff, save diff, next hunk, prev hunk, "
+                    "copy notes, copy prompt, save prompt, reveal, stage, unstage, "
+                    "note, notes, tasks, build, stop, rerun, test, lint, "
+                    "source staged, staged, all, base, range, or q."
                 )
             )
             _show_browser_message(
@@ -1250,6 +1259,36 @@ def _scroll_file(
     state.file_scroll = max(0, min(state.file_scroll + delta, max_scroll))
 
 
+def _jump_file_hunk(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    direction: str,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to jump hunks."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to jump hunks."
+    state.clamp_selection()
+    lines = _cached_file_lines(
+        state,
+        visible[state.selected],
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    result = file_detail_navigation.jump_to_hunk(
+        lines,
+        state.file_scroll,
+        direction,
+        max_scroll=_max_file_scroll(state, args, style),
+    )
+    state.file_scroll = result.scroll
+    return result.message
+
+
 def _max_file_scroll(
     state: BrowserState,
     args: argparse.Namespace,
@@ -1752,7 +1791,7 @@ def _browse_file_screen_lines(
     end = min(len(body), start + body_capacity)
     footer = style.dim(
         f"showing {start + 1}-{end}/{len(body)}   "
-        "↑/↓ scroll   PgUp/PgDn page   b back"
+        "↑/↓ scroll   ]/[: hunk   PgUp/PgDn page   b back"
     )
     return [*header, *body[start:end], footer]
 

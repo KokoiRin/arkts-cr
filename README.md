@@ -78,7 +78,7 @@ o             用编辑器打开当前文件
 q             退出
 ```
 
-在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`n/p` 仍然用于切到下一个 / 上一个文件。
+在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`]` / `[` 会跳到下一个 / 上一个 diff hunk；`n/p` 仍然用于切到下一个 / 上一个文件。
 
 打开 command palette：
 
@@ -150,6 +150,8 @@ copy notes             复制当前 review 备注汇总
 copy notes QUERY       复制过滤后的 review 备注汇总
 copy diff              复制当前文件的轻量 diff review 片段
 save diff [PATH]       保存当前文件的轻量 diff review 片段
+next hunk / ]          跳到当前文件的下一个 diff hunk
+prev hunk / [          跳到当前文件的上一个 diff hunk
 copy prompt            复制当前可见改动的 AI review handoff
 copy prompt file       复制当前文件的 AI review handoff
 save prompt [PATH]     保存当前可见改动的 AI review handoff
@@ -195,6 +197,8 @@ cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 : copy anchor  复制当前文件 path:line review anchor
 : copy diff    复制当前文件的轻量 diff review 片段
 : save diff    保存当前文件的轻量 diff review 片段
+: next hunk    跳到当前文件的下一个 diff hunk
+: prev hunk    跳到当前文件的上一个 diff hunk
 : copy prompt  复制当前可见改动的 AI review handoff
 : copy prompt file 复制当前文件的 AI review handoff
 : save prompt  保存当前可见改动的 AI review handoff

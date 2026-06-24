@@ -69,6 +69,8 @@ class BrowserCommandAction:
     END = "end"
     ENTER = "enter"
     LEFT = "left"
+    NEXT_HUNK = "next_hunk"
+    PREVIOUS_HUNK = "previous_hunk"
     NEXT_FILE = "next_file"
     PREVIOUS_FILE = "previous_file"
     CHOOSE_NUMBER = "choose_number"
@@ -236,6 +238,10 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.ENTER)
     if command in {"left", "h"}:
         return BrowserCommand(BrowserCommandAction.LEFT)
+    if command in {"next hunk", "hunk next", "]"}:
+        return BrowserCommand(BrowserCommandAction.NEXT_HUNK)
+    if command in {"prev hunk", "previous hunk", "hunk prev", "hunk previous", "["}:
+        return BrowserCommand(BrowserCommandAction.PREVIOUS_HUNK)
     if command in {"n", "next"}:
         return BrowserCommand(BrowserCommandAction.NEXT_FILE)
     if command in {"p", "prev", "previous"}:

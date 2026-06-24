@@ -69,8 +69,8 @@ def browse_help_lines(style: TerminalStyle) -> list[str]:
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
         "  : command prompt    build/test/lint/tasks help    note/notes/copy/save/actions",
-        "  PgUp/PgDn or u/d: page    Home/End: jump",
-        "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
+        "  PgUp/PgDn or u/d: page    Home/End: jump    ]/[: next/prev hunk",
+        "  n/p: file prev/next    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
     ]
 

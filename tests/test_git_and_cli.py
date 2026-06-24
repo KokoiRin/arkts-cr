@@ -65,6 +65,7 @@ from cr.review.data import build_review_data
 from cr.review.prompt import render_prompt_handoff
 from cr.review.snippet import render_file_diff_snippet
 from cr.ui import command_catalog
+from cr.ui import file_detail_navigation
 from cr.ui import frame as frame_module
 from cr.ui import handoff as handoff_module
 from cr.ui import review_notes as review_notes_module
@@ -88,6 +89,73 @@ def argparse_namespace(**kwargs):
 
 
 class CliTests(unittest.TestCase):
+    def test_file_detail_navigation_jumps_between_hunk_headers(self):
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  purpose: ArkTS page/component SamplePage",
+            "  @@ -1,3 +1,4 @@",
+            "  -old",
+            "  +new",
+            "  context",
+            "  \033[36;1m@@ -20,2 +21,3 @@\033[0m",
+            "  +next",
+        ]
+
+        first = file_detail_navigation.jump_to_hunk(lines, 0, "next")
+        second = file_detail_navigation.jump_to_hunk(lines, first.scroll, "next")
+        previous = file_detail_navigation.jump_to_hunk(lines, second.scroll, "previous")
+
+        self.assertTrue(first.changed)
+        self.assertEqual(first.scroll, 1)
+        self.assertEqual(first.message, "Moved to hunk 1/2.")
+        self.assertTrue(second.changed)
+        self.assertEqual(second.scroll, 5)
+        self.assertEqual(second.message, "Moved to hunk 2/2.")
+        self.assertTrue(previous.changed)
+        self.assertEqual(previous.scroll, 1)
+        self.assertEqual(previous.message, "Moved to hunk 1/2.")
+
+    def test_file_detail_navigation_reports_edges_and_empty_hunks(self):
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1 +1 @@",
+            "  +new",
+        ]
+
+        first_edge = file_detail_navigation.jump_to_hunk(lines, 0, "previous")
+        last_edge = file_detail_navigation.jump_to_hunk(lines, 0, "next")
+        no_hunks = file_detail_navigation.jump_to_hunk(["File 1/1"], 3, "next")
+
+        self.assertFalse(first_edge.changed)
+        self.assertEqual(first_edge.scroll, 0)
+        self.assertEqual(first_edge.message, "Already at first hunk.")
+        self.assertFalse(last_edge.changed)
+        self.assertEqual(last_edge.scroll, 0)
+        self.assertEqual(last_edge.message, "Already at last hunk.")
+        self.assertFalse(no_hunks.changed)
+        self.assertEqual(no_hunks.scroll, 3)
+        self.assertEqual(no_hunks.message, "No diff hunks in current file.")
+
+    def test_file_detail_navigation_clamps_target_to_max_scroll(self):
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  context",
+            "  context",
+            "  @@ -50 +50 @@",
+            "  +new",
+        ]
+
+        result = file_detail_navigation.jump_to_hunk(
+            lines,
+            0,
+            "next",
+            max_scroll=1,
+        )
+
+        self.assertTrue(result.changed)
+        self.assertEqual(result.scroll, 1)
+        self.assertEqual(result.message, "Moved to hunk 1/1.")
+
     def test_handoff_module_saves_repo_relative_and_absolute_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -411,6 +479,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("Review scope", text)
         self.assertIn("copy prompt file", text)
         self.assertIn("save diff", text)
+        self.assertIn("next hunk", text)
+        self.assertIn("prev hunk", text)
         self.assertIn("save prompt file", text)
 
     def test_command_catalog_module_filters_executable_palette_entries(self):
@@ -427,6 +497,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
         self.assertIn("save diff", commands)
+        self.assertIn("next hunk", commands)
+        self.assertIn("prev hunk", commands)
         self.assertIn("save prompt", commands)
         self.assertIn("save prompt file", commands)
         self.assertNotIn("base REF", commands)
@@ -641,6 +713,22 @@ class CliTests(unittest.TestCase):
         save_diff_path = parse_browser_command("save diff tmp/diff.md")
         self.assertEqual(save_diff_path.action, BrowserCommandAction.SAVE_DIFF)
         self.assertEqual(save_diff_path.value, "tmp/diff.md")
+        self.assertEqual(
+            parse_browser_command("next hunk").action,
+            BrowserCommandAction.NEXT_HUNK,
+        )
+        self.assertEqual(
+            parse_browser_command("]").action,
+            BrowserCommandAction.NEXT_HUNK,
+        )
+        self.assertEqual(
+            parse_browser_command("prev hunk").action,
+            BrowserCommandAction.PREVIOUS_HUNK,
+        )
+        self.assertEqual(
+            parse_browser_command("[").action,
+            BrowserCommandAction.PREVIOUS_HUNK,
+        )
         self.assertEqual(
             parse_browser_command("reveal").action,
             BrowserCommandAction.REVEAL_FILE,
@@ -1255,6 +1343,106 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertTrue(result.needs_redraw)
         self.assertIn("Saved diff for src/Sample.ts", state.status_message)
+
+    def test_browser_command_executor_jumps_to_next_hunk_in_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=0,
+            review_notes={"src/Sample.ts": "keep note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  purpose: sample",
+            "  @@ -1 +1 @@",
+            "  +first",
+            "  context",
+            "  @@ -20 +21 @@",
+            "  +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch("cr.ui.browser._max_file_scroll", return_value=10):
+                result = executor.execute(
+                    parse_browser_command("next hunk", raw_keys=True)
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(state.file_scroll, 1)
+        self.assertEqual(state.review_notes["src/Sample.ts"], "keep note")
+        self.assertIsNotNone(state.task)
+        self.assertIn("Moved to hunk 1/2.", state.status_message)
+
+    def test_browser_command_executor_jumps_to_previous_hunk_in_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=5,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1 +1 @@",
+            "  +first",
+            "  context",
+            "  @@ -20 +21 @@",
+            "  +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch("cr.ui.browser._max_file_scroll", return_value=10):
+                result = executor.execute(parse_browser_command("[", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.file_scroll, 3)
+        self.assertIn("Moved to hunk 2/2.", state.status_message)
+
+    def test_browser_command_executor_reports_hunk_navigation_outside_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("next hunk", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertIn("Open a file detail to jump hunks.", state.status_message)
 
     def test_selected_file_actions_stage_selected_path_returns_status_message(self):
         args = argparse_namespace(
@@ -5945,6 +6133,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt", text)
         self.assertIn("copy prompt file", text)
         self.assertIn("save diff", text)
+        self.assertIn("next hunk", text)
+        self.assertIn("prev hunk", text)
         self.assertIn("save prompt", text)
         self.assertIn("save prompt file", text)
 
@@ -5967,6 +6157,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt file", commands)
         self.assertIn("copy diff", commands)
         self.assertIn("save diff", commands)
+        self.assertIn("next hunk", commands)
+        self.assertIn("prev hunk", commands)
         self.assertIn("save prompt", commands)
         self.assertIn("save prompt file", commands)
         self.assertIn("staged", commands)

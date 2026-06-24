@@ -108,6 +108,8 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("copy path", "copy selected file path", "copy path"),
                 CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
                 CommandEntry("copy diff", "copy selected file diff snippet", "copy diff"),
+                CommandEntry("next hunk", "jump to next diff hunk", "next hunk"),
+                CommandEntry("prev hunk", "jump to previous diff hunk", "prev hunk"),
                 CommandEntry("copy notes", "copy review notes summary", "copy notes"),
                 CommandEntry("copy notes QUERY", "copy filtered review notes summary"),
                 CommandEntry("copy prompt", "copy current review prompt", "copy prompt"),

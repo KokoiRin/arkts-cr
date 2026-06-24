@@ -144,7 +144,7 @@ Browser Command Dispatch
 Browser Action Execution
   current implementation:
     BrowserCommandExecutor owns parsed action execution and returns BrowserActionResult loop control
-    browser.py still owns terminal rendering, prompt input, task panel rendering, editor handoff helpers, and workspace-state file I/O
+    browser.py still owns terminal rendering, prompt input, task panel rendering, selected-file action execution, and workspace-state file I/O
 ```
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
@@ -155,8 +155,8 @@ Browser command dispatch is now explicit without changing user-visible commands.
 Browser action execution is now explicit without changing user-visible behavior. `BrowserCommandExecutor` executes parsed actions and returns `BrowserActionResult`, while `run_browser` keeps prompt input, sentinels, workspace save-on-exit, and redraw scheduling.
 Task runtime is now explicit without changing Task Panel behavior. `cr.ui.tasks` owns command resolution, process lifecycle, output capture, stop/rerun, foreground execution, and history records; `browser.py` keeps terminal layout and panel rendering.
 Task presets are now explicit as project-local defaults. `cr.ui.tasks` reads `.cr/tasks.json` for build/test/lint defaults after CLI arguments and environment variables, and before DouyinHarmony's build fallback.
-File actions are now explicit Changed Files operations. `copy path`, `copy anchor`, and `reveal` use browser command dispatch and action execution, while `cr.ui.file_actions` hides clipboard and file-browser subprocess details.
-File action configuration is now explicit. `--copy-cmd` / `CR_COPY_CMD` and `--reveal-cmd` / `CR_REVEAL_CMD` customize selected-file copy/reveal actions while preserving platform fallbacks.
+File actions are now explicit Changed Files operations. `open`, `copy path`, `copy anchor`, and `reveal` use browser command dispatch and action execution, while `cr.ui.file_actions` hides editor, clipboard, and file-browser subprocess details.
+File action configuration is now explicit. `--open-cmd` / `CR_OPEN_CMD`, `--copy-cmd` / `CR_COPY_CMD`, and `--reveal-cmd` / `CR_REVEAL_CMD` customize selected-file open/copy/reveal actions while preserving platform fallbacks.
 File action diagnostics are now explicit. `file actions` shows open/copy/reveal command sources, and failures name the source that was attempted.
 Task diagnostics are now explicit Task Runtime output. `tasks` shows build/test/lint command sources without starting a background process, and `cr.ui.tasks` owns malformed preset reporting.
 Task preset schema help is now explicit Task Runtime output. `tasks help` shows `.cr/tasks.json` format, supported build/test/lint string commands, precedence, and a compact JSON example without starting a background process.
@@ -224,7 +224,7 @@ Status: implemented.
 
 Status: implemented.
 
-`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress/note state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns terminal rendering, command dispatch, background tasks, editor handoff, and file I/O for `.git/cr/browse-state.json`.
+`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress/note state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns terminal rendering, command dispatch, background tasks, selected-file action execution, and file I/O for `.git/cr/browse-state.json`.
 
 ### P0: Command dispatch deepening
 
@@ -260,13 +260,13 @@ Status: implemented.
 
 Status: implemented.
 
-`copy path`, `copy anchor`, and `reveal` now operate on the selected changed file through the browser command parser, command palette, and action executor. `open` remains the editor handoff to the first changed line.
+`open`, `copy path`, `copy anchor`, and `reveal` now operate on the selected changed file through the browser command parser, command palette, and action executor. `open` remains the editor handoff to the first changed line.
 
 ### P0: File action configuration
 
 Status: implemented.
 
-`--copy-cmd` / `CR_COPY_CMD` and `--reveal-cmd` / `CR_REVEAL_CMD` now customize copy/reveal selected-file actions. `cr.ui.file_actions` owns template expansion, environment lookup, platform fallback, and subprocess behavior.
+`--open-cmd` / `CR_OPEN_CMD`, `--copy-cmd` / `CR_COPY_CMD`, and `--reveal-cmd` / `CR_REVEAL_CMD` customize selected-file actions. `cr.ui.file_actions` owns template expansion, environment lookup, platform fallback, and subprocess behavior for open/copy/reveal.
 
 ### P0: Editor handoff diagnostics
 
@@ -308,6 +308,6 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 
 Current architecture risk:
 
-- `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
-- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `BrowserCommandExecutor` hides action execution, and `cr.ui.tasks` hides task runtime behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, editor handoff helpers, prompt input, and persistence file I/O.
-- The next product opportunity should come from concrete usage friction around richer review-note workflows, deeper editor-action extraction, or command catalog extraction.
+- `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and persistence file I/O.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, and `cr.ui.file_actions` hides open/copy/reveal platform behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, prompt input, and persistence file I/O.
+- The next product opportunity should come from concrete usage friction around richer review-note workflows, command catalog extraction, or deeper persistence/rendering extraction.

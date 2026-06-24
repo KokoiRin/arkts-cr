@@ -151,7 +151,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat `ReviewWorkspace` as the owner of active review scope, changed-file loading, filter/progress/note state, selected file, selected commit, previous scope, and workspace-state data mapping. Browser file I/O remains at the UI edge.
   - Treat `BrowserCommand` dispatch as the owner of command text aliases, parameter parsing, numeric selections, and unknown-command fallback. `browser.py` may execute parsed actions, but it should not re-own string parsing rules.
   - Treat `BrowserCommandExecutor` as the owner of parsed action execution and loop-control results. `run_browser` should keep input prompts, sentinels, workspace save-on-exit, and render-loop scheduling, but it should not re-own every action branch.
-  - Treat `cr.ui.file_actions` as the owner of copy/reveal command templates, environment fallbacks, platform fallbacks, source diagnostics, and subprocess execution. `browser.py` passes selected-file data and configured command strings only. Open/editor handoff remains in `browser.py` until a broader editor-action extraction is justified.
+  - Treat `cr.ui.file_actions` as the owner of open/copy/reveal command templates, environment fallbacks, platform fallbacks, source diagnostics, and subprocess execution. `browser.py` passes selected-file data, first changed lines, and configured command strings only.
   - Keep `BrowserState.mode` only as a compatibility property over `BrowserState.page`, preserving older tests, line-mode assumptions, and persisted workspace `mode` values.
   - Treat argparse scope fields as the source of truth for the active review scope; browser commands update those fields and reload through the shared review selection path.
   - Treat `commands` mode as the command palette layer: raw-key users can filter/select executable commands and run them with Enter, while parameterized commands remain available through `:` input. Filtered results should rank command/label matches before group and description-only matches while preserving catalog order for ties.
@@ -214,6 +214,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
 - Unit tests cover Scope Home rendering, executable scope selection, recent commit handoff, line-mode compatibility, and preserving Home key behavior.
 - Unit tests cover executable command palette entries, command selection, palette rendering, and Enter execution without accidentally opening files.
 - Unit tests cover command palette filtering, ranked results, match counts, empty results, file-filter isolation, clear behavior, and filtered command execution.
+- Unit tests cover file action command resolution for open/copy/reveal through `cr.ui.file_actions`, plus browser selected-file action execution.
 - Unit tests cover task history rendering, completed-task single recording, rerun history retention, test/lint task command breadth, and workspace-state exclusion.
 - Unit tests cover review workflow behavior through the CLI while review command implementation lives under `cr.review`.
 - Unit tests cover interactive browser behavior while shared review-scope facts live under `cr.review.changes`.

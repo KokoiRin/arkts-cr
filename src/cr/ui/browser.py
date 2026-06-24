@@ -1,8 +1,9 @@
 """Interactive review browser for cr.
 
 This module owns browse orchestration, terminal rendering, key command mapping,
-background task display, and editor handoff. Review workspace state and page
-navigation rules live in deeper UI modules so the CLI parser can stay shallow.
+background task display, and selected-file action execution. Review workspace
+state, page navigation rules, and platform file action details live in deeper
+UI modules so the CLI parser can stay shallow.
 """
 
 from __future__ import annotations
@@ -10,13 +11,10 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, field
 import json
-import os
 from pathlib import Path
-import platform
 import select
 import shlex
 import shutil
-import subprocess
 import sys
 import time
 import termios
@@ -40,7 +38,6 @@ from ..source.purpose import describe_file
 from ..vcs import git
 from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
 from . import file_actions
-from .file_actions import FileActionCommandSource
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
@@ -902,7 +899,11 @@ def _file_action_diagnostic_lines(args: argparse.Namespace) -> list[str]:
     repo = git.repo_root()
     sample_file = repo / "{selected-file}"
     sources = [
-        _open_command_source(sample_file, 1, getattr(args, "open_cmd", None)),
+        file_actions.open_command_source(
+            sample_file,
+            1,
+            getattr(args, "open_cmd", None),
+        ),
         file_actions.copy_command_source("{text}", getattr(args, "copy_cmd", None)),
         file_actions.reveal_command_source(
             sample_file,
@@ -2387,74 +2388,10 @@ def _open_change(change: git.FileChange, args: argparse.Namespace) -> str:
         ref_range=args.ref_range,
     )
     repo_file = git.repo_path(change.path)
-    source = _open_command_source(repo_file, line, args.open_cmd)
-    command = source.command
-    if not command:
-        return (
-            "No editor opener found (missing). Set --open-cmd or CR_OPEN_CMD, "
-            "for example: --open-cmd 'code -g {fileline}'"
-        )
-    try:
-        subprocess.Popen(command)
-    except OSError as exc:
-        return f"Open failed ({file_actions.command_source_label(source)}): {exc}"
+    message = file_actions.open_path(repo_file, line, args.open_cmd)
+    if message:
+        return message
     return f"Opened {shorten_path(change.path)}{':' + str(line) if line else ''}"
-
-
-def _open_command(
-    file_path: Path,
-    line: int | None,
-    configured: str | None = None,
-) -> list[str] | None:
-    return _open_command_source(file_path, line, configured).command
-
-
-def _open_command_source(
-    file_path: Path,
-    line: int | None,
-    configured: str | None = None,
-) -> FileActionCommandSource:
-    if configured:
-        return FileActionCommandSource(
-            "open",
-            "cli",
-            _format_open_template(configured, file_path, line),
-        )
-    env = os.environ.get("CR_OPEN_CMD")
-    if env:
-        return FileActionCommandSource(
-            "open",
-            "env",
-            _format_open_template(env, file_path, line),
-        )
-    line_number = line or 1
-    for executable in ("code", "cursor"):
-        if shutil.which(executable):
-            return FileActionCommandSource(
-                "open",
-                "platform",
-                [executable, "-g", f"{file_path}:{line_number}"],
-            )
-
-    if platform.system() == "Darwin" and shutil.which("open"):
-        return FileActionCommandSource("open", "platform", ["open", str(file_path)])
-
-    return FileActionCommandSource("open", "missing")
-
-
-
-def _format_open_template(
-    template: str,
-    file_path: Path,
-    line: int | None,
-) -> list[str]:
-    line_number = line or 1
-    replacements = {
-        "file": str(file_path),
-        "line": str(line_number),
-        "fileline": f"{file_path}:{line_number}",
-    }
-    return [part.format(**replacements) for part in shlex.split(template)]
 
 
 def _link_target(

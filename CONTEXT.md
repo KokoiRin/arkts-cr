@@ -35,9 +35,9 @@ mutating browser state.
 commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
 workspace state.
-`cr.ui.file_actions` owns configured and platform fallback clipboard /
-file-browser reveal helpers and source diagnostics for browser file actions. It
-does not parse browser commands or choose the selected review file.
+`cr.ui.file_actions` owns configured and platform fallback open/copy/reveal
+helpers, subprocess launches, and source diagnostics for browser file actions.
+It does not parse browser commands or choose the selected review file.
 `cr.ui.tasks` owns Task Panel runtime behavior: task command resolution,
 command-source diagnostics, preset-format help, background process lifecycle,
 output capture, stopping, rerun, foreground run, and completion history. It
@@ -73,10 +73,10 @@ Product navigation terms:
 - `Browser Action Execution`: the internal interface that executes parsed
   browser actions and returns loop control. It does not read prompt input or
   own browser session shutdown.
-- `File Actions`: selected-file workbench operations such as `copy path`,
-  `copy anchor`, and `reveal`. They act within the current Changed Files
-  selection, support CLI/env command configuration, and do not create a new
-  review hierarchy level.
+- `File Actions`: selected-file workbench operations such as `open`,
+  `copy path`, `copy anchor`, and `reveal`. They act within the current
+  Changed Files selection, support CLI/env command configuration, and do not
+  create a new review hierarchy level.
 - `File Action Diagnostics`: source explanations for `open`, `copy`, and
   `reveal`, surfaced by `file actions` and failure messages without executing
   diagnostics commands.

@@ -14,6 +14,7 @@ from io import StringIO
 import cr.ui.browser as browser_module
 from cr.ui import input as browser_input
 from cr.ui import page_content
+from cr.ui import selected_file_actions
 from cr.ui.browser import (
     TaskState,
     BrowserActionResult,
@@ -802,6 +803,16 @@ class CliTests(unittest.TestCase):
         copy.assert_called_once_with("src/Sample.ts", "copy-tool")
         self.assertIn("Copied src/Sample.ts", output.getvalue())
 
+    def test_selected_file_actions_copy_path_returns_status_message(self):
+        with patch("cr.ui.selected_file_actions.file_actions.copy_text", return_value=None) as copy:
+            message = selected_file_actions.copy_selected_path(
+                "src/Sample.ts",
+                copy_cmd="copy-tool",
+            )
+
+        self.assertEqual(message, "Copied src/Sample.ts")
+        copy.assert_called_once_with("src/Sample.ts", "copy-tool")
+
     def test_browser_command_executor_copies_selected_anchor(self):
         from cr.ui.browser import parse_browser_command
 
@@ -838,6 +849,32 @@ class CliTests(unittest.TestCase):
         )
         copy.assert_called_once_with("src/Sample.ts:12", None)
         self.assertIn("Copied src/Sample.ts:12", output.getvalue())
+
+    def test_selected_file_actions_copy_anchor_uses_first_changed_line(self):
+        args = argparse_namespace(
+            staged=True,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+        )
+
+        with patch("cr.ui.selected_file_actions.git.first_changed_line", return_value=12) as first_line:
+            with patch("cr.ui.selected_file_actions.file_actions.copy_text", return_value=None) as copy:
+                message = selected_file_actions.copy_selected_anchor(
+                    "src/Sample.ts",
+                    args,
+                    copy_cmd=None,
+                )
+
+        self.assertEqual(message, "Copied src/Sample.ts:12")
+        first_line.assert_called_once_with(
+            "src/Sample.ts",
+            staged=True,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+        )
+        copy.assert_called_once_with("src/Sample.ts:12", None)
 
     def test_browser_command_executor_anchor_falls_back_to_path_without_line(self):
         from cr.ui.browser import parse_browser_command
@@ -1039,6 +1076,23 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(state.task)
         self.assertIn("Noted src/Second.ts", output.getvalue())
         self.assertIn("Cleared note for src/Second.ts", output.getvalue())
+
+    def test_selected_file_actions_note_updates_workspace_and_clears_file_cache(self):
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
+        state.file_line_cache["cached"] = ["old"]
+
+        message = selected_file_actions.set_selected_review_note(
+            state,
+            "check lifecycle",
+        )
+
+        self.assertEqual(message, "Noted src/Sample.ts")
+        self.assertEqual(state.review_notes, {"src/Sample.ts": "check lifecycle"})
+        self.assertEqual(
+            state.workspace.review_notes,
+            {"src/Sample.ts": "check lifecycle"},
+        )
+        self.assertEqual(state.file_line_cache, {})
 
     def test_browser_command_executor_shows_review_notes_without_navigation(self):
         from cr.ui.browser import parse_browser_command
@@ -1616,6 +1670,61 @@ class CliTests(unittest.TestCase):
             None,
         )
         self.assertIn("Copied prompt for 1 file", output.getvalue())
+
+    def test_selected_file_actions_prompt_handoff_text_uses_selected_file_only(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            context=0,
+            paths=[],
+            code=False,
+            untracked=False,
+        )
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 2, 1),
+            ],
+            selected=1,
+            review_notes={
+                "src/First.ts": "not selected",
+                "src/Second.ts": "selected note",
+            },
+        )
+
+        with patch(
+            "cr.ui.selected_file_actions.build_review_data",
+            return_value={"files": [{"path": "src/Second.ts"}]},
+        ) as build_data:
+            with patch(
+                "cr.ui.selected_file_actions.render_prompt_handoff",
+                return_value="prompt text",
+            ):
+                with patch(
+                    "cr.ui.selected_file_actions.other_change_counts",
+                    return_value={"staged": 0, "unstaged": 0},
+                ):
+                    result = selected_file_actions.prompt_handoff_text(
+                        state,
+                        args,
+                        selected_only=True,
+                    )
+
+        self.assertEqual(result, ("prompt text", 1))
+        build_data.assert_called_once_with(
+            [state.changes[1]],
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            include_hunks=True,
+            other_changes={"staged": 0, "unstaged": 0},
+            context=0,
+            seen_paths=set(),
+            review_notes={"src/Second.ts": "selected note"},
+        )
 
     def test_browser_command_executor_saves_selected_file_prompt_explicit_path(self):
         from cr.ui.browser import parse_browser_command

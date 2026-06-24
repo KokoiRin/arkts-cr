@@ -39,6 +39,7 @@ from . import handoff as handoff_module
 from . import input as input_module
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import page_content
+from . import selected_file_actions
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
@@ -345,9 +346,10 @@ class BrowserCommandExecutor:
             if visible:
                 state.clamp_selection()
                 path = visible[state.selected].path
-                message = (
-                    file_actions.copy_text(path, getattr(args, "copy_cmd", None))
-                    or f"Copied {shorten_path(path)}"
+                message = selected_file_actions.copy_selected_path(
+                    path,
+                    getattr(args, "copy_cmd", None),
+                    copy_text=file_actions.copy_text,
                 )
                 _show_browser_message(state, message, raw_keys, frame)
                 return BrowserActionResult(needs_redraw=raw_keys)
@@ -358,18 +360,12 @@ class BrowserCommandExecutor:
             if visible:
                 state.clamp_selection()
                 path = visible[state.selected].path
-                line = git.first_changed_line(
+                message = selected_file_actions.copy_selected_anchor(
                     path,
-                    staged=args.staged,
-                    all_changes=args.all_changes,
-                    base=args.base,
-                    ref_range=args.ref_range,
-                )
-                anchor = f"{path}:{line}" if line else path
-                display = f"{shorten_path(path)}:{line}" if line else shorten_path(path)
-                message = (
-                    file_actions.copy_text(anchor, getattr(args, "copy_cmd", None))
-                    or f"Copied {display}"
+                    args,
+                    getattr(args, "copy_cmd", None),
+                    first_changed_line=git.first_changed_line,
+                    copy_text=file_actions.copy_text,
                 )
                 _show_browser_message(state, message, raw_keys, frame)
                 return BrowserActionResult(needs_redraw=raw_keys)
@@ -410,10 +406,11 @@ class BrowserCommandExecutor:
             if visible:
                 state.clamp_selection()
                 path = visible[state.selected].path
-                repo_file = git.repo_path(path)
-                message = (
-                    file_actions.reveal_path(repo_file, getattr(args, "reveal_cmd", None))
-                    or f"Revealed {shorten_path(path)}"
+                message = selected_file_actions.reveal_selected_path(
+                    path,
+                    getattr(args, "reveal_cmd", None),
+                    repo_path=git.repo_path,
+                    reveal_path=file_actions.reveal_path,
                 )
                 _show_browser_message(state, message, raw_keys, frame)
                 return BrowserActionResult(needs_redraw=raw_keys)
@@ -821,21 +818,7 @@ def _unmark_selected_seen(state: BrowserState) -> None:
 
 
 def _set_selected_review_note(state: BrowserState, note: str) -> str:
-    visible = state.visible_changes
-    if not visible:
-        return "No changed file to note."
-    state.clamp_selection()
-    path = visible[state.selected].path
-    text = note.strip()
-    if text:
-        state.review_notes[path] = text
-        state._sync_to_workspace()
-        state.file_line_cache.clear()
-        return f"Noted {shorten_path(path)}"
-    state.review_notes.pop(path, None)
-    state._sync_to_workspace()
-    state.file_line_cache.clear()
-    return f"Cleared note for {shorten_path(path)}"
+    return selected_file_actions.set_selected_review_note(state, note)
 
 
 def _review_note_lines(state: BrowserState, query: str = "") -> list[str]:
@@ -901,17 +884,13 @@ def _copy_prompt_handoff(
     *,
     selected_only: bool,
 ) -> str:
-    handoff = _prompt_handoff_text(state, args, selected_only=selected_only)
-    if handoff is None:
-        if selected_only:
-            return "No changed file to copy prompt."
-        return "No changed files to copy prompt."
-    text, file_count = handoff
-    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
-    if message:
-        return message
-    suffix = "file" if file_count == 1 else "files"
-    return f"Copied prompt for {file_count} {suffix}"
+    return selected_file_actions.copy_prompt_handoff(
+        state,
+        args,
+        selected_only=selected_only,
+        copy_text=file_actions.copy_text,
+        handoff_text=_prompt_handoff_text,
+    )
 
 
 def _save_prompt_handoff(
@@ -921,22 +900,15 @@ def _save_prompt_handoff(
     *,
     selected_only: bool,
 ) -> str:
-    handoff = _prompt_handoff_text(state, args, selected_only=selected_only)
-    if handoff is None:
-        if selected_only:
-            return "No changed file to save prompt."
-        return "No changed files to save prompt."
-    text, file_count = handoff
-    result = handoff_module.save_prompt_text(
-        text,
-        git.repo_root(),
+    return selected_file_actions.save_prompt_handoff(
+        state,
+        args,
         requested_path,
         selected_only=selected_only,
+        repo_root=git.repo_root,
+        save_prompt_text=handoff_module.save_prompt_text,
+        handoff_text=_prompt_handoff_text,
     )
-    if result.error:
-        return result.error
-    suffix = "file" if file_count == 1 else "files"
-    return f"Saved prompt for {file_count} {suffix} to {result.display_path}"
 
 
 def _prompt_handoff_text(
@@ -945,32 +917,14 @@ def _prompt_handoff_text(
     *,
     selected_only: bool,
 ) -> tuple[str, int] | None:
-    visible = state.visible_changes
-    if not visible:
-        return None
-    state.clamp_selection()
-    changes = [visible[state.selected]] if selected_only else visible
-    copied_paths = {change.path for change in changes}
-    review_notes = {
-        path: note
-        for path, note in state.review_notes.items()
-        if path in copied_paths and note.strip()
-    }
-    text = render_prompt_handoff(
-        build_review_data(
-            changes,
-            staged=args.staged,
-            all_changes=args.all_changes,
-            base=args.base,
-            ref_range=args.ref_range,
-            include_hunks=True,
-            other_changes=other_change_counts(args),
-            context=args.context,
-            seen_paths=state.seen_paths,
-            review_notes=review_notes,
-        )
+    return selected_file_actions.prompt_handoff_text(
+        state,
+        args,
+        selected_only=selected_only,
+        build_data=build_review_data,
+        render_prompt=render_prompt_handoff,
+        other_counts=other_change_counts,
     )
-    return text, len(changes)
 
 
 def _file_action_diagnostic_lines(args: argparse.Namespace) -> list[str]:
@@ -1851,18 +1805,13 @@ def _task_command(
 
 
 def _open_change(change: git.FileChange, args: argparse.Namespace) -> str:
-    line = git.first_changed_line(
-        change.path,
-        staged=args.staged,
-        all_changes=args.all_changes,
-        base=args.base,
-        ref_range=args.ref_range,
+    return selected_file_actions.open_selected_change(
+        change,
+        args,
+        first_changed_line=git.first_changed_line,
+        repo_path=git.repo_path,
+        open_path=file_actions.open_path,
     )
-    repo_file = git.repo_path(change.path)
-    message = file_actions.open_path(repo_file, line, args.open_cmd)
-    if message:
-        return message
-    return f"Opened {shorten_path(change.path)}{':' + str(line) if line else ''}"
 
 
 def _link_target(

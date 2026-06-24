@@ -19,13 +19,13 @@ import sys
 import termios
 import tty
 
-from . import git
-from .hunks import render_diff_hunks
-from .outline import CODE_EXTENSIONS, modified_symbols, parse_outline
-from .purpose import describe_file
-from .risk import risk_hints
+from ..review.hunks import render_diff_hunks
+from ..review.risk import risk_hints
+from ..review.tree import format_change_summary, shorten_path
+from ..source.outline import CODE_EXTENSIONS, modified_symbols, parse_outline
+from ..source.purpose import describe_file
+from ..vcs import git
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
-from .tree import format_change_summary, shorten_path
 
 
 @dataclass

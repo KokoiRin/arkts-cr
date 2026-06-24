@@ -9,15 +9,15 @@ from unittest.mock import patch
 from contextlib import redirect_stdout
 from io import StringIO
 
-from cr.browser import (
+from cr.ui.browser import (
     BrowserState,
     _draw_browse_screen,
     _open_command,
     filter_changes_by_query,
 )
-from cr.git import FileChange
 from cr.cli import _format_counts
-from cr.terminal import TerminalStyle
+from cr.ui.terminal import TerminalStyle
+from cr.vcs.git import FileChange
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,7 +50,7 @@ class CliTests(unittest.TestCase):
         def fake_which(name):
             return f"/usr/local/bin/{name}" if name == "code" else None
 
-        with patch("cr.browser.shutil.which", side_effect=fake_which):
+        with patch("cr.ui.browser.shutil.which", side_effect=fake_which):
             command = _open_command(Path("/tmp/Sample.ts"), 7)
 
         self.assertEqual(command, ["code", "-g", "/tmp/Sample.ts:7"])
@@ -59,8 +59,8 @@ class CliTests(unittest.TestCase):
         def fake_which(name):
             return "/usr/bin/open" if name == "open" else None
 
-        with patch("cr.browser.platform.system", return_value="Darwin"):
-            with patch("cr.browser.shutil.which", side_effect=fake_which):
+        with patch("cr.ui.browser.platform.system", return_value="Darwin"):
+            with patch("cr.ui.browser.shutil.which", side_effect=fake_which):
                 command = _open_command(Path("/tmp/Sample.ts"), 7)
 
         self.assertEqual(command, ["open", "/tmp/Sample.ts"])
@@ -76,8 +76,8 @@ class CliTests(unittest.TestCase):
         state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
         output = StringIO()
 
-        with patch("cr.browser.git.first_changed_line", return_value=3):
-            with patch("cr.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+        with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+            with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
                 with redirect_stdout(output):
                     _draw_browse_screen(state, args, TerminalStyle(False))
 

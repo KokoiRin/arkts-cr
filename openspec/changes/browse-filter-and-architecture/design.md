@@ -14,7 +14,7 @@
 - 过滤条件对列表模式、文件模式、下一项/上一项、数字选择、刷新后的 selected clamp 都保持一致。
 - 在界面中展示当前过滤条件、匹配数量和清除方式。
 - 保留非 TTY 行模式，便于测试和不支持 raw key 的终端继续使用。
-- 将 browse 相关状态机、渲染、输入解释和打开编辑器逻辑迁入 `src/cr/browser.py`，让 `src/cr/cli.py` 的 browser interface 收敛为一次调用。
+- 将 browse 相关状态机、渲染、输入解释和打开编辑器逻辑迁入 `src/cr/ui/browser.py`，让 `src/cr/cli.py` 的 browser interface 收敛为一次调用。
 
 **Non-Goals:**
 
@@ -25,9 +25,9 @@
 
 ## Decisions
 
-### Decision: 用 `src/cr/browser.py` 承接交互式 browser module
+### Decision: 用 `src/cr/ui/browser.py` 承接交互式 browser module
 
-把 `cmd_browse` 背后的状态机、列表/文件渲染、raw key 读取、过滤输入和编辑器打开逻辑移到 `src/cr/browser.py`。`cli.py` 只负责创建 argparse namespace 并调用 `run_browser(args)`。
+把 `cmd_browse` 背后的状态机、列表/文件渲染、raw key 读取、过滤输入和编辑器打开逻辑移到 `src/cr/ui/browser.py`。`cli.py` 只负责创建 argparse namespace 并调用 `run_browser(args)`。
 
 这样新的 module interface 很小：CLI 调用一个函数，测试可以直接覆盖过滤和渲染 helpers。implementation 内部隐藏终端命令、selected clamp、filter query、mode 切换、refresh 后状态恢复等知识。
 
@@ -55,5 +55,5 @@
 
 - [Risk] `c` 作为清除过滤的快捷键未来可能想用于其他命令。→ Mitigation：同时保留 `clear`，并只在 browse command 层处理；如果未来冲突，可以在 OpenSpec 中迁移快捷键。
 - [Risk] raw 模式下 `/` 后的一行输入会短暂打印在底部，不是完整实时 TUI 输入框。→ Mitigation：下一帧会重绘固定区域；不引入复杂终端编辑器，先保持可靠。
-- [Risk] 从 `cli.py` 移出 browse helpers 会影响现有测试 import。→ Mitigation：测试改为导入 `cr.browser`，CLI 集成测试继续覆盖 `cr` 默认入口。
+- [Risk] 从 `cli.py` 移出 browse helpers 会影响现有测试 import。→ Mitigation：测试改为导入 `cr.ui.browser`，CLI 集成测试继续覆盖 `cr` 默认入口。
 - [Risk] 新 module 可能复制少量 review helper 知识。→ Mitigation：只移动 browse 所需 helpers，不在本次引入大范围重构；后续若 `review` 和 `browse` 共享规则继续增多，再抽取 change selection module。

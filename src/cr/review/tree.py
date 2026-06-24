@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .git import FileChange
-from .terminal import TerminalStyle
+from ..ui.terminal import TerminalStyle
+from ..vcs.git import FileChange
 
 
 DEFAULT_PATH_CONTEXT_DIRS = 3

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from .terminal import TerminalStyle
+from ..ui.terminal import TerminalStyle
 
 
 SKIP_PREFIXES = (

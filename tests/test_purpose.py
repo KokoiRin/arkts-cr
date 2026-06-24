@@ -1,7 +1,7 @@
 import unittest
 
-from cr.outline import parse_outline
-from cr.purpose import describe_file
+from cr.source.outline import parse_outline
+from cr.source.purpose import describe_file
 
 
 SAMPLE_PAGE = """\

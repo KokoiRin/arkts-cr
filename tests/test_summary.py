@@ -1,7 +1,7 @@
 import unittest
 
-from cr.git import FileChange
-from cr.summary import render_review_summary
+from cr.review.summary import render_review_summary
+from cr.vcs.git import FileChange
 
 
 class ReviewSummaryTests(unittest.TestCase):

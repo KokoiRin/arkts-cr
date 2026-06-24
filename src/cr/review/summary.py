@@ -7,9 +7,9 @@ stable, low-noise navigation aid.
 
 from __future__ import annotations
 
-from .git import FileChange
-from .terminal import TerminalStyle
 from .tree import format_change_summary, shorten_path, style_change_summary
+from ..ui.terminal import TerminalStyle
+from ..vcs.git import FileChange
 
 
 def render_review_summary(

@@ -1,6 +1,6 @@
 import unittest
 
-from cr.hunks import render_diff_hunks
+from cr.review.hunks import render_diff_hunks
 
 
 class HunkRenderTests(unittest.TestCase):

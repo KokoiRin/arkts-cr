@@ -60,6 +60,12 @@ Implement a lightweight terminal-first code reading tool named `cr`.
 ## Design
 
 - Runtime dependencies: Python standard library only.
+- Package taxonomy:
+  - `cr.vcs` owns Git subprocess adapters, diff scopes, file status, untracked files, and repository paths.
+  - `cr.source` owns lightweight source outline parsing and file-purpose hints.
+  - `cr.review` owns review data assembly and review renderers: hunks, tree, summary, risk, and prompt handoff.
+  - `cr.ui` owns terminal styling, clickable links, and interactive browser behavior.
+  - `cr.cli` should remain a shallow command parser and dispatcher; new behavior should usually enter through one of the deeper packages first.
 - CLI: `argparse` subcommands.
   - Packaging:
     - Expose `cr` from `setup.py` as a console script pointing at `cr.cli:main`.
@@ -108,7 +114,7 @@ Implement a lightweight terminal-first code reading tool named `cr`.
   - Render hunk bodies with old/new line-number columns while preserving the original `+`, `-`, and context text.
   - Hide Git metadata headers and truncate long hunk output to keep the terminal readable.
 - Browse:
-  - Keep `src/cr/cli.py` as the command parser and delegate interactive browse execution to `src/cr/browser.py`.
+  - Keep `src/cr/cli.py` as the command parser and delegate interactive browse execution to `src/cr/ui/browser.py`.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, mode, and filter query.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
   - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.

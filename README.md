@@ -233,3 +233,15 @@ PYTHONPATH=src python3 -m cr outline tests/fixtures/Sample.ets
 PYTHONPATH=src python3 -m cr review
 PYTHONPATH=src python3 -m cr review --untracked
 ```
+
+## Architecture
+
+The root `cr` package stays intentionally small. Behavior lives in four module
+groups:
+
+- `cr.vcs`: Git diff/status adapters.
+- `cr.source`: lightweight source outline and purpose hints.
+- `cr.review`: review data assembly and renderers.
+- `cr.ui`: terminal styling and interactive browser behavior.
+
+See `CONTEXT.md` and `docs/design.md` before adding new modules.

@@ -1,6 +1,6 @@
 import unittest
 
-from cr.outline import modified_symbols, parse_outline, render_outline
+from cr.source.outline import modified_symbols, parse_outline, render_outline
 
 
 SAMPLE = """\

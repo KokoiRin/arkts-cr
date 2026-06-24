@@ -1,6 +1,6 @@
 ## 1. Browse Module
 
-- [x] 1.1 新增 `src/cr/browser.py`，承接 `cr browse` 的状态机、屏幕渲染、输入读取和打开编辑器逻辑
+- [x] 1.1 新增 `src/cr/ui/browser.py`，承接 `cr browse` 的状态机、屏幕渲染、输入读取和打开编辑器逻辑
 - [x] 1.2 将 `src/cr/cli.py` 的 `cmd_browse` 收敛为调用 browser module，并移除不再属于 CLI 入口的 imports/helpers
 
 ## 2. Filtering Behavior

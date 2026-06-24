@@ -1,7 +1,7 @@
 import unittest
 
-from cr.git import FileChange
-from cr.tree import format_change_summary, render_change_tree
+from cr.review.tree import format_change_summary, render_change_tree
+from cr.vcs.git import FileChange
 
 
 class ChangeTreeTests(unittest.TestCase):

@@ -1,7 +1,7 @@
 """Command line entry points for cr.
 
-The CLI stays thin: it handles argument parsing and terminal formatting, while
-Git access and source outline parsing live in small focused modules.
+The CLI owns argument parsing and command dispatch. Domain behavior lives in
+the vcs, source, review, and ui packages so the command surface stays thin.
 """
 
 from __future__ import annotations
@@ -11,10 +11,13 @@ import json
 from pathlib import Path
 import sys
 
-from . import git
-from .browser import run_browser
-from .hunks import render_diff_hunks
-from .outline import (
+from .review.data import build_review_data
+from .review.hunks import render_diff_hunks
+from .review.prompt import render_prompt_handoff
+from .review.risk import risk_hints
+from .review.summary import render_review_summary
+from .review.tree import format_change_summary, render_change_tree, shorten_path
+from .source.outline import (
     CODE_EXTENSIONS,
     modified_symbols,
     parse_file,
@@ -22,14 +25,10 @@ from .outline import (
     render_outline,
     render_outline_body,
 )
-from .prompt import render_prompt_handoff
-from .purpose import describe_file
-from .review_data import build_review_data
-from .risk import risk_hints
-from .summary import render_review_summary
-from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
-from .tree import format_change_summary, render_change_tree
-from .tree import shorten_path
+from .source.purpose import describe_file
+from .ui.browser import run_browser
+from .ui.terminal import TerminalStyle, file_uri, make_style, vscode_uri
+from .vcs import git
 
 
 def main(argv: list[str] | None = None) -> int:

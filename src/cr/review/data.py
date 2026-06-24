@@ -6,12 +6,12 @@ dictionaries so alternate output formats can stay consistent with human output.
 
 from __future__ import annotations
 
-from . import git
 from .hunks import render_diff_hunks
-from .outline import CODE_EXTENSIONS, modified_symbols, parse_outline
-from .purpose import describe_file
 from .risk import risk_hints
 from .tree import format_change_summary
+from ..source.outline import CODE_EXTENSIONS, modified_symbols, parse_outline
+from ..source.purpose import describe_file
+from ..vcs import git
 
 
 def build_review_data(

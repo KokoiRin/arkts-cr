@@ -24,6 +24,7 @@ from ..review.tree import (
 )
 from ..source.purpose import describe_file as default_describe_file
 from ..vcs import git
+from . import commit_picker
 from .navigation import BrowserPage
 from .terminal import TerminalStyle, file_uri, vscode_uri
 
@@ -466,7 +467,7 @@ def browse_commit_lines(
             if scope_label_text
             else ["No recent commits.", ""]
         )
-    visible_commits = filter_commits_by_query(commits, filter_text)
+    visible_commits = commit_picker.filter_commits_by_query(commits, filter_text)
     if not visible_commits:
         return [
             f"Scope: {scope_label_text}" if scope_label_text else "",
@@ -496,27 +497,6 @@ def browse_commit_lines(
         )
     lines.append("")
     return lines
-
-
-def filter_commits_by_query(
-    commits: list[git.CommitSummary],
-    query: str,
-) -> list[git.CommitSummary]:
-    normalized = query.strip().casefold()
-    if not normalized:
-        return commits
-    return [
-        commit
-        for commit in commits
-        if normalized in commit_filter_text(commit).casefold()
-    ]
-
-
-def commit_filter_text(commit: git.CommitSummary) -> str:
-    return (
-        f"{commit.commit} {commit.authored_at} {commit.subject} "
-        f"{commit.files} files +{commit.added} -{commit.deleted}"
-    )
 
 
 def browse_commit_screen_lines(

@@ -38,6 +38,10 @@ Commit Picker rows and change summaries, empty states, File Detail lines, and
 page scroll window calculations. It does not read raw input, draw the Browser
 Frame, run commands, switch review scopes, persist workspace state, or execute
 file actions.
+`cr.ui.commit_picker` owns Commit Picker rules: commit search text, loaded
+commit filtering, and filtered selection helpers. It does not render terminal
+rows, parse commands, load commits from Git, draw the Browser Frame, or persist
+workspace state.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
 loading, path/source filtering, progress markers, per-file review notes,
 selected-file state, and browser workspace-state data interpretation.
@@ -111,7 +115,9 @@ Product navigation terms:
 - `Commit Picker Filter`: temporary filtering inside Recent commits, matching
   loaded commits by hash, date, subject, or displayed change summary. It is
   browser-local UI state, not Review Workspace state, and `c` clears it without
-  touching the Changed Files path filter.
+  touching the Changed Files path filter. Internally, `cr.ui.commit_picker`
+  owns the matching and filtered selection rules while Page Content owns row
+  rendering.
 - `Change Source Badges`: lightweight local Git source labels shown in Changed
   Files rows, such as `staged`, `unstaged`, and `mixed`. `cr.vcs.git` owns the
   facts; `Page Content` owns row display.

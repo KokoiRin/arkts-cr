@@ -53,6 +53,7 @@ Scope Home counts 属于这一层的临时概览：它告诉用户 Worktree、St
 Commit Picker change summary 属于 Recent commits 这个一级选择器的行元信息：它告诉用户每个 commit 大概改了几个文件、多少增删行。选中后仍然进入同一个 `commit <sha>` Review Scope。
 
 Commit Picker filter 也是一级选择器内的临时状态：它过滤当前加载的 recent commits，不改变 Changed Files 的路径/source filter，也不进入 workspace persistence。
+内部实现上，过滤文本如何匹配 commit、过滤后选中哪个 commit，归 `cr.ui.commit_picker`；行文案和空状态仍归 `cr.ui.page_content`。
 
 ### 2. Changed Files
 
@@ -158,6 +159,11 @@ Browser Action Execution
   current implementation:
     BrowserCommandExecutor owns parsed action execution and returns BrowserActionResult loop control
     cr.ui.selected_file_actions owns selected-file action workflows
+
+Commit Picker
+  current implementation:
+    cr.ui.commit_picker owns commit search text, loaded-commit filtering, and filtered selection
+    cr.ui.page_content owns Commit Picker row text, counts, empty state, and scroll-window rendering
     browser.py still owns prompt input interpretation, frame composition, and workspace startup/exit orchestration
 ```
 

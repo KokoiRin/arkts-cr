@@ -13,6 +13,7 @@ from io import StringIO
 
 import cr.ui.browser as browser_module
 from cr.ui import input as browser_input
+from cr.ui import commit_picker
 from cr.ui import page_content
 from cr.ui import selected_file_actions
 from cr.ui.browser import (
@@ -4298,6 +4299,71 @@ class CliTests(unittest.TestCase):
 
         self.assertIn("2 files, +10 -3", "\n".join(lines))
         self.assertIn("Example change", "\n".join(lines))
+
+    def test_commit_picker_filter_matches_scope_summary_fields(self):
+        commits = [
+            CommitSummary(
+                commit="abcdef1234567890",
+                parent="1234567890abcdef",
+                authored_at="2026-06-24",
+                subject="Feature login",
+                files=2,
+                added=10,
+                deleted=3,
+            ),
+            CommitSummary(
+                commit="1111111122222222",
+                parent="abcdef1234567890",
+                authored_at="2026-06-25",
+                subject="Docs only",
+                files=1,
+                added=1,
+                deleted=0,
+            ),
+        ]
+
+        self.assertEqual(commit_picker.filter_commits_by_query(commits, ""), commits)
+        self.assertEqual(
+            commit_picker.filter_commits_by_query(commits, "ABCDEF"),
+            [commits[0]],
+        )
+        self.assertEqual(
+            commit_picker.filter_commits_by_query(commits, "2026-06-25"),
+            [commits[1]],
+        )
+        self.assertEqual(
+            commit_picker.filter_commits_by_query(commits, "login"),
+            [commits[0]],
+        )
+        self.assertEqual(
+            commit_picker.filter_commits_by_query(commits, "+10 -3"),
+            [commits[0]],
+        )
+
+    def test_commit_picker_selected_commit_uses_filtered_results(self):
+        commits = [
+            CommitSummary(
+                commit="1111111111111111",
+                parent="0000000000000000",
+                authored_at="2026-06-24",
+                subject="Docs only",
+            ),
+            CommitSummary(
+                commit="abcdef1234567890",
+                parent="1234567890abcdef",
+                authored_at="2026-06-25",
+                subject="Feature login",
+            ),
+        ]
+
+        self.assertIs(
+            commit_picker.selected_commit(commits, selected=0, query="login"),
+            commits[1],
+        )
+        self.assertIsNone(
+            commit_picker.selected_commit(commits, selected=0, query="missing")
+        )
+        self.assertIsNone(commit_picker.selected_commit(commits, selected=9))
 
     def test_commit_picker_filter_shows_matches_and_count(self):
         state = BrowserState(

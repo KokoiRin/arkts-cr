@@ -31,6 +31,7 @@ from ..review.tree import shorten_path
 from ..source.purpose import describe_file
 from ..vcs import git
 from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
+from . import commit_picker
 from . import command_catalog as command_catalog_module
 from .command_catalog import CommandEntry, CommandGroup, PaletteCommand
 from . import file_actions
@@ -150,7 +151,7 @@ class BrowserState:
 
     @property
     def visible_commits(self) -> list[git.CommitSummary]:
-        return page_content.filter_commits_by_query(
+        return commit_picker.filter_commits_by_query(
             self.commits,
             self.commit_filter_text,
         )
@@ -1193,11 +1194,14 @@ def _show_commits_when_empty(state: BrowserState, args: argparse.Namespace) -> N
 
 
 def _select_commit(state: BrowserState, args: argparse.Namespace) -> str | None:
-    visible_commits = state.visible_commits
-    if not visible_commits:
-        return "No recent commits."
     state.clamp_selection()
-    commit = visible_commits[state.selected]
+    commit = commit_picker.selected_commit(
+        state.commits,
+        state.selected,
+        state.commit_filter_text,
+    )
+    if commit is None:
+        return "No recent commits."
     state._sync_to_workspace().select_commit(args, commit, loader=_load_browse_changes)
     state._sync_from_workspace()
     state.clear_render_cache()

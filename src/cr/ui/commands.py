@@ -38,6 +38,7 @@ class BrowserCommandAction:
     REVEAL_FILE = "reveal_file"
     SHOW_FILE_ACTION_DIAGNOSTICS = "show_file_action_diagnostics"
     SET_REVIEW_NOTE = "set_review_note"
+    SHOW_REVIEW_NOTES = "show_review_notes"
     SHOW_TASK_DIAGNOSTICS = "show_task_diagnostics"
     SHOW_TASK_SCHEMA_HELP = "show_task_schema_help"
     RUN_BUILD = "run_build"
@@ -136,6 +137,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
             BrowserCommandAction.SET_REVIEW_NOTE,
             command.removeprefix("note ").strip(),
         )
+    if command in {"notes", "review notes"}:
+        return BrowserCommand(BrowserCommandAction.SHOW_REVIEW_NOTES)
     if command in {"tasks help", "task help", "tasks schema", "task schema"}:
         return BrowserCommand(BrowserCommandAction.SHOW_TASK_SCHEMA_HELP)
     if command in {"tasks", "task sources"}:

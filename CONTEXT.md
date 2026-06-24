@@ -65,7 +65,8 @@ Product navigation terms:
   changed files, filter/progress/note state, selected file, selected commit,
   previous scope, and persistence data mapping for `cr browse`.
 - `Review Notes`: lightweight per-file notes inside the current Review
-  Workspace, surfaced by `note TEXT` / `note` and persisted with browse state.
+  Workspace, surfaced by `note TEXT` / `note` / `notes` and persisted with
+  browse state.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

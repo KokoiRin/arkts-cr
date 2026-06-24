@@ -45,6 +45,7 @@ from cr.ui.browser import (
     _poll_task,
     _record_completed_task,
     _read_browse_command,
+    _review_note_lines,
     _restore_browser_workspace_state,
     _rerun_task,
     _screen_layout,
@@ -271,6 +272,14 @@ class CliTests(unittest.TestCase):
         clear_note = parse_browser_command("note")
         self.assertEqual(clear_note.action, BrowserCommandAction.SET_REVIEW_NOTE)
         self.assertEqual(clear_note.value, "")
+        self.assertEqual(
+            parse_browser_command("notes").action,
+            BrowserCommandAction.SHOW_REVIEW_NOTES,
+        )
+        self.assertEqual(
+            parse_browser_command("review notes").action,
+            BrowserCommandAction.SHOW_REVIEW_NOTES,
+        )
         self.assertEqual(
             parse_browser_command("tasks").action,
             BrowserCommandAction.SHOW_TASK_DIAGNOSTICS,
@@ -631,6 +640,74 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(state.task)
         self.assertIn("Noted src/Second.ts", output.getvalue())
         self.assertIn("Cleared note for src/Second.ts", output.getvalue())
+
+    def test_browser_command_executor_shows_review_notes_without_navigation(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 2, 1),
+            ],
+            selected=1,
+            page=BrowserPage.FILE_DETAIL,
+            review_notes={
+                "src/First.ts": "check lifecycle edge case",
+                "docs/Old.md": "stale follow-up",
+            },
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with redirect_stdout(output):
+            result = executor.execute(parse_browser_command("notes"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 1)
+        self.assertIsNone(state.task)
+        text = output.getvalue()
+        self.assertIn("Review notes:", text)
+        self.assertIn("1. src/First.ts: check lifecycle edge case", text)
+        self.assertIn("2. docs/Old.md: stale follow-up", text)
+
+    def test_browser_command_executor_shows_review_notes_in_raw_status(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        frame = BrowserFrame()
+        state = BrowserState(
+            [FileChange("src/First.ts", 1, 0)],
+            selected=0,
+            page=BrowserPage.FILE_DETAIL,
+            review_notes={"src/First.ts": "check lifecycle edge case"},
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            frame,
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("notes", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 0)
+        self.assertIsNone(state.task)
+        self.assertTrue(frame.dirty)
+        self.assertIn("Review notes:", state.status_message)
+        self.assertIn("src/First.ts: check lifecycle edge case", state.status_message)
 
     def test_browser_command_executor_runs_forward_navigation(self):
         from cr.ui.browser import parse_browser_command
@@ -2994,6 +3071,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("file actions", commands)
         self.assertIn("tasks", commands)
         self.assertIn("tasks help", commands)
+        self.assertIn("notes", commands)
         self.assertIn("staged", commands)
         self.assertIn("forward", commands)
         self.assertIn("remaining", commands)
@@ -3509,6 +3587,39 @@ class CliTests(unittest.TestCase):
         self.assertIn("note", "\n".join(list_lines))
         self.assertIn("note", "\n".join(screen_lines))
         self.assertIn("note: check lifecycle edge case", "\n".join(detail_lines))
+
+    def test_review_note_lines_order_current_changes_before_extra_notes(self):
+        state = BrowserState(
+            [
+                FileChange("src/Second.ts", 2, 1),
+                FileChange("src/First.ts", 1, 0),
+            ],
+            review_notes={
+                "docs/Zed.md": "last stale note",
+                "src/First.ts": "first current note",
+                "src/Second.ts": "second current note",
+                "docs/Alpha.md": "first stale note",
+            },
+        )
+
+        lines = _review_note_lines(state)
+
+        self.assertEqual(
+            lines,
+            [
+                "Review notes:",
+                "1. src/Second.ts: second current note",
+                "2. src/First.ts: first current note",
+                "3. docs/Alpha.md: first stale note",
+                "4. docs/Zed.md: last stale note",
+            ],
+        )
+
+    def test_review_note_lines_show_empty_state(self):
+        self.assertEqual(
+            _review_note_lines(BrowserState([FileChange("src/Sample.ts", 1, 0)])),
+            ["Review notes: none"],
+        )
 
     def test_browser_workspace_state_saves_under_git_dir(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -292,6 +292,8 @@ Status: implemented.
 
 `note TEXT` now sets a lightweight per-file note for the selected changed file, and `note` clears it. Changed Files shows a compact note marker, File Detail shows the full note text, and `.git/cr/browse-state.json` persists notes with the default review workspace.
 
+`notes` summarizes the current workspace's review notes without changing the active page, selection, scope, or task state. Notes for files in the active changed-file list follow review order; persisted notes outside the active changes are still shown after that, sorted by path.
+
 ### P0: Real page stack
 
 Status: implemented.

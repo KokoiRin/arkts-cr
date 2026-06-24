@@ -462,6 +462,13 @@ class BrowserCommandExecutor:
             message = _set_selected_review_note(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SHOW_REVIEW_NOTES:
+            lines = _review_note_lines(state)
+            if raw_keys:
+                _show_browser_message(state, " | ".join(lines), raw_keys, frame)
+                return BrowserActionResult(needs_redraw=True)
+            _print_lines(lines)
+            return BrowserActionResult()
         if action == BrowserCommandAction.SHOW_TASK_DIAGNOSTICS:
             lines = task_runtime.task_diagnostic_lines(git.repo_root(), args)
             if raw_keys:
@@ -615,7 +622,7 @@ class BrowserCommandExecutor:
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
-                    "copy anchor, reveal, note, tasks, build, stop, rerun, test, "
+                    "copy anchor, reveal, note, notes, tasks, build, stop, rerun, test, "
                     "lint, staged, all, base, range, or q."
                 )
             )
@@ -867,6 +874,28 @@ def _set_selected_review_note(state: BrowserState, note: str) -> str:
     state._sync_to_workspace()
     state.file_line_cache.clear()
     return f"Cleared note for {shorten_path(path)}"
+
+
+def _review_note_lines(state: BrowserState) -> list[str]:
+    notes = {path: text.strip() for path, text in state.review_notes.items() if text.strip()}
+    if not notes:
+        return ["Review notes: none"]
+
+    lines = ["Review notes:"]
+    seen_paths: set[str] = set()
+    index = 1
+    for change in state.changes:
+        note = notes.get(change.path)
+        if note is None:
+            continue
+        lines.append(f"{index}. {shorten_path(change.path)}: {note}")
+        seen_paths.add(change.path)
+        index += 1
+
+    for path in sorted(path for path in notes if path not in seen_paths):
+        lines.append(f"{index}. {shorten_path(path)}: {notes[path]}")
+        index += 1
+    return lines
 
 
 def _file_action_diagnostic_lines(args: argparse.Namespace) -> list[str]:
@@ -1355,7 +1384,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks help    note TEXT    copy/path/actions",
+        "  : command prompt    build/test/lint/tasks help    note/notes    copy/path/actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1413,6 +1442,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("file actions", "show open/copy/reveal command sources", "file actions"),
                 CommandEntry("note TEXT", "set selected file review note"),
                 CommandEntry("note", "clear selected file review note"),
+                CommandEntry("notes", "show all review notes", "notes"),
                 CommandEntry("refresh", "reload current review scope", "refresh"),
             ),
         ),

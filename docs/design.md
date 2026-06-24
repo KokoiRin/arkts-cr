@@ -72,7 +72,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return through in-session page history, `forward` to move forward after back, `r` to refresh, and `q` to quit.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
-  - Supports lightweight per-file review notes with `note TEXT` to set a note and `note` to clear it; noted files are marked in Changed Files and shown in File Detail.
+  - Supports lightweight per-file review notes with `note TEXT` to set a note, `note` to clear it, and `notes` to summarize all current workspace notes; noted files are marked in Changed Files and shown in File Detail.
   - Shows file action source diagnostics with `file actions`, covering open/copy/reveal CLI, environment, platform fallback, or missing sources.
   - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` / `test` / `lint` from the command prompt for repo tasks.
   - Persists the default browser workspace in `.git/cr/browse-state.json`, restoring scope, filter, selected file, review notes, and list/file layer unless the user passes an explicit scope or pathspec.
@@ -165,7 +165,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat `.cr/tasks.json` as project-local task presets for `build`, `test`, and `lint`. Command resolution order is CLI argument, environment variable, project preset, DouyinHarmony build default, then missing-command feedback.
   - Treat `tasks` as a source diagnostic command, not a task runner. Treat `tasks help` as preset-format help, not a task runner. Source explanation, malformed preset reporting, and preset-format help belong in `cr.ui.tasks`.
   - Treat in-session review progress as browser workspace state: seen paths and remaining-only view belong in `BrowserState` and persist with `.git/cr/browse-state.json`.
-  - Treat in-session review notes as browser workspace state: path-keyed notes belong in `ReviewWorkspace`, are edited through `note TEXT` / `note`, and persist with `.git/cr/browse-state.json`.
+  - Treat in-session review notes as browser workspace state: path-keyed notes belong in `ReviewWorkspace`, are edited through `note TEXT` / `note`, summarized through `notes`, and persist with `.git/cr/browse-state.json`.
   - Keep progress commands simple and reversible: `m`/`seen` marks the current file, `todo`/`unseen` clears it, `remaining` filters to unreviewed files, and `allfiles` returns to the full changed-file list.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
   - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.
@@ -207,7 +207,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
 - Unit tests cover the packaged `cr` console script entry point.
 - Unit tests cover interactive browser filtering, fixed-screen redraw rendering, and non-TTY filtered selection.
 - Unit tests cover browse progress markers, remaining-only filtering, unmarking, persistence, and seen/todo rendering.
-- Unit tests cover per-file review notes, persistence, command execution, and Changed Files / File Detail rendering.
+- Unit tests cover per-file review notes, persistence, command execution, summary ordering, and Changed Files / File Detail rendering.
 - Unit tests cover browser frame state, safe build-panel partial refresh, stale-layout refusal, and line-input frame restoration.
 - Unit tests cover browser layer ownership: raw-key operation feedback stays inside the context/status layer, and dirty frames reject task-panel partial refreshes.
 - Unit tests cover product navigation breadcrumbs for Changed Files, File Detail, recent commits, selected commit scopes, and status messages.

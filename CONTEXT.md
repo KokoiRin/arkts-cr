@@ -26,6 +26,10 @@ while `cr.ui.navigation.BrowserNavigation` owns page transition rules and their
 small local state resets. `cr.ui.workspace.ReviewWorkspace` owns active review
 scope state, changed-file loading, filtering, progress markers, selected-file
 state, and browser workspace-state data interpretation.
+`cr.ui.commands` owns browser command parsing: it translates typed commands,
+key aliases, parameterized commands, numeric selections, and unknown input into
+stable product actions without executing those actions, rendering output, or
+mutating browser state.
 
 Product navigation terms:
 
@@ -45,3 +49,6 @@ Product navigation terms:
 - `Review Workspace`: the internal module that owns the current Review Scope,
   changed files, filter/progress state, selected file, selected commit, previous
   scope, and persistence data mapping for `cr browse`.
+- `Browser Command Dispatch`: the internal module that maps command text and
+  key aliases to stable browser actions. It parses intent but does not execute
+  it.

@@ -39,6 +39,7 @@ from ..review.tree import (
 )
 from ..source.purpose import describe_file
 from ..vcs import git
+from .commands import BrowserCommandAction, parse_browser_command
 from .navigation import BrowserNavigation, BrowserPage
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
 from .workspace import (
@@ -398,7 +399,9 @@ def run_browser(args: argparse.Namespace) -> int:
                 continue
             command = palette_command.command
 
-        if command == "filter_prompt":
+        parsed_command = parse_browser_command(command, raw_keys=raw_keys)
+
+        if parsed_command.action == BrowserCommandAction.FILTER_PROMPT:
             query = _read_filter_query(
                 "command filter> " if state.page == BrowserPage.COMMAND_PALETTE else "filter> "
             )
@@ -413,7 +416,7 @@ def run_browser(args: argparse.Namespace) -> int:
             elif raw_keys:
                 needs_redraw = True
             continue
-        if command == "command_prompt":
+        if parsed_command.action == BrowserCommandAction.COMMAND_PROMPT:
             command = _normalize_command_query(_read_command_query())
             if raw_keys:
                 frame.dirty = True
@@ -421,30 +424,27 @@ def run_browser(args: argparse.Namespace) -> int:
                 if raw_keys:
                     needs_redraw = True
                 continue
-        if command.startswith("/") and not raw_keys:
-            state.set_filter(command[1:])
+            parsed_command = parse_browser_command(command, raw_keys=raw_keys)
+        if parsed_command.action == BrowserCommandAction.SET_FILE_FILTER:
+            state.set_filter(parsed_command.value)
             needs_redraw = True
             continue
-        if command.startswith("filter "):
-            state.set_filter(command.removeprefix("filter "))
-            needs_redraw = True
-            continue
-        if command in {"c", "clear"}:
+        if parsed_command.action == BrowserCommandAction.CLEAR_FILTER:
             if state.page == BrowserPage.COMMAND_PALETTE:
                 state.clear_command_filter()
             else:
                 state.clear_filter()
             needs_redraw = True
             continue
-        if command in {"m", "seen", "done"}:
+        if parsed_command.action == BrowserCommandAction.MARK_SEEN:
             _mark_selected_seen(state)
             needs_redraw = True
             continue
-        if command in {"todo", "unseen", "unmark"}:
+        if parsed_command.action == BrowserCommandAction.MARK_TODO:
             _unmark_selected_seen(state)
             needs_redraw = True
             continue
-        if command == "remaining":
+        if parsed_command.action == BrowserCommandAction.SHOW_REMAINING:
             state.remaining_only = True
             BrowserNavigation.show_changed_files(state)
             state.selected = 0
@@ -452,7 +452,7 @@ def run_browser(args: argparse.Namespace) -> int:
             state.clamp_selection()
             needs_redraw = True
             continue
-        if command in {"allfiles", "show all"}:
+        if parsed_command.action == BrowserCommandAction.SHOW_ALL_FILES:
             state.remaining_only = False
             BrowserNavigation.show_changed_files(state)
             state.selected = 0
@@ -460,24 +460,24 @@ def run_browser(args: argparse.Namespace) -> int:
             state.clamp_selection()
             needs_redraw = True
             continue
-        if command in {"q", "quit", "exit"}:
+        if parsed_command.action == BrowserCommandAction.QUIT:
             _save_browser_workspace_state_on_exit(state, args, repo)
             return 0
-        if command in {BrowserPage.COMMAND_PALETTE, "cmds", "help commands"}:
+        if parsed_command.action == BrowserCommandAction.SHOW_COMMAND_PALETTE:
             BrowserNavigation.show_command_palette(state)
             needs_redraw = True
             continue
-        if command in {BrowserPage.SCOPE_HOME, "scope"}:
+        if parsed_command.action == BrowserCommandAction.SHOW_SCOPE_HOME:
             BrowserNavigation.show_scope_home(state)
             needs_redraw = True
             continue
-        if command in {"g", BrowserPage.COMMIT_PICKER, "log"}:
+        if parsed_command.action == BrowserCommandAction.SHOW_COMMITS:
             state.commits = _load_recent_commits()
             BrowserNavigation.show_commit_picker(state, clear_selected_commit=True)
             state.clamp_selection()
             needs_redraw = True
             continue
-        if command == "worktree":
+        if parsed_command.action == BrowserCommandAction.SWITCH_WORKTREE:
             _switch_review_scope(
                 state,
                 args,
@@ -485,7 +485,7 @@ def run_browser(args: argparse.Namespace) -> int:
             )
             needs_redraw = True
             continue
-        if command in {"w", "workspace"}:
+        if parsed_command.action == BrowserCommandAction.RESTORE_WORKSPACE:
             if state.previous_scope is not None:
                 _restore_previous_scope(state, args)
             else:
@@ -496,7 +496,7 @@ def run_browser(args: argparse.Namespace) -> int:
                 )
             needs_redraw = True
             continue
-        if command in {"staged", "index"}:
+        if parsed_command.action == BrowserCommandAction.SWITCH_STAGED:
             _switch_review_scope(
                 state,
                 args,
@@ -504,7 +504,7 @@ def run_browser(args: argparse.Namespace) -> int:
             )
             needs_redraw = True
             continue
-        if command == "all":
+        if parsed_command.action == BrowserCommandAction.SWITCH_ALL:
             _switch_review_scope(
                 state,
                 args,
@@ -512,8 +512,8 @@ def run_browser(args: argparse.Namespace) -> int:
             )
             needs_redraw = True
             continue
-        if command.startswith("base "):
-            ref = command.removeprefix("base ").strip()
+        if parsed_command.action == BrowserCommandAction.SWITCH_BASE:
+            ref = parsed_command.value
             if ref:
                 _switch_review_scope(
                     state,
@@ -522,8 +522,8 @@ def run_browser(args: argparse.Namespace) -> int:
                 )
                 needs_redraw = True
             continue
-        if command.startswith("range "):
-            ref_range = command.removeprefix("range ").strip()
+        if parsed_command.action == BrowserCommandAction.SWITCH_RANGE:
+            ref_range = parsed_command.value
             if ref_range:
                 _switch_review_scope(
                     state,
@@ -532,14 +532,14 @@ def run_browser(args: argparse.Namespace) -> int:
                 )
                 needs_redraw = True
             continue
-        if command in {"h", "?", "help"}:
+        if parsed_command.action == BrowserCommandAction.HELP:
             if raw_keys:
                 BrowserNavigation.show_changed_files(state)
                 needs_redraw = True
             else:
                 _print_lines(_browse_help_lines(style))
             continue
-        if command in {"o", "open"}:
+        if parsed_command.action == BrowserCommandAction.OPEN_FILE:
             visible = state.visible_changes
             if visible:
                 state.clamp_selection()
@@ -552,39 +552,39 @@ def run_browser(args: argparse.Namespace) -> int:
                 if raw_keys:
                     needs_redraw = True
             continue
-        if command in {"build", "compile"}:
+        if parsed_command.action == BrowserCommandAction.RUN_BUILD:
             if raw_keys:
                 _start_task(state, args, "build")
                 needs_redraw = True
             else:
                 _run_task_foreground(args, "build")
             continue
-        if command in {"test", "tests"}:
+        if parsed_command.action == BrowserCommandAction.RUN_TEST:
             if raw_keys:
                 _start_task(state, args, "test")
                 needs_redraw = True
             else:
                 _run_task_foreground(args, "test")
             continue
-        if command == "lint":
+        if parsed_command.action == BrowserCommandAction.RUN_LINT:
             if raw_keys:
                 _start_task(state, args, "lint")
                 needs_redraw = True
             else:
                 _run_task_foreground(args, "lint")
             continue
-        if command in {"stop", "cancel"}:
+        if parsed_command.action == BrowserCommandAction.STOP_TASK:
             _stop_task(state)
             needs_redraw = True
             continue
-        if command in {"rebuild", "rerun"}:
+        if parsed_command.action == BrowserCommandAction.RERUN_TASK:
             if raw_keys:
                 _rerun_task(state, args)
                 needs_redraw = True
             else:
                 _run_task_foreground(args, "build")
             continue
-        if command in {"r", "refresh"}:
+        if parsed_command.action == BrowserCommandAction.REFRESH:
             if state.page == BrowserPage.COMMIT_PICKER:
                 state.commits = _load_recent_commits()
                 state.commit_scroll = 0
@@ -597,42 +597,43 @@ def run_browser(args: argparse.Namespace) -> int:
             state.clamp_selection()
             needs_redraw = True
             continue
-        if command in {"s", "summary", BrowserPage.CHANGED_FILES, "ls", "b", "back"}:
-            if command in {"b", "back"}:
-                BrowserNavigation.go_back(state)
-            else:
-                BrowserNavigation.show_changed_files(state)
+        if parsed_command.action == BrowserCommandAction.SHOW_CHANGED_FILES:
+            BrowserNavigation.show_changed_files(state)
             needs_redraw = True
             continue
-        if command in {"down", "j"}:
+        if parsed_command.action == BrowserCommandAction.BACK:
+            BrowserNavigation.go_back(state)
+            needs_redraw = True
+            continue
+        if parsed_command.action == BrowserCommandAction.MOVE_DOWN:
             if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, 1, args, style)
             else:
                 _move_selection(state, 1)
             needs_redraw = True
             continue
-        if command in {"up", "k"}:
+        if parsed_command.action == BrowserCommandAction.MOVE_UP:
             if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, -1, args, style)
             else:
                 _move_selection(state, -1)
             needs_redraw = True
             continue
-        if command in {"pagedown", "space", "d"}:
+        if parsed_command.action == BrowserCommandAction.PAGE_DOWN:
             if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, _page_step(), args, style)
             else:
                 _move_selection(state, _page_step())
             needs_redraw = True
             continue
-        if command in {"pageup", "u"}:
+        if parsed_command.action == BrowserCommandAction.PAGE_UP:
             if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, -_page_step(), args, style)
             else:
                 _move_selection(state, -_page_step())
             needs_redraw = True
             continue
-        if command in {"home", "0"}:
+        if parsed_command.action == BrowserCommandAction.HOME:
             if state.page == BrowserPage.FILE_DETAIL:
                 state.file_scroll = 0
             elif state.page == BrowserPage.SCOPE_HOME:
@@ -643,7 +644,7 @@ def run_browser(args: argparse.Namespace) -> int:
                 state.selected = 0
             needs_redraw = True
             continue
-        if command in {"end", "$"}:
+        if parsed_command.action == BrowserCommandAction.END:
             if state.page == BrowserPage.FILE_DETAIL:
                 state.file_scroll = _max_file_scroll(state, args, style)
             elif state.page == BrowserPage.SCOPE_HOME:
@@ -660,7 +661,7 @@ def run_browser(args: argparse.Namespace) -> int:
                     state.selected = total - 1
             needs_redraw = True
             continue
-        if command in {"enter", "right", "l"}:
+        if parsed_command.action == BrowserCommandAction.ENTER:
             if state.page == BrowserPage.COMMIT_PICKER:
                 message = _select_commit(state, args)
                 if message:
@@ -675,25 +676,25 @@ def run_browser(args: argparse.Namespace) -> int:
                 BrowserNavigation.open_file_detail(state)
                 needs_redraw = True
             continue
-        if command in {"left", "h"}:
+        if parsed_command.action == BrowserCommandAction.LEFT:
             BrowserNavigation.go_back(state)
             needs_redraw = True
             continue
-        if command in {"n", "next"}:
+        if parsed_command.action == BrowserCommandAction.NEXT_FILE:
             visible = state.visible_changes
             if visible:
                 state.selected = min(state.selected + 1, len(visible) - 1)
                 BrowserNavigation.open_file_detail(state)
                 needs_redraw = True
             continue
-        if command in {"p", "prev", "previous"}:
+        if parsed_command.action == BrowserCommandAction.PREVIOUS_FILE:
             if state.visible_changes:
                 state.selected = max(state.selected - 1, 0)
                 BrowserNavigation.open_file_detail(state)
                 needs_redraw = True
             continue
-        if command.isdigit():
-            choice = int(command)
+        if parsed_command.action == BrowserCommandAction.CHOOSE_NUMBER:
+            choice = int(parsed_command.value)
             if state.page == BrowserPage.SCOPE_HOME:
                 total = len(_scope_home_entries())
                 if 1 <= choice <= total:
@@ -734,7 +735,7 @@ def run_browser(args: argparse.Namespace) -> int:
                 if raw_keys:
                     needs_redraw = True
             continue
-        if command:
+        if parsed_command.value:
             unknown_message = (
                 "Unknown command. Open commands for available actions."
                 if raw_keys

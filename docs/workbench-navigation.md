@@ -134,13 +134,18 @@ Browser Navigation
 Review Workspace
   current implementation:
     ReviewWorkspace owns active scope, changed files, filter/progress state, selected file, selected commit, previous scope, and workspace-state data mapping
-    browser.py still owns terminal rendering, command dispatch, task lifecycle, editor handoff, and workspace-state file I/O
+
+Browser Command Dispatch
+  current implementation:
+    BrowserCommandAction and parse_browser_command own command aliases, parameter parsing, numeric selections, and unknown fallback
+    browser.py still owns action execution, terminal rendering, task lifecycle, editor handoff, and workspace-state file I/O
 ```
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit without adding a true page stack. `BrowserNavigation` owns the current hierarchy-aware transitions such as back-to-files, open-file-detail, show-scope-home, show-command-palette, and show-commit-picker.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress state, selected file state, and workspace-state data mapping.
+Browser command dispatch is now explicit without changing user-visible commands. `BrowserCommandAction` and `parse_browser_command` map raw key aliases, line-mode commands, parameterized commands, and numeric selections to product actions before `browser.py` executes them.
 
 ## Implementation Rules
 
@@ -207,6 +212,12 @@ Status: implemented.
 
 `ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns terminal rendering, command dispatch, background tasks, editor handoff, and file I/O for `.git/cr/browse-state.json`.
 
+### P0: Command dispatch deepening
+
+Status: implemented.
+
+`BrowserCommandAction` and `parse_browser_command` now own the browser command language. The main browser loop parses command text once into product actions, then executes those actions with the existing behavior. This keeps command aliases, parameter extraction, numeric selections, raw-key slash handling, and unknown-command fallback in one place.
+
 ## Architecture Check Cadence
 
 Use the architecture skill periodically, especially before changes that touch `src/cr/ui/browser.py`, `src/cr/review/changes.py`, or workspace persistence.
@@ -216,6 +227,6 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
-- `BrowserNavigation` hides page transition rules and `ReviewWorkspace` hides active review workspace rules, but `src/cr/ui/browser.py` still owns command dispatch, rendering, task lifecycle, editor handoff, and persistence file I/O.
-- The next deepening opportunity is command dispatch: route command strings to product actions without keeping every action branch inside `run_browser`.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, and `BrowserCommandAction` hides command string parsing, but `src/cr/ui/browser.py` still owns action execution, rendering, task lifecycle, editor handoff, and persistence file I/O.
+- The next deepening opportunity is action execution: route parsed product actions to focused handlers instead of keeping every action branch inside `run_browser`.
 - A real page stack is still not implemented. Add it only when back/forward history needs behavior beyond the current product hierarchy.

@@ -17,6 +17,7 @@ from cr.ui.browser import (
     BrowserFrame,
     BrowserNavigation,
     BrowserPage,
+    BrowserCommandAction,
     BrowserState,
     ReviewWorkspace,
     TaskRecord,
@@ -171,6 +172,56 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.COMMIT_PICKER)
         self.assertIs(state.selected_commit, commit)
         self.assertEqual(state.file_scroll, 0)
+
+    def test_browser_command_parser_maps_aliases_parameters_and_unknown(self):
+        from cr.ui.browser import parse_browser_command
+
+        self.assertEqual(
+            parse_browser_command("q").action,
+            BrowserCommandAction.QUIT,
+        )
+        self.assertEqual(
+            parse_browser_command("quit").action,
+            BrowserCommandAction.QUIT,
+        )
+        self.assertEqual(
+            parse_browser_command("build").action,
+            BrowserCommandAction.RUN_BUILD,
+        )
+        self.assertEqual(
+            parse_browser_command("compile").action,
+            BrowserCommandAction.RUN_BUILD,
+        )
+
+        base = parse_browser_command("base main")
+        self.assertEqual(base.action, BrowserCommandAction.SWITCH_BASE)
+        self.assertEqual(base.value, "main")
+
+        ref_range = parse_browser_command("range main..feature")
+        self.assertEqual(ref_range.action, BrowserCommandAction.SWITCH_RANGE)
+        self.assertEqual(ref_range.value, "main..feature")
+
+        line_filter = parse_browser_command("/src/ui")
+        self.assertEqual(line_filter.action, BrowserCommandAction.SET_FILE_FILTER)
+        self.assertEqual(line_filter.value, "src/ui")
+
+        raw_slash = parse_browser_command("/src/ui", raw_keys=True)
+        self.assertEqual(raw_slash.action, BrowserCommandAction.UNKNOWN)
+
+        choice = parse_browser_command("12")
+        self.assertEqual(choice.action, BrowserCommandAction.CHOOSE_NUMBER)
+        self.assertEqual(choice.value, "12")
+
+        unknown = parse_browser_command("wat")
+        self.assertEqual(unknown.action, BrowserCommandAction.UNKNOWN)
+        self.assertEqual(unknown.value, "wat")
+
+    def test_browser_command_parser_is_used_by_main_browser_loop(self):
+        source = Path(browser_module.__file__).read_text(encoding="utf-8")
+
+        self.assertIn("parse_browser_command(command, raw_keys=raw_keys)", source)
+        self.assertNotIn('command.startswith("base ")', source)
+        self.assertNotIn('command in {"build", "compile"}', source)
 
     def test_review_workspace_loads_filters_and_switches_scope(self):
         loads: list[tuple[bool, bool, str | None, str | None, bool]] = []

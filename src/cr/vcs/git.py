@@ -23,6 +23,7 @@ class FileChange:
     deleted: int | None
     status: str = "modified"
     old_path: str | None = None
+    source: str = ""
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,7 @@ def changed_files(
     include_untracked: bool = False,
 ) -> list[FileChange]:
     statuses = _changed_statuses(paths, staged, all_changes, base, ref_range)
+    sources = _change_sources(paths, staged, all_changes, base, ref_range)
     output = _git(
         _with_paths(
             _diff_args(
@@ -93,11 +95,48 @@ def changed_files(
                 deleted=None if deleted == "-" else int(deleted),
                 status=status,
                 old_path=old_path,
+                source=sources.get(path, ""),
             )
         )
     if include_untracked and not staged and ref_range is None:
         changes.extend(_untracked_changes(paths))
     return changes
+
+
+def _change_sources(
+    paths: list[str] | None = None,
+    staged: bool = False,
+    all_changes: bool = False,
+    base: str | None = None,
+    ref_range: str | None = None,
+) -> dict[str, str]:
+    if base or ref_range:
+        return {}
+    if staged:
+        return {path: "staged" for path in _changed_names(paths, staged=True)}
+    if not all_changes:
+        return {path: "unstaged" for path in _changed_names(paths, staged=False)}
+
+    staged_paths = set(_changed_names(paths, staged=True))
+    unstaged_paths = set(_changed_names(paths, staged=False))
+    sources: dict[str, str] = {}
+    for path in staged_paths | unstaged_paths:
+        if path in staged_paths and path in unstaged_paths:
+            sources[path] = "mixed"
+        elif path in staged_paths:
+            sources[path] = "staged"
+        else:
+            sources[path] = "unstaged"
+    return sources
+
+
+def _changed_names(paths: list[str] | None = None, staged: bool = False) -> list[str]:
+    return _git(
+        _with_paths(
+            _diff_args(staged, "--name-only"),
+            paths,
+        )
+    ).stdout.splitlines()
 
 
 def _changed_statuses(

@@ -4787,6 +4787,24 @@ class CliTests(unittest.TestCase):
         self.assertEqual(rows[1].label, "   ├─ HomeModel.ets")
         self.assertEqual(rows[2].label, "   └─ HomeView.ets")
 
+    def test_page_content_changed_file_rows_show_source_badges(self):
+        change = FileChange("src/Sample.ts", 1, 1, source="mixed")
+
+        lines = page_content.browse_list_lines(
+            [change],
+            argparse_namespace(),
+            TerminalStyle(),
+            selected=0,
+            seen_paths=set(),
+            review_notes={"src/Sample.ts": "check lifecycle"},
+        )
+
+        row = "\n".join(lines)
+        self.assertIn("mixed", row)
+        self.assertIn("[ ]", row)
+        self.assertIn("modified", row)
+        self.assertIn("note", row)
+
     def test_browse_filter_matches_paths_and_clamps_selection(self):
         changes = [
             FileChange("src/pages/Home.ets", 1, 1),
@@ -6906,6 +6924,89 @@ struct SamplePage {
                 self.assertNotIn("Sample.ts", unstaged.stdout)
             finally:
                 os.chdir(previous_cwd)
+
+    def test_git_all_changes_marks_mixed_staged_and_unstaged_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "Sample.ts"
+            sample.write_text("one\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", "Sample.ts")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("two\n", encoding="utf-8")
+            self._run(repo, "git", "add", "Sample.ts")
+            sample.write_text("three\n", encoding="utf-8")
+
+            previous_cwd = Path.cwd()
+            try:
+                os.chdir(repo)
+                changes = git.changed_files(all_changes=True)
+            finally:
+                os.chdir(previous_cwd)
+
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0].path, "Sample.ts")
+        self.assertEqual(changes[0].source, "mixed")
+
+    def test_git_local_scopes_mark_staged_and_unstaged_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            staged_file = repo / "staged.ts"
+            unstaged_file = repo / "unstaged.ts"
+            staged_file.write_text("old staged\n", encoding="utf-8")
+            unstaged_file.write_text("old unstaged\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+            staged_file.write_text("new staged\n", encoding="utf-8")
+            self._run(repo, "git", "add", "staged.ts")
+            unstaged_file.write_text("new unstaged\n", encoding="utf-8")
+
+            previous_cwd = Path.cwd()
+            try:
+                os.chdir(repo)
+                staged_changes = git.changed_files(staged=True)
+                unstaged_changes = git.changed_files()
+            finally:
+                os.chdir(previous_cwd)
+
+        self.assertEqual(
+            {change.path: change.source for change in staged_changes},
+            {"staged.ts": "staged"},
+        )
+        self.assertEqual(
+            {change.path: change.source for change in unstaged_changes},
+            {"unstaged.ts": "unstaged"},
+        )
+
+    def test_git_comparison_scopes_do_not_mark_local_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "Sample.ts"
+            sample.write_text("old\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", "Sample.ts")
+            self._run(repo, "git", "commit", "-m", "base")
+            sample.write_text("new\n", encoding="utf-8")
+            self._run(repo, "git", "add", "Sample.ts")
+            self._run(repo, "git", "commit", "-m", "head")
+
+            previous_cwd = Path.cwd()
+            try:
+                os.chdir(repo)
+                changes = git.changed_files(base="HEAD~1")
+            finally:
+                os.chdir(previous_cwd)
+
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0].source, "")
 
     def test_cli_omits_untracked_binary_and_large_file_contents(self):
         with tempfile.TemporaryDirectory() as tmp:

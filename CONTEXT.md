@@ -4,7 +4,8 @@
 organized around four module groups:
 
 - `cr.vcs`: version-control adapters. This package owns Git process calls,
-  diff scopes, file status, untracked-file handling, and repository paths.
+  diff scopes, file status, local change source facts, untracked-file handling,
+  and repository paths.
 - `cr.source`: source-file intelligence. This package owns lightweight
   language-outline parsing and purpose hints derived from paths and symbols.
 - `cr.review`: review workflow, facts, and renderers. This package owns
@@ -32,10 +33,10 @@ It does not parse browser commands, mutate browser state, save workspace state,
 or draw the Browser Frame.
 `cr.ui.page_content` owns browser page main-content rendering: prompt labels,
 help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree
-rows, Commit Picker rows, empty states, File Detail lines, and page scroll
-window calculations. It does not read raw input, draw the Browser Frame, run
-commands, switch review scopes, persist workspace state, or execute file
-actions.
+rows including local change source badges, Commit Picker rows, empty states,
+File Detail lines, and page scroll window calculations. It does not read raw
+input, draw the Browser Frame, run commands, switch review scopes, persist
+workspace state, or execute file actions.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
 loading, filtering, progress markers, per-file review notes, selected-file
 state, and browser workspace-state data interpretation.
@@ -98,6 +99,9 @@ Product navigation terms:
   for Scope Home, Commit Picker, Changed Files, empty states, and File Detail.
   It owns page text and scroll-window rendering rules, while Browser Frame owns
   screen placement.
+- `Change Source Badges`: lightweight local Git source labels shown in Changed
+  Files rows, such as `staged`, `unstaged`, and `mixed`. `cr.vcs.git` owns the
+  facts; `Page Content` owns row display.
 - `Browser Navigation`: the internal module that moves between Scope Home,
   Commit Picker, Changed Files, File Detail, and Command Palette, including
   in-session back/forward page history, without loading Git data or rendering

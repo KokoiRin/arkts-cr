@@ -54,6 +54,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Renders product breadcrumbs in the context/status layer, such as `Scope: worktree > Files` and `Scope: commit abc12345 > Files > src/Foo.ets`.
   - Provides a Review Scope Home through `scopes` / `scope`, exposing worktree, staged, all local changes, recent commits, and base/range command hints as first-level scope entry points.
   - Shows a changed-file list first, then a focused per-file diff view.
+  - Shows local change source badges such as `staged`, `unstaged`, and `mixed` in Changed Files rows when the active scope is local and mutable.
   - Uses stable screen regions in interactive TTYs so navigation and background tasks do not append repeated output.
   - Renders four page layers: context/status, main content, background task panel, and input prompt.
   - Displays the active review scope in the context/status area: worktree, staged, all local changes, base ref, explicit range, recent commits, or selected commit.
@@ -131,6 +132,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
 - Review:
   - Keep `src/cr/cli.py` as the command parser and delegate `cr review` execution to `src/cr/review/workflow.py`.
   - Keep reusable review-scope facts in `src/cr/review/changes.py`: selected changes, other-side counts, first changed lines, anchors, link targets, annotations, risk hints, hunk lines, and per-file headers.
+  - Keep local Git source facts in `cr.vcs.git.FileChange.source`: `staged`, `unstaged`, and `mixed` describe where a local change currently sits relative to the index, while lifecycle status remains `modified` / `added` / `deleted` / `renamed` / `untracked`.
   - Reuse the same stats, changed-line, and outline functions as the individual commands.
   - Build structured review data before rendering alternate output formats.
   - Render a compact summary table with stable per-view indexes before tree/detail output.
@@ -156,7 +158,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat `Command Catalog` as the owner of grouped command help, executable command palette entries, filtering/ranking, and command surface row rendering. `browser.py` owns command filter/selection/scroll state and frame placement, not catalog data.
   - Treat `BrowserCommandExecutor` as the owner of parsed action execution and loop-control results. `run_browser` should keep input prompts, sentinels, workspace save-on-exit, and render-loop scheduling, but it should not re-own every action branch.
   - Treat `Browser Input` as the owner of terminal input protocol: raw-key availability, browse command reads, temporary line query reads, raw escape-sequence mapping, idle tick, EOF, and interrupt sentinels live in `cr.ui.input`. `browser.py` interprets those returned tokens and keeps frame dirty/redraw recovery, workspace save-on-exit, and product state changes.
-  - Treat `Page Content` as the owner of browser page main-content rendering: prompt labels, help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree rows, Commit Picker rows, empty states, File Detail lines, and scroll-window calculations live in `cr.ui.page_content`. `browser.py` adapts live state to those helpers and keeps frame placement, command execution, selected-file side effects, and session startup/shutdown.
+  - Treat `Page Content` as the owner of browser page main-content rendering: prompt labels, help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree rows and local change source badges, Commit Picker rows, empty states, File Detail lines, and scroll-window calculations live in `cr.ui.page_content`. `browser.py` adapts live state to those helpers and keeps frame placement, command execution, selected-file side effects, and session startup/shutdown.
   - Treat `Selected File Actions` as the owner of workflows that act on the current Changed Files selection: open, copy path, copy anchor, reveal, stage/unstage, selected-file notes, and selected/scope prompt handoff selection live in `cr.ui.selected_file_actions`. `BrowserCommandExecutor` routes parsed actions, displays returned messages, and refreshes Changed Files after successful index mutations; `cr.ui.file_actions` keeps platform subprocess details, while `cr.vcs.git` keeps Git index subprocess details.
   - Treat `cr.ui.file_actions` as the owner of open/copy/reveal command templates, environment fallbacks, platform fallbacks, source diagnostics, and subprocess execution. `browser.py` passes selected-file data, first changed lines, and configured command strings only.
   - Treat `Browser Frame` as the owner of screen-layer layout and Task Panel presentation: content height, background task height, task panel start row, prompt row, panel line rendering, terminal line fitting, and Task Panel-only refresh output live in `cr.ui.frame`.

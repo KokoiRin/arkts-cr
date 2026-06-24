@@ -345,6 +345,7 @@ def format_browse_tree_row(
     marker = ">" if selected == row.change_index else " "
     progress = "[x]" if row.change.path in (seen_paths or set()) else "[ ]"
     status = " modified" if row.change.status == "modified" else ""
+    source = f" {row.change.source}" if row.change.source else ""
     note = " note" if row.change.path in (review_notes or {}) else ""
     styled_label = style_tree_file(row.label, label_width, style)
     return (
@@ -352,6 +353,7 @@ def format_browse_tree_row(
         f"{styled_label}  "
         f"{style_change_summary(row.change, style)}"
         f"{status}"
+        f"{source}"
         f"{note}"
     )
 

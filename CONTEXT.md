@@ -34,6 +34,10 @@ mutating browser state.
 commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
 workspace state.
+`cr.ui.tasks` owns Task Panel runtime behavior: task command resolution,
+background process lifecycle, output capture, stopping, rerun, foreground run,
+and completion history. It does not render terminal panels or manage browser
+pages.
 
 Product navigation terms:
 
@@ -59,3 +63,6 @@ Product navigation terms:
 - `Browser Action Execution`: the internal interface that executes parsed
   browser actions and returns loop control. It does not read prompt input or
   own browser session shutdown.
+- `Task Runtime`: the internal module behind Task Panel behavior. It owns
+  process lifecycle and task history, while terminal layout and panel rendering
+  stay with the browser frame.

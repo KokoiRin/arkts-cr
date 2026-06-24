@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path
-import signal
 import platform
 import select
 import shlex
@@ -41,6 +40,8 @@ from ..source.purpose import describe_file
 from ..vcs import git
 from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
 from .navigation import BrowserNavigation, BrowserPage
+from . import tasks as task_runtime
+from .tasks import TaskRecord, TaskState
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
 from .workspace import (
     ReviewScope,
@@ -53,14 +54,6 @@ from .workspace import (
 
 
 BROWSER_WORKSPACE_STATE_VERSION = 1
-BUILD_STOP_KILL_GRACE_SECONDS = 2.0
-TASK_LABELS = {
-    "build": "Build",
-    "test": "Test",
-    "lint": "Lint",
-}
-
-
 @dataclass
 class BrowserState:
     changes: list[git.FileChange]
@@ -234,35 +227,6 @@ class _BrowseTreeNode:
     children: dict[str, "_BrowseTreeNode"] = field(default_factory=dict)
     change: git.FileChange | None = None
     change_index: int | None = None
-
-
-@dataclass(frozen=True)
-class TaskRecord:
-    kind: str
-    status: str
-    command: list[str]
-    returncode: int | None = None
-
-
-@dataclass
-class TaskState:
-    command: list[str]
-    process: subprocess.Popen[bytes]
-    kind: str = "build"
-    lines: list[str] = field(default_factory=list)
-    last_rendered_panel: list[str] = field(default_factory=list)
-    partial: str = ""
-    returncode: int | None = None
-    start_error: str | None = None
-    process_group_id: int | None = None
-    stop_requested: bool = False
-    stop_requested_at: float | None = None
-    stop_escalated: bool = False
-    history_recorded: bool = False
-
-    @property
-    def running(self) -> bool:
-        return self.returncode is None and self.start_error is None
 
 
 @dataclass(frozen=True)
@@ -1066,61 +1030,23 @@ def _task_history_line(history: list[TaskRecord]) -> str:
 
 
 def _task_status(task: TaskState) -> str:
-    if task.start_error is not None:
-        return "failed to start"
-    if task.returncode is None and task.stop_requested:
-        return "stopping"
-    if task.returncode is None:
-        return "running"
-    if not task.command:
-        return "idle"
-    if task.stop_requested:
-        return "stopped"
-    if task.returncode == 0:
-        return "succeeded"
-    return f"failed ({task.returncode})"
+    return task_runtime.task_status(task)
 
 
 def _task_label(kind: str) -> str:
-    return TASK_LABELS.get(kind, kind.replace("-", " ").title())
+    return task_runtime.task_label(kind)
 
 
 def _task_name(kind: str) -> str:
-    return kind.replace("-", " ")
+    return task_runtime.task_name(kind)
 
 
 def _missing_task_command_message(kind: str) -> str:
-    if kind == "build":
-        return (
-            "No build command configured. Set --build-cmd or CR_BUILD_CMD; "
-            "DouyinHarmony defaults to './remote buildEntry --app douyin'."
-        )
-    if kind == "test":
-        return "No test command configured. Set --test-cmd or CR_TEST_CMD."
-    if kind == "lint":
-        return "No lint command configured. Set --lint-cmd or CR_LINT_CMD."
-    return f"No {_task_name(kind)} command configured."
+    return task_runtime.missing_task_command_message(kind)
 
 
 def _record_completed_task(state: BrowserState) -> None:
-    task = state.task
-    if (
-        task is None
-        or not task.command
-        or task.returncode is None
-        or task.history_recorded
-    ):
-        return
-    state.task_history.append(
-        TaskRecord(
-            kind=task.kind,
-            status=_task_status(task),
-            command=task.command,
-            returncode=task.returncode,
-        )
-    )
-    state.task_history = state.task_history[-5:]
-    task.history_recorded = True
+    task_runtime.record_completed_task(state)
 
 
 def _draw_browse_screen(
@@ -2197,104 +2123,19 @@ def _start_task(
     args: argparse.Namespace,
     kind: str,
 ) -> None:
-    repo = git.repo_root()
-    command = _task_command(repo, args, kind)
-    if command is None:
-        state.task = _failed_task_state(
-            [],
-            _missing_task_command_message(kind),
-            kind,
-        )
-        return
-    if state.task is not None and state.task.running:
-        state.task.lines.append(f"{_task_label(state.task.kind)} is already running.")
-        return
-    try:
-        process = subprocess.Popen(
-            command,
-            cwd=repo,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
-    except OSError as exc:
-        label = _task_label(kind)
-        state.task = _failed_task_state(
-            command,
-            f"{label} failed to start: {exc}",
-            kind,
-        )
-        return
-    if process.stdout is not None:
-        os.set_blocking(process.stdout.fileno(), False)
-    state.task = TaskState(
-        command=command,
-        process=process,
-        kind=kind,
-        lines=[f"started in {repo}"],
-        process_group_id=process.pid,
-    )
+    task_runtime.start_task(state, args, kind, repo=git.repo_root())
 
 
 def _stop_task(state: BrowserState) -> None:
-    if state.task is None:
-        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
-        process.wait()
-        state.task = TaskState(
-            command=[],
-            process=process,
-            kind="build",
-            lines=["No build is running."],
-            returncode=0,
-        )
-        return
-    if not state.task.running:
-        state.task.lines.append(f"No {_task_name(state.task.kind)} is running.")
-        return
-    state.task.stop_requested = True
-    state.task.lines.append(f"Stopping {_task_name(state.task.kind)}...")
-    state.task.stop_requested_at = time.monotonic()
-    if state.task.process_group_id is not None and hasattr(os, "killpg"):
-        try:
-            os.killpg(state.task.process_group_id, signal.SIGTERM)
-            return
-        except OSError as exc:
-            state.task.lines.append(
-                f"{_task_label(state.task.kind)} process group stop failed: {exc}"
-            )
-    try:
-        state.task.process.terminate()
-    except OSError as exc:
-        state.task.lines.append(f"{_task_label(state.task.kind)} stop failed: {exc}")
+    task_runtime.stop_task(state)
 
 
 def _rerun_task(state: BrowserState, args: argparse.Namespace) -> None:
-    if state.task is not None and state.task.running:
-        state.task.lines.append(
-            f"{_task_label(state.task.kind)} is already running. Stop it before rerun."
-        )
-        return
-    kind = state.task.kind if state.task is not None else "build"
-    _start_task(state, args, kind)
+    task_runtime.rerun_task(state, args, repo=git.repo_root())
 
 
 def _run_task_foreground(args: argparse.Namespace, kind: str) -> None:
-    repo = git.repo_root()
-    command = _task_command(repo, args, kind)
-    if command is None:
-        print(_missing_task_command_message(kind))
-        return
-    label = _task_label(kind)
-    print(f"{label}: {' '.join(shlex.quote(part) for part in command)}")
-    try:
-        result = subprocess.run(command, cwd=repo, check=False)
-    except OSError as exc:
-        print(f"{label} failed to start: {exc}")
-        return
-    if result.returncode == 0:
-        print(f"{label} succeeded.")
-    else:
-        print(f"{label} failed with exit code {result.returncode}.")
+    task_runtime.run_task_foreground(args, kind, repo=git.repo_root())
 
 
 def _failed_task_state(
@@ -2302,111 +2143,23 @@ def _failed_task_state(
     message: str,
     kind: str = "build",
 ) -> TaskState:
-    process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
-    process.wait()
-    return TaskState(
-        command=command,
-        process=process,
-        kind=kind,
-        lines=[message],
-        returncode=1,
-        start_error=message,
-    )
+    return task_runtime.failed_task_state(command, message, kind)
 
 
 def _poll_task(task: TaskState | None) -> None:
-    if task is None or task.start_error is not None:
-        return
-    if task.returncode is not None:
-        return
-    _drain_task_output(task)
-    returncode = task.process.poll()
-    if returncode is not None and task.returncode is None:
-        _drain_task_output(task)
-        if task.partial:
-            task.lines.append(task.partial)
-            task.partial = ""
-        task.returncode = returncode
-        if task.stop_requested:
-            message = f"{_task_label(task.kind)} stopped."
-        else:
-            label = _task_label(task.kind)
-            message = (
-                f"{label} succeeded."
-                if returncode == 0
-                else f"{label} failed with exit code {returncode}."
-            )
-        task.lines.append(message)
-        if task.process.stdout is not None:
-            task.process.stdout.close()
-    else:
-        _maybe_escalate_task_stop(task)
+    task_runtime.poll_task(task)
 
 
 def _maybe_escalate_task_stop(task: TaskState) -> None:
-    if (
-        not task.stop_requested
-        or task.stop_requested_at is None
-        or task.stop_escalated
-    ):
-        return
-    if time.monotonic() - task.stop_requested_at < BUILD_STOP_KILL_GRACE_SECONDS:
-        return
-    task.stop_escalated = True
-    if task.process_group_id is not None and hasattr(os, "killpg"):
-        task.lines.append(
-            f"{_task_label(task.kind)} did not stop; force killing process group."
-        )
-        try:
-            os.killpg(task.process_group_id, signal.SIGKILL)
-            return
-        except OSError as exc:
-            task.lines.append(
-                f"{_task_label(task.kind)} process group force kill failed: {exc}"
-            )
-    task.lines.append(
-        f"{_task_label(task.kind)} did not stop; force killing {_task_name(task.kind)} process."
-    )
-    try:
-        task.process.kill()
-    except OSError as exc:
-        task.lines.append(f"{_task_label(task.kind)} force kill failed: {exc}")
+    task_runtime.maybe_escalate_task_stop(task)
 
 
 def _drain_task_output(task: TaskState) -> None:
-    if task.process.stdout is None:
-        return
-    fd = task.process.stdout.fileno()
-    while True:
-        try:
-            chunk = os.read(fd, 4096)
-        except BlockingIOError:
-            break
-        except OSError as exc:
-            task.lines.append(f"output read failed: {exc}")
-            break
-        if not chunk:
-            break
-        text = chunk.decode(errors="replace")
-        combined = task.partial + text
-        parts = combined.splitlines(keepends=True)
-        task.partial = ""
-        for part in parts:
-            if part.endswith("\n") or part.endswith("\r"):
-                task.lines.append(part.rstrip("\r\n"))
-            else:
-                task.partial = part
-        if len(task.lines) > 200:
-            task.lines = task.lines[-200:]
+    task_runtime.drain_task_output(task)
 
 
 def _build_command(repo: Path, configured: str | None = None) -> list[str] | None:
-    template = configured or os.environ.get("CR_BUILD_CMD")
-    if template:
-        return shlex.split(template)
-    if repo.name == "DouyinHarmony" and (repo / "remote").exists():
-        return ["./remote", "buildEntry", "--app", "douyin"]
-    return None
+    return task_runtime.build_command(repo, configured)
 
 
 def _task_command(
@@ -2414,15 +2167,7 @@ def _task_command(
     args: argparse.Namespace,
     kind: str,
 ) -> list[str] | None:
-    if kind == "build":
-        return _build_command(repo, getattr(args, "build_cmd", None))
-    if kind == "test":
-        template = getattr(args, "test_cmd", None) or os.environ.get("CR_TEST_CMD")
-        return shlex.split(template) if template else None
-    if kind == "lint":
-        template = getattr(args, "lint_cmd", None) or os.environ.get("CR_LINT_CMD")
-        return shlex.split(template) if template else None
-    return None
+    return task_runtime.task_command(repo, args, kind)
 
 
 def _open_change(change: git.FileChange, args: argparse.Namespace) -> str:

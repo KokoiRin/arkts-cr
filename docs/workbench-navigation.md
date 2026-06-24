@@ -122,8 +122,8 @@ Command Palette
 
 Task Panel / Browser Frame
   current implementation:
-    TaskState
-    TaskRecord history
+    cr.ui.tasks owns TaskState, TaskRecord history, command resolution, process lifecycle, output capture, stop, rerun, foreground run, and history recording
+    browser.py owns Task Panel rendering, BrowserFrame, and screen layout
     BrowserFrame
 
 Browser Navigation
@@ -142,7 +142,7 @@ Browser Command Dispatch
 Browser Action Execution
   current implementation:
     BrowserCommandExecutor owns parsed action execution and returns BrowserActionResult loop control
-    browser.py still owns terminal rendering, prompt input, task lifecycle helpers, editor handoff helpers, and workspace-state file I/O
+    browser.py still owns terminal rendering, prompt input, task panel rendering, editor handoff helpers, and workspace-state file I/O
 ```
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
@@ -151,6 +151,7 @@ Navigation rules are now explicit without adding a true page stack. `BrowserNavi
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress state, selected file state, and workspace-state data mapping.
 Browser command dispatch is now explicit without changing user-visible commands. `BrowserCommandAction` and `parse_browser_command` map raw key aliases, line-mode commands, parameterized commands, and numeric selections to product actions before `browser.py` executes them.
 Browser action execution is now explicit without changing user-visible behavior. `BrowserCommandExecutor` executes parsed actions and returns `BrowserActionResult`, while `run_browser` keeps prompt input, sentinels, workspace save-on-exit, and redraw scheduling.
+Task runtime is now explicit without changing Task Panel behavior. `cr.ui.tasks` owns command resolution, process lifecycle, output capture, stop/rerun, foreground execution, and history records; `browser.py` keeps terminal layout and panel rendering.
 
 ## Implementation Rules
 
@@ -229,6 +230,12 @@ Status: implemented.
 
 `BrowserCommandExecutor` now owns parsed action execution for browser commands. The run loop resolves temporary prompts and palette handoff, parses the final command, then asks the executor for `BrowserActionResult` so exit intent and redraw requests are explicit.
 
+### P0: Task runtime extraction
+
+Status: implemented.
+
+`cr.ui.tasks` now owns Task Panel runtime behavior: build/test/lint command resolution, process lifecycle, output drain, stop escalation, rerun, foreground execution, and compact task history. `browser.py` still owns the bottom panel's terminal rendering and frame layout.
+
 ## Architecture Check Cadence
 
 Use the architecture skill periodically, especially before changes that touch `src/cr/ui/browser.py`, `src/cr/review/changes.py`, or workspace persistence.
@@ -238,6 +245,6 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
-- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, and `BrowserCommandExecutor` hides action execution, but `src/cr/ui/browser.py` still owns rendering, task lifecycle helpers, editor handoff helpers, prompt input, and persistence file I/O.
-- The next deepening opportunity is task runtime extraction: task lifecycle helpers can become a deeper module once build/test/lint behavior grows beyond the current single-current-task model.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `BrowserCommandExecutor` hides action execution, and `cr.ui.tasks` hides task runtime behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, editor handoff helpers, prompt input, and persistence file I/O.
+- The next deepening opportunity is task configuration presets: once task runtime has a home, project-local presets can be designed without bloating the browser loop.
 - A real page stack is still not implemented. Add it only when back/forward history needs behavior beyond the current product hierarchy.

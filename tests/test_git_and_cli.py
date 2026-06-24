@@ -532,6 +532,63 @@ class CliTests(unittest.TestCase):
             self.assertIsNone(_task_command(repo, args, "test"))
             self.assertIsNone(_task_command(repo, args, "lint"))
 
+    def test_task_runtime_module_resolves_commands(self):
+        from cr.ui.tasks import build_command, task_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "DouyinHarmony"
+            repo.mkdir()
+            (repo / "remote").write_text("#!/bin/sh\n", encoding="utf-8")
+            args = argparse_namespace(
+                build_cmd=None,
+                test_cmd="npm test",
+                lint_cmd="npm run lint",
+            )
+
+            self.assertEqual(
+                build_command(repo),
+                ["./remote", "buildEntry", "--app", "douyin"],
+            )
+            self.assertEqual(task_command(repo, args, "test"), ["npm", "test"])
+            self.assertEqual(task_command(repo, args, "lint"), ["npm", "run", "lint"])
+
+    def test_task_runtime_module_runs_and_records_task(self):
+        from cr.ui.tasks import poll_task, record_completed_task, start_task
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            args = argparse_namespace(
+                build_cmd=f"{sys.executable} -c \"print('runtime line')\""
+            )
+            state = argparse_namespace(task=None, task_history=[])
+
+            start_task(state, args, "build", repo=repo)
+            for _ in range(100):
+                poll_task(state.task)
+                if state.task and state.task.returncode is not None:
+                    break
+                time.sleep(0.01)
+            record_completed_task(state)
+
+        self.assertIsNotNone(state.task)
+        self.assertEqual(state.task.returncode, 0)
+        self.assertIn("runtime line", state.task.lines)
+        self.assertEqual(len(state.task_history), 1)
+        self.assertEqual(state.task_history[0].status, "succeeded")
+
+    def test_task_runtime_module_owns_process_lifecycle_implementation(self):
+        tasks_source = (ROOT / "src/cr/ui/tasks.py").read_text(encoding="utf-8")
+        browser_source = Path(browser_module.__file__).read_text(encoding="utf-8")
+
+        self.assertIn("def start_task(", tasks_source)
+        self.assertIn("def poll_task(", tasks_source)
+        self.assertIn("start_new_session=True", tasks_source)
+        self.assertIn("os.killpg", tasks_source)
+        self.assertIn("os.read(fd, 4096)", tasks_source)
+        self.assertNotIn("start_new_session=True", browser_source)
+        self.assertNotIn("os.killpg", browser_source)
+        self.assertNotIn("os.read(fd, 4096)", browser_source)
+
     def test_task_panel_collects_background_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)

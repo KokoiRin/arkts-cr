@@ -156,7 +156,8 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat browser page ownership as four explicit layers: context/status, main content, background task panel, and input prompt. Raw-key feedback belongs in the context/status layer, never as ad hoc stdout below the prompt.
   - Mark the frame dirty when a raw-key action produces status feedback, so background task output cannot apply a stale partial panel refresh over an incomplete page.
   - Restore the fixed browser frame after temporary line input (`:` commands or `/` filters), so the next visual update cannot be a stale bottom-panel patch.
-  - Keep background task lifecycle in `TaskState`; build, test, and lint share the same current task runtime while `TaskRecord` remains compact session-local history, not a generic concurrent task manager.
+  - Keep background task lifecycle in `cr.ui.tasks`: build, test, and lint share the same current task runtime while `TaskRecord` remains compact session-local history, not a generic concurrent task manager.
+  - Keep Task Panel rendering in `browser.py`; `cr.ui.tasks` owns runtime state and process behavior, not terminal layout, Browser Frame regions, or styled panel lines.
   - Treat in-session review progress as browser workspace state: seen paths and remaining-only view belong in `BrowserState` and persist with `.git/cr/browse-state.json`.
   - Keep progress commands simple and reversible: `m`/`seen` marks the current file, `todo`/`unseen` clears it, `remaining` filters to unreviewed files, and `allfiles` returns to the full changed-file list.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.

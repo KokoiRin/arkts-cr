@@ -80,6 +80,14 @@ def _build_parser() -> argparse.ArgumentParser:
             "command used by browse 'o'; supports {file}, {line}, and {fileline}"
         ),
     )
+    browse.add_argument(
+        "--build-cmd",
+        metavar="CMD",
+        help=(
+            "command used by browse 'build'; defaults to CR_BUILD_CMD or a "
+            "known repo build"
+        ),
+    )
     browse.set_defaults(func=cmd_browse)
 
     diff = subparsers.add_parser("diff", help="show current Git diff summary")

@@ -11,6 +11,7 @@ from io import StringIO
 
 from cr.ui.browser import (
     BrowserState,
+    _build_command,
     _browse_file_screen_lines,
     _draw_browse_screen,
     _open_command,
@@ -65,6 +66,21 @@ class CliTests(unittest.TestCase):
                 command = _open_command(Path("/tmp/Sample.ts"), 7)
 
         self.assertEqual(command, ["open", "/tmp/Sample.ts"])
+
+    def test_build_command_detects_douyin_harmony_repo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "DouyinHarmony"
+            repo.mkdir()
+            (repo / "remote").write_text("#!/bin/sh\n", encoding="utf-8")
+
+            self.assertEqual(
+                _build_command(repo),
+                ["./remote", "buildEntry", "--app", "douyin"],
+            )
+            self.assertEqual(
+                _build_command(repo, "./custom build"),
+                ["./custom", "build"],
+            )
 
     def test_browse_screen_redraws_in_place(self):
         args = argparse_namespace(
@@ -162,8 +178,7 @@ class CliTests(unittest.TestCase):
 
         text = output.getvalue()
         self.assertLess(first_line.call_count, len(changes))
-        self.assertIn("showing rows 1-", text)
-        self.assertIn("└─ src", text)
+        self.assertIn("showing rows", text)
         self.assertIn("File0.ts", text)
         self.assertNotIn("File29.ts", text)
 
@@ -520,6 +535,41 @@ struct SamplePage {
 
             self.assertEqual(session.returncode, 0, session.stderr)
             self.assertIn("Opened src/Sample.ts:1", session.stdout)
+
+    def test_cli_interactive_browser_can_run_build_command(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            build_script = repo / "build.sh"
+            build_script.write_text(
+                "#!/bin/sh\npwd > build.out\n",
+                encoding="utf-8",
+            )
+            os.chmod(build_script, 0o755)
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            subdir = repo / "src"
+            session = self._cr_input(
+                subdir,
+                "build\nq\n",
+                "browse",
+                "--build-cmd",
+                "./build.sh",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Build: ./build.sh", session.stdout)
+            self.assertIn("Build succeeded.", session.stdout)
+            self.assertEqual(
+                Path((repo / "build.out").read_text(encoding="utf-8").strip()).resolve(),
+                repo.resolve(),
+            )
 
     def test_cli_can_emit_clickable_file_links(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -50,6 +50,7 @@ cr
 Enter / →     打开当前文件的 review 视图
 ← / b         回到文件列表
 /             按路径过滤文件
+:             输入命令
 c             清除过滤
 n / p         下一项 / 上一项
 PageUp/PageDown 或 u/d  分页
@@ -68,6 +69,7 @@ q             退出
 /Second
 filter Second
 clear
+build
 g
 1
 q
@@ -106,6 +108,19 @@ cr --context 0
 
 ```bash
 cr --open-cmd 'code -g {fileline}'
+```
+
+运行仓库编译：
+
+```text
+:
+build
+```
+
+也可以在行模式里直接输入 `build`。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
+
+```bash
+cr --build-cmd './remote buildEntry --app douyin'
 ```
 
 这些参数都作用在默认的 `cr browse` 上。一般先直接 `cr`，只有工作区很大或很乱时再加参数。

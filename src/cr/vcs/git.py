@@ -230,8 +230,12 @@ def file_diff(
 
 
 def repo_path(path: str) -> Path:
+    return repo_root() / path
+
+
+def repo_root() -> Path:
     root = _git(["rev-parse", "--show-toplevel"]).stdout.strip()
-    return Path(root) / path
+    return Path(root)
 
 
 def file_text(path: str, ref: str | None = None) -> str:

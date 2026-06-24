@@ -159,6 +159,10 @@ def run_browser(args: argparse.Namespace) -> int:
             if query != "__interrupt__":
                 state.set_filter(query)
             continue
+        if command == "command_prompt":
+            command = _read_command_query()
+            if command == "__interrupt__":
+                continue
         if command.startswith("/") and not raw_keys:
             state.set_filter(command[1:])
             continue
@@ -190,6 +194,9 @@ def run_browser(args: argparse.Namespace) -> int:
                 _open_change(visible[state.selected], args)
             else:
                 print("No changed file to open.")
+            continue
+        if command in {"build", "compile"}:
+            _run_build(args, wait=raw_keys)
             continue
         if command in {"r", "refresh"}:
             if state.mode == "commits":
@@ -288,7 +295,7 @@ def run_browser(args: argparse.Namespace) -> int:
         if command:
             print(
                 "Unknown command. Use arrows, Enter, /, c, a number, "
-                "o, n, p, b, g, r, h, or q."
+                "o, n, p, b, g, r, h, build, or q."
             )
 
 
@@ -457,6 +464,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back to list",
         "  /: filter files     c: clear filter      o: open in editor",
+        "  : command prompt    build: run repo build command",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/previous        g: recent commits    r: refresh    q: quit",
         "",
@@ -945,6 +953,14 @@ def _read_filter_query() -> str:
         return "__interrupt__"
 
 
+def _read_command_query() -> str:
+    try:
+        return input("command> ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return "__interrupt__"
+
+
 def _read_raw_key() -> str:
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
@@ -988,10 +1004,50 @@ def _read_raw_key() -> str:
             "d": "pagedown",
             " ": "space",
             "/": "filter_prompt",
+            ":": "command_prompt",
             "\x04": "__eof__",
         }.get(char, char)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+
+def _run_build(args: argparse.Namespace, wait: bool = False) -> None:
+    repo = git.repo_root()
+    command = _build_command(repo, args.build_cmd)
+    if command is None:
+        print(
+            "No build command configured. Set --build-cmd or CR_BUILD_CMD; "
+            "DouyinHarmony defaults to './remote buildEntry --app douyin'."
+        )
+        return
+    print(f"Build: {' '.join(shlex.quote(part) for part in command)}")
+    try:
+        result = subprocess.run(command, cwd=repo, check=False)
+    except OSError as exc:
+        print(f"Build failed to start: {exc}")
+        return
+    if result.returncode == 0:
+        print("Build succeeded.")
+    else:
+        print(f"Build failed with exit code {result.returncode}.")
+    if wait:
+        _wait_for_enter()
+
+
+def _build_command(repo: Path, configured: str | None = None) -> list[str] | None:
+    template = configured or os.environ.get("CR_BUILD_CMD")
+    if template:
+        return shlex.split(template)
+    if repo.name == "DouyinHarmony" and (repo / "remote").exists():
+        return ["./remote", "buildEntry", "--app", "douyin"]
+    return None
+
+
+def _wait_for_enter() -> None:
+    try:
+        input("Press Enter to return to cr...")
+    except (EOFError, KeyboardInterrupt):
+        print()
 
 
 def _open_change(change: git.FileChange, args: argparse.Namespace) -> None:

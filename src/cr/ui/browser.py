@@ -453,6 +453,13 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=True)
             _print_lines(lines)
             return BrowserActionResult()
+        if action == BrowserCommandAction.SHOW_TASK_SCHEMA_HELP:
+            lines = task_runtime.task_schema_help_lines()
+            if raw_keys:
+                _show_browser_message(state, " | ".join(lines), raw_keys, frame)
+                return BrowserActionResult(needs_redraw=True)
+            _print_lines(lines)
+            return BrowserActionResult()
         if action == BrowserCommandAction.RUN_BUILD:
             if raw_keys:
                 _start_task(state, args, "build")
@@ -1292,7 +1299,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks    copy path/anchor/reveal: file actions",
+        "  : command prompt    build/test/lint/tasks help    copy path/anchor/reveal: file actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1329,6 +1336,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("test / tests", "run configured repo tests", "test"),
                 CommandEntry("lint", "run configured repo lint", "lint"),
                 CommandEntry("tasks", "show task command sources", "tasks"),
+                CommandEntry("tasks help", "show .cr/tasks.json format", "tasks help"),
                 CommandEntry("stop / cancel", "stop running task", "stop"),
                 CommandEntry("rerun / rebuild", "run recent task again", "rerun"),
             ),

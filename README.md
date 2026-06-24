@@ -199,6 +199,7 @@ build
 : test     运行测试
 : lint     运行 lint
 : tasks    查看 build/test/lint 命令来源
+: tasks help  查看 .cr/tasks.json 格式
 : stop     停止正在运行的任务
 : rerun    重跑最近一次任务
 ```
@@ -219,7 +220,7 @@ cr --build-cmd './remote buildEntry --app douyin' --test-cmd 'npm test' --lint-c
 }
 ```
 
-任务命令优先级是 CLI 参数、环境变量、`.cr/tasks.json`、DouyinHarmony build 默认。这样日常直接运行 `cr` 后输入 `: test` / `: lint` 就能使用项目预设；输入 `: tasks` 可以查看当前 build/test/lint 分别来自哪个来源，并发现坏掉的 `.cr/tasks.json`。
+任务命令优先级是 CLI 参数、环境变量、`.cr/tasks.json`、DouyinHarmony build 默认。这样日常直接运行 `cr` 后输入 `: test` / `: lint` 就能使用项目预设；输入 `: tasks` 可以查看当前 build/test/lint 分别来自哪个来源，并发现坏掉的 `.cr/tasks.json`。忘了格式时输入 `: tasks help`，会直接显示支持的 key、命令字符串要求和 JSON 示例。
 
 这些参数都作用在默认的 `cr browse` 上。一般先直接 `cr`，只有工作区很大或很乱时再加参数。
 

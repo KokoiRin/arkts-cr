@@ -140,6 +140,7 @@ def task_diagnostic_lines(repo: Path, args: argparse.Namespace) -> list[str]:
     lines = ["Task commands:"]
     if preset_result.error:
         lines.append(f"preset: {preset_result.error}")
+        lines.append("hint: run : tasks help for .cr/tasks.json format")
     for kind in ("build", "test", "lint"):
         source = _task_command_source(repo, args, kind, preset_result)
         if source.command is None:
@@ -147,6 +148,24 @@ def task_diagnostic_lines(repo: Path, args: argparse.Namespace) -> list[str]:
         else:
             lines.append(f"{kind}: {source.source} {_format_command(source.command)}")
     return lines
+
+
+def task_schema_help_lines() -> list[str]:
+    return [
+        "Task preset file: .cr/tasks.json",
+        "Supported keys: build, test, lint",
+        "Each value must be a shell-like command string.",
+        (
+            "Priority: CLI args > environment variables > .cr/tasks.json > "
+            "DouyinHarmony build default > missing"
+        ),
+        "Example:",
+        "{",
+        '  "build": "./remote buildEntry --app douyin",',
+        '  "test": "npm test",',
+        '  "lint": "npm run lint"',
+        "}",
+    ]
 
 
 def _task_command_source(

@@ -156,6 +156,7 @@ Task presets are now explicit as project-local defaults. `cr.ui.tasks` reads `.c
 File actions are now explicit Changed Files operations. `copy path`, `copy anchor`, and `reveal` use browser command dispatch and action execution, while `cr.ui.file_actions` hides clipboard and file-browser subprocess details.
 File action configuration is now explicit. `--copy-cmd` / `CR_COPY_CMD` and `--reveal-cmd` / `CR_REVEAL_CMD` customize selected-file copy/reveal actions while preserving platform fallbacks.
 Task diagnostics are now explicit Task Runtime output. `tasks` shows build/test/lint command sources without starting a background process, and `cr.ui.tasks` owns malformed preset reporting.
+Task preset schema help is now explicit Task Runtime output. `tasks help` shows `.cr/tasks.json` format, supported build/test/lint string commands, precedence, and a compact JSON example without starting a background process.
 
 ## Implementation Rules
 
@@ -264,6 +265,12 @@ Status: implemented.
 
 `tasks` now shows build/test/lint command sources through the command parser, command palette, and action executor. `cr.ui.tasks` owns the resolution explanation and reports malformed `.cr/tasks.json` without changing tolerant task execution.
 
+### P0: Task preset schema help
+
+Status: implemented.
+
+`tasks help` now shows the expected `.cr/tasks.json` shape, supported build/test/lint string commands, task command precedence, and a compact JSON example. Malformed preset diagnostics point to this help without making preset parsing fatal.
+
 ### P0: Real page stack
 
 Status: implemented.
@@ -280,4 +287,4 @@ Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
 - `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `BrowserCommandExecutor` hides action execution, and `cr.ui.tasks` hides task runtime behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, editor handoff helpers, prompt input, and persistence file I/O.
-- The next product opportunity is task preset schema help if `.cr/tasks.json` grows beyond build/test/lint strings.
+- The next product opportunity should come from concrete usage friction around review notes, editor handoff diagnostics, or command palette organization.

@@ -263,6 +263,14 @@ class CliTests(unittest.TestCase):
             BrowserCommandAction.SHOW_TASK_DIAGNOSTICS,
         )
         self.assertEqual(
+            parse_browser_command("tasks help").action,
+            BrowserCommandAction.SHOW_TASK_SCHEMA_HELP,
+        )
+        self.assertEqual(
+            parse_browser_command("task help").action,
+            BrowserCommandAction.SHOW_TASK_SCHEMA_HELP,
+        )
+        self.assertEqual(
             parse_browser_command("forward").action,
             BrowserCommandAction.FORWARD,
         )
@@ -517,6 +525,33 @@ class CliTests(unittest.TestCase):
         diagnostics.assert_called_once_with(repo, args)
         self.assertIn("Task commands:", output.getvalue())
         self.assertIn("build: missing", output.getvalue())
+
+    def test_browser_command_executor_shows_task_schema_help_without_starting_task(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.task_runtime.task_schema_help_lines",
+            return_value=["Task preset file: .cr/tasks.json"],
+        ) as help_lines:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("tasks help"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        self.assertIsNone(state.task)
+        help_lines.assert_called_once_with()
+        self.assertIn("Task preset file: .cr/tasks.json", output.getvalue())
 
     def test_browser_command_executor_runs_forward_navigation(self):
         from cr.ui.browser import parse_browser_command
@@ -1096,6 +1131,21 @@ class CliTests(unittest.TestCase):
         self.assertIn("build: cli ./cli-build", text)
         self.assertIn("test: env env-test", text)
         self.assertIn("lint: missing", text)
+        self.assertIn("hint: run : tasks help", text)
+
+    def test_task_runtime_schema_help_lines_describe_tasks_json(self):
+        from cr.ui.tasks import task_schema_help_lines
+
+        text = "\n".join(task_schema_help_lines())
+
+        self.assertIn(".cr/tasks.json", text)
+        self.assertIn("build", text)
+        self.assertIn("test", text)
+        self.assertIn("lint", text)
+        self.assertIn("command string", text)
+        self.assertIn("CLI args > environment variables > .cr/tasks.json", text)
+        self.assertIn('"build": "./remote buildEntry --app douyin"', text)
+
 
     def test_task_runtime_diagnostics_report_preset_and_douyin_default(self):
         from cr.ui.tasks import task_diagnostic_lines
@@ -2741,6 +2791,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy anchor", commands)
         self.assertIn("reveal", commands)
         self.assertIn("tasks", commands)
+        self.assertIn("tasks help", commands)
         self.assertIn("staged", commands)
         self.assertIn("forward", commands)
         self.assertIn("remaining", commands)

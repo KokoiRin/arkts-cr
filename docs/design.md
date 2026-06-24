@@ -6,6 +6,8 @@ Implement a terminal-first code review workbench named `cr`.
 
 `cr` started as a lightweight Git change reader, but its product direction is now a small terminal workbench for daily code-review and repository operations. It is allowed to grow toward IDE replacement for high-frequency workflows, while keeping the current boundary clear: review, navigation, commit/range selection, build, editor handoff, and scriptable non-interactive output.
 
+The product navigation model is defined in `docs/workbench-navigation.md`. Interactive review should follow `Review Scope -> Changed Files -> File Detail`; the four terminal rendering regions are a screen ownership model, not the product hierarchy.
+
 ## Expected behavior
 
 - `cr diff`
@@ -48,6 +50,7 @@ Implement a terminal-first code review workbench named `cr`.
 - `cr browse`
   - Opens the interactive review browser by default when running `cr` without a subcommand.
   - Treats leading options such as `cr --code` or `cr --context 0` as `cr browse --code` and `cr browse --context 0`.
+  - Follows the product hierarchy documented in `docs/workbench-navigation.md`: Review Scope, Changed Files, and File Detail.
   - Shows a changed-file list first, then a focused per-file diff view.
   - Uses stable screen regions in interactive TTYs so navigation and background tasks do not append repeated output.
   - Renders four page layers: context/status, main content, background task panel, and input prompt.

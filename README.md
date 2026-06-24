@@ -10,6 +10,8 @@ cr
 
 这会打开交互式 review browser。后续大部分操作都在里面完成。
 
+产品导航层级固定为 `Review Scope -> Changed Files -> File Detail`：先选择或恢复一个变化集合，再看这个集合里改了哪些文件，最后进入单个文件详情。详细设计见 [docs/workbench-navigation.md](docs/workbench-navigation.md)。
+
 交互界面由一个固定 browser frame 管理，不是普通 stdout 日志流。当前 frame 分四层：
 
 ```text

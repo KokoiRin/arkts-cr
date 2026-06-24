@@ -22,3 +22,16 @@ the four module groups before the CLI knows about it. In particular,
 `diff`. The interactive browser also reuses `cr.review.changes` for changed-file
 selection, sorting, code-file detection, hunk rendering, and modified-symbol
 facts; `cr.ui.browser` should only own interaction state and terminal behavior.
+
+Product navigation terms:
+
+- `Review Scope`: the top-level changed set being reviewed, such as worktree,
+  staged, all local changes, base ref, explicit range, or a selected commit.
+- `Changed Files`: the file tree/list inside one Review Scope.
+- `File Detail`: the per-file diff, symbol, purpose, and editor-handoff layer
+  inside one Changed Files set.
+- `Command Palette`: a cross-layer action surface, not a review hierarchy level.
+- `Task Panel`: a screen-rendering region for background tasks, not a review
+  hierarchy level.
+- `Browser Frame`: the raw-key terminal frame that owns context/status, main
+  content, task panel, and prompt regions.

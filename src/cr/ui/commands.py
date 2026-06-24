@@ -37,6 +37,7 @@ class BrowserCommandAction:
     OPEN_FILE = "open_file"
     COPY_PATH = "copy_path"
     COPY_ANCHOR = "copy_anchor"
+    COPY_DIFF = "copy_diff"
     COPY_REVIEW_NOTES = "copy_review_notes"
     COPY_PROMPT = "copy_prompt"
     COPY_FILE_PROMPT = "copy_file_prompt"
@@ -140,6 +141,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_PATH)
     if command == "copy anchor":
         return BrowserCommand(BrowserCommandAction.COPY_ANCHOR)
+    if command == "copy diff":
+        return BrowserCommand(BrowserCommandAction.COPY_DIFF)
     if command in {"copy notes", "notes copy"}:
         return BrowserCommand(BrowserCommandAction.COPY_REVIEW_NOTES)
     if command.startswith("copy notes "):

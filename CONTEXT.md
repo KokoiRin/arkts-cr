@@ -10,8 +10,8 @@ organized around four module groups:
   language-outline parsing and purpose hints derived from paths and symbols.
 - `cr.review`: review workflow, facts, and renderers. This package owns
   `cr review` execution, reusable changed-file facts, review data assembly,
-  hunk rendering, changed-file trees, summaries, risk hints, and prompt
-  handoff formatting.
+  hunk rendering, changed-file trees, summaries, risk hints, prompt handoff
+  formatting, and compact selected-file review snippets.
 - `cr.ui`: terminal interaction. This package owns terminal styling,
   clickable links, and the interactive browse session.
 
@@ -147,6 +147,10 @@ Product navigation terms:
   `copy prompt file` / `save prompt` / `save prompt file`. It reuses
   `cr.review` prompt rendering, including supplied review notes, instead of
   defining browser-specific prompt text.
+- `File Diff Snippet`: compact Markdown review context for one selected file,
+  copied through `copy diff`. It reuses structured review data and
+  `cr.review.snippet` rendering, includes selected-file hunks and metadata, and
+  is not the full AI prompt handoff format.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.
@@ -158,14 +162,14 @@ Product navigation terms:
   own browser session shutdown.
 - `Selected File Actions`: the internal module that owns workflows acting on
   the current Changed Files selection, including open, copy path, copy anchor,
-  reveal, stage/unstage, selected-file notes, and selected/scope prompt handoff
-  selection. Platform subprocess details stay in File Actions; Git index
-  mutations stay in `cr.vcs.git`.
+  copy diff snippet, reveal, stage/unstage, selected-file notes, and
+  selected/scope prompt handoff selection. Platform subprocess details stay in
+  File Actions; Git index mutations stay in `cr.vcs.git`.
 - `File Actions`: selected-file workbench operations such as `open`,
-  `copy path`, `copy anchor`, `copy prompt file`, `save prompt file`, and
-  `reveal`. They act within the current Changed Files selection, support
-  CLI/env command configuration where applicable, and do not create a new
-  review hierarchy level.
+  `copy path`, `copy anchor`, `copy diff`, `copy prompt file`,
+  `save prompt file`, and `reveal`. They act within the current Changed Files
+  selection, support CLI/env command configuration where applicable, and do not
+  create a new review hierarchy level.
 - `Index Actions`: selected-file workbench operations such as `stage` and
   `unstage`. They mutate the local Git index only for mutable local review
   scopes, then refresh Changed Files without creating a new product layer.

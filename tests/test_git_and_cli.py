@@ -63,6 +63,7 @@ from cr.ui.browser import (
 from cr.review.changes import format_counts
 from cr.review.data import build_review_data
 from cr.review.prompt import render_prompt_handoff
+from cr.review.snippet import render_file_diff_snippet
 from cr.ui import command_catalog
 from cr.ui import frame as frame_module
 from cr.ui import handoff as handoff_module
@@ -331,6 +332,32 @@ class CliTests(unittest.TestCase):
         self.assertIn("   - review note: check lifecycle edge case", prompt)
         self.assertIn("- review note: check lifecycle edge case", prompt)
 
+    def test_file_diff_snippet_renders_compact_selected_file_context(self):
+        text = render_file_diff_snippet(
+            {
+                "path": "src/Sample.ets",
+                "status": "modified",
+                "summary": "+2 -1",
+                "anchor": "src/Sample.ets:12",
+                "risk_hints": ["high churn"],
+                "seen": True,
+                "review_note": "check lifecycle edge case",
+                "purpose": "ArkTS page/component SamplePage",
+                "modified_symbols": ["build"],
+                "hunks": ["@@ -1 +1 @@", "-old", "+new"],
+            }
+        )
+
+        self.assertIn("# File Diff: src/Sample.ets", text)
+        self.assertIn("- change: +2 -1 (modified)", text)
+        self.assertIn("- anchor: src/Sample.ets:12", text)
+        self.assertIn("- state: seen", text)
+        self.assertIn("- review note: check lifecycle edge case", text)
+        self.assertIn("- purpose: ArkTS page/component SamplePage", text)
+        self.assertIn("- focus: build", text)
+        self.assertIn("```diff\n@@ -1 +1 @@\n-old\n+new\n```", text)
+        self.assertNotIn("Please review these changes.", text)
+
     def test_build_review_data_attaches_matching_review_notes(self):
         change = FileChange("src/Sample.ts", 2, 1)
 
@@ -580,6 +607,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy anchor").action,
             BrowserCommandAction.COPY_ANCHOR,
+        )
+        self.assertEqual(
+            parse_browser_command("copy diff").action,
+            BrowserCommandAction.COPY_DIFF,
         )
         self.assertEqual(
             parse_browser_command("reveal").action,
@@ -975,6 +1006,109 @@ class CliTests(unittest.TestCase):
             ref_range=None,
         )
         copy.assert_called_once_with("src/Sample.ts:12", None)
+
+    def test_selected_file_actions_copy_diff_snippet_uses_selected_file_only(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            context=2,
+            copy_cmd="copy-tool",
+        )
+        state = BrowserState(
+            [
+                FileChange("src/First.md", 1, 0),
+                FileChange("docs/Second.md", 2, 1),
+            ],
+            selected=1,
+            seen_paths={"docs/Second.md"},
+            review_notes={"docs/Second.md": "check wording"},
+        )
+
+        with patch("cr.review.data.git.first_changed_line", return_value=7):
+            with patch(
+                "cr.review.data.git.file_diff",
+                return_value="@@ -1 +1 @@\n-old\n+new\n",
+            ):
+                with patch(
+                    "cr.ui.selected_file_actions.file_actions.copy_text",
+                    return_value=None,
+                ) as copy:
+                    message = selected_file_actions.copy_selected_diff_snippet(
+                        state,
+                        args,
+                        other_counts=lambda _args: {"staged": 0, "unstaged": 0},
+                    )
+
+        copied_text = copy.call_args.args[0]
+        self.assertEqual(message, "Copied diff for docs/Second.md")
+        self.assertNotIn("src/First.md", copied_text)
+        self.assertIn("# File Diff: docs/Second.md", copied_text)
+        self.assertIn("- anchor: docs/Second.md:7", copied_text)
+        self.assertIn("- state: seen", copied_text)
+        self.assertIn("- review note: check wording", copied_text)
+        self.assertIn("+new", copied_text)
+        copy.assert_called_once_with(copied_text, "copy-tool")
+
+    def test_selected_file_actions_copy_diff_snippet_reports_empty_selection(self):
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState([])
+
+        with patch("cr.ui.selected_file_actions.file_actions.copy_text") as copy:
+            message = selected_file_actions.copy_selected_diff_snippet(state, args)
+
+        self.assertEqual(message, "No changed file to copy diff.")
+        copy.assert_not_called()
+
+    def test_browser_command_executor_copies_selected_diff_snippet(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.selected_file_actions.copy_selected_diff_snippet",
+            return_value="Copied diff for src/Sample.ts",
+        ) as copy_diff:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy diff"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        copy_diff.assert_called_once_with(state, args)
+        self.assertIn("Copied diff for src/Sample.ts", output.getvalue())
+
+    def test_browser_command_executor_copies_selected_diff_in_raw_status(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch(
+            "cr.ui.browser.selected_file_actions.copy_selected_diff_snippet",
+            return_value="Copied diff for src/Sample.ts",
+        ):
+            result = executor.execute(parse_browser_command("copy diff", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("Copied diff for src/Sample.ts", state.status_message)
 
     def test_selected_file_actions_stage_selected_path_returns_status_message(self):
         args = argparse_namespace(
@@ -5584,6 +5718,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy notes", commands)
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
+        self.assertIn("copy diff", commands)
         self.assertIn("save prompt", commands)
         self.assertIn("save prompt file", commands)
         self.assertIn("staged", commands)

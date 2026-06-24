@@ -419,6 +419,10 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to copy.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_DIFF:
+            message = selected_file_actions.copy_selected_diff_snippet(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_REVIEW_NOTES:
             message = _copy_review_notes(state, args, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
@@ -657,9 +661,9 @@ class BrowserCommandExecutor:
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
-                    "copy anchor, copy notes, copy prompt, save prompt, reveal, "
-                    "stage, unstage, note, notes, tasks, build, stop, rerun, "
-                    "test, lint, source staged, staged, all, base, range, or q."
+                    "copy anchor, copy diff, copy notes, copy prompt, save prompt, "
+                    "reveal, stage, unstage, note, notes, tasks, build, stop, "
+                    "rerun, test, lint, source staged, staged, all, base, range, or q."
                 )
             )
             _show_browser_message(

@@ -148,13 +148,14 @@ notes                  汇总当前 workspace 的 review 备注
 notes QUERY            按路径或备注内容过滤 review 备注
 copy notes             复制当前 review 备注汇总
 copy notes QUERY       复制过滤后的 review 备注汇总
+copy diff              复制当前文件的轻量 diff review 片段
 copy prompt            复制当前可见改动的 AI review handoff
 copy prompt file       复制当前文件的 AI review handoff
 save prompt [PATH]     保存当前可见改动的 AI review handoff
 save prompt file [PATH] 保存当前文件的 AI review handoff
 ```
 
-文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。有备注的文件行会显示 `note` 标记；单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`，并在有备注时显示完整 `note: ...`。`notes` 会按当前 changed-file 顺序汇总备注，并把不在当前变更里的持久化备注追加到末尾；`notes QUERY` 会按路径或备注文本做大小写不敏感过滤。`copy notes` / `notes copy` 会复制完整汇总文本，`copy notes QUERY` 会复制过滤后的汇总文本。`copy prompt` 会复制当前可见改动的 Markdown review handoff，并带上这些文件对应的 review 备注；`copy prompt file` 只复制当前文件及其备注，方便贴到聊天、AI prompt 或 PR comment。`save prompt` 和 `save prompt file` 会把同样的 Markdown 保存成文件，默认路径分别是 `.cr/handoff/review-prompt.md` 和 `.cr/handoff/review-prompt-file.md`，也可以在命令后传入自定义路径。
+文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。有备注的文件行会显示 `note` 标记；单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`，并在有备注时显示完整 `note: ...`。`notes` 会按当前 changed-file 顺序汇总备注，并把不在当前变更里的持久化备注追加到末尾；`notes QUERY` 会按路径或备注文本做大小写不敏感过滤。`copy notes` / `notes copy` 会复制完整汇总文本，`copy notes QUERY` 会复制过滤后的汇总文本。`copy diff` 会复制当前文件的轻量 Markdown diff 片段，包含当前 scope 下的 hunk、anchor、seen 状态和 review 备注，但不带 AI prompt 请求文案。`copy prompt` 会复制当前可见改动的 Markdown review handoff，并带上这些文件对应的 review 备注；`copy prompt file` 只复制当前文件及其备注，方便贴到聊天、AI prompt 或 PR comment。`save prompt` 和 `save prompt file` 会把同样的 Markdown 保存成文件，默认路径分别是 `.cr/handoff/review-prompt.md` 和 `.cr/handoff/review-prompt-file.md`，也可以在命令后传入自定义路径。
 
 切换 review scope：
 
@@ -182,7 +183,7 @@ cr --open-cmd 'code -g {fileline}'
 cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 ```
 
-`copy path` / `copy anchor` / `copy notes` / `copy notes QUERY` / `copy prompt` / `copy prompt file` 会把复制文本传给 copy 命令的 stdin，也支持 `{text}` 占位。`save prompt` / `save prompt file` 直接写入文件，不依赖剪贴板命令。`reveal` 支持 `{file}` 和 `{dir}` 占位。对应环境变量是 `CR_COPY_CMD` 和 `CR_REVEAL_CMD`。
+`copy path` / `copy anchor` / `copy diff` / `copy notes` / `copy notes QUERY` / `copy prompt` / `copy prompt file` 会把复制文本传给 copy 命令的 stdin，也支持 `{text}` 占位。`save prompt` / `save prompt file` 直接写入文件，不依赖剪贴板命令。`reveal` 支持 `{file}` 和 `{dir}` 占位。对应环境变量是 `CR_COPY_CMD` 和 `CR_REVEAL_CMD`。
 如果文件动作失败，错误信息会带上当前使用的是 CLI、环境变量、平台 fallback 还是 missing；也可以在浏览器里输入 `: file actions` 主动查看 `open` / `copy` / `reveal` 的解析来源。
 
 常用文件动作：
@@ -191,6 +192,7 @@ cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 : open         打开当前文件到首个改动行
 : copy path    复制当前文件相对路径
 : copy anchor  复制当前文件 path:line review anchor
+: copy diff    复制当前文件的轻量 diff review 片段
 : copy prompt  复制当前可见改动的 AI review handoff
 : copy prompt file 复制当前文件的 AI review handoff
 : save prompt  保存当前可见改动的 AI review handoff

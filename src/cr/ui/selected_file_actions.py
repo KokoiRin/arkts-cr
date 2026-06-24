@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from ..review.data import build_review_data
 from ..review.changes import other_change_counts
 from ..review.prompt import render_prompt_handoff
+from ..review.snippet import render_file_diff_snippet
 from ..review.tree import shorten_path
 from ..vcs import git
 from . import file_actions
@@ -95,6 +96,65 @@ def copy_selected_anchor(
     if message:
         return message
     return f"Copied {display}"
+
+
+def selected_diff_snippet_text(
+    state,
+    args,
+    *,
+    build_data=None,
+    render_snippet=None,
+    other_counts=None,
+) -> tuple[str, str] | None:
+    build_data = build_review_data if build_data is None else build_data
+    render_snippet = (
+        render_file_diff_snippet if render_snippet is None else render_snippet
+    )
+    other_counts = other_change_counts if other_counts is None else other_counts
+    visible = state.visible_changes
+    if not visible:
+        return None
+    state.clamp_selection()
+    change = visible[state.selected]
+    review_notes = {}
+    note = state.review_notes.get(change.path, "").strip()
+    if note:
+        review_notes[change.path] = note
+    data = build_data(
+        [change],
+        staged=args.staged,
+        all_changes=args.all_changes,
+        base=args.base,
+        ref_range=args.ref_range,
+        include_hunks=True,
+        other_changes=other_counts(args),
+        context=args.context,
+        seen_paths=state.seen_paths,
+        review_notes=review_notes,
+    )
+    return render_snippet(data["files"][0]), change.path
+
+
+def copy_selected_diff_snippet(
+    state,
+    args,
+    *,
+    copy_text=None,
+    snippet_text=None,
+    other_counts=None,
+) -> str:
+    copy_text = file_actions.copy_text if copy_text is None else copy_text
+    if snippet_text is None:
+        snippet = selected_diff_snippet_text(state, args, other_counts=other_counts)
+    else:
+        snippet = snippet_text(state, args)
+    if snippet is None:
+        return "No changed file to copy diff."
+    text, path = snippet
+    message = copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return f"Copied diff for {shorten_path(path)}"
 
 
 def reveal_selected_path(

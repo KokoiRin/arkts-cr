@@ -176,7 +176,7 @@ Command catalog ownership is now explicit without changing user-visible commands
 Browser action execution is now explicit without changing user-visible behavior. `BrowserCommandExecutor` executes parsed actions and returns `BrowserActionResult`, while `run_browser` keeps prompt input, sentinels, workspace save-on-exit, and redraw scheduling.
 Task runtime is now explicit without changing Task Panel behavior. `cr.ui.tasks` owns command resolution, process lifecycle, output capture, stop/rerun, foreground execution, and history records; `browser.py` keeps terminal layout and panel rendering.
 Task presets are now explicit as project-local defaults. `cr.ui.tasks` reads `.cr/tasks.json` for build/test/lint defaults after CLI arguments and environment variables, and before DouyinHarmony's build fallback.
-File actions are now explicit Changed Files operations. `open`, `copy path`, `copy anchor`, and `reveal` use browser command dispatch and action execution, while `cr.ui.file_actions` hides editor, clipboard, and file-browser subprocess details. `stage` and `unstage` are selected-file index actions: they mutate the local Git index through `cr.vcs.git` only for mutable local scopes, then refresh Changed Files.
+File actions are now explicit Changed Files operations. `open`, `copy path`, `copy anchor`, `copy diff`, and `reveal` use browser command dispatch and action execution, while `cr.ui.file_actions` hides editor, clipboard, and file-browser subprocess details. `stage` and `unstage` are selected-file index actions: they mutate the local Git index through `cr.vcs.git` only for mutable local scopes, then refresh Changed Files.
 File action configuration is now explicit. `--open-cmd` / `CR_OPEN_CMD`, `--copy-cmd` / `CR_COPY_CMD`, and `--reveal-cmd` / `CR_REVEAL_CMD` customize selected-file open/copy/reveal actions while preserving platform fallbacks.
 File action diagnostics are now explicit. `file actions` shows open/copy/reveal command sources, and failures name the source that was attempted.
 Task diagnostics are now explicit Task Runtime output. `tasks` shows build/test/lint command sources without starting a background process, and `cr.ui.tasks` owns malformed preset reporting.
@@ -323,7 +323,7 @@ Status: implemented.
 
 Status: implemented.
 
-`open`, `copy path`, `copy anchor`, and `reveal` now operate on the selected changed file through the browser command parser, command palette, and action executor. `open` remains the editor handoff to the first changed line.
+`open`, `copy path`, `copy anchor`, `copy diff`, and `reveal` now operate on the selected changed file through the browser command parser, command palette, and action executor. `copy diff` copies a compact Markdown review snippet for the current file; `open` remains the editor handoff to the first changed line.
 
 ### P0: File action configuration
 
@@ -368,6 +368,8 @@ Status: implemented.
 `copy prompt` copies prompt-ready Markdown for the current visible changed files through the existing copy action configuration. `save prompt [PATH]` writes the same Markdown to a file, defaulting to `.cr/handoff/review-prompt.md`.
 
 `copy prompt file` copies prompt-ready Markdown for only the selected visible changed file, including that file's review note when present. `save prompt file [PATH]` writes the same selected-file Markdown to a file, defaulting to `.cr/handoff/review-prompt-file.md`. All four commands preserve the active page, selection, Review Scope, file filter, progress markers, review notes, and task state. Empty visible scopes report an empty state without launching a clipboard command or writing a file.
+
+`copy diff` is the lighter selected-file variant for quick sharing. It copies only the current file's compact review snippet through `cr.review.snippet`, including hunk context and selected-file metadata, without the full AI prompt handoff wrapper.
 
 ### P0: Real page stack
 
@@ -426,5 +428,5 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is still a large module that owns session orchestration, prompt-input interpretation, action routing, frame composition, and workspace startup/exit.
-- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules and path/source filtering, `Workspace Persistence` hides persisted workspace file I/O, `Browser Frame` hides screen-layer layout and Task Panel presentation, `Browser Input` hides terminal input protocol, `Page Content` hides product-page main content rendering plus Scope Home count display, Commit Picker summary/filter display, and source-badge/filter-context/summary display, `Selected File Actions` hides current-file workflows and local index-action gating, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, `cr.ui.file_actions` hides open/copy/reveal platform behavior, and `cr.vcs.git` hides Git index subprocess behavior plus local change source facts.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules and path/source filtering, `Workspace Persistence` hides persisted workspace file I/O, `Browser Frame` hides screen-layer layout and Task Panel presentation, `Browser Input` hides terminal input protocol, `Page Content` hides product-page main content rendering plus Scope Home count display, Commit Picker summary/filter display, and source-badge/filter-context/summary display, `Selected File Actions` hides current-file workflows and local index-action gating, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, `cr.ui.file_actions` hides open/copy/reveal platform behavior, `cr.review.snippet` hides compact selected-file Markdown rendering, and `cr.vcs.git` hides Git index subprocess behavior plus local change source facts.
 - The next product opportunity should come from concrete usage friction around richer review handoff workflows or broader IDE-like file operations.

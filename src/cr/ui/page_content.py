@@ -140,6 +140,7 @@ def browse_scope_home_screen_lines(
     max_lines: int,
 ) -> list[str]:
     entries = scope_home_entries()
+    scope_counts = getattr(state, "scope_counts", {})
     lines = [
         f"{style.bold('Review scopes')} ({len(entries)} entries)",
         "Enter: open scope   b: back to files   : base REF / : range OLD..NEW",
@@ -149,19 +150,39 @@ def browse_scope_home_screen_lines(
     row_capacity = max(1, max_lines - len(lines) - 1)
     start = ensure_window(0, state.scope_selected, len(entries), row_capacity)
     end = min(len(entries), start + row_capacity)
-    label_width = max(len(entry.label) for entry in entries)
-    for index, entry in enumerate(entries[start:end], start):
+    display_entries = [
+        (entry, scope_home_entry_label(entry, scope_counts)) for entry in entries
+    ]
+    label_width = max(len(label) for _entry, label in display_entries)
+    for index, (entry, label) in enumerate(display_entries[start:end], start):
         marker = ">" if index == state.scope_selected else " "
         command_hint = f"  [{entry.action}]" if entry.action else ""
         lines.append(
             f"{marker} {index + 1}  "
-            f"{entry.label.ljust(label_width)}  {entry.description}{command_hint}"
+            f"{label.ljust(label_width)}  {entry.description}{command_hint}"
         )
     if len(entries) > row_capacity:
         lines.append(style.dim(f"showing {start + 1}-{end}/{len(entries)}"))
     else:
         lines.append("")
     return lines[:max_lines]
+
+
+def scope_home_entry_label(entry: ScopeHomeEntry, counts: dict[str, int]) -> str:
+    if entry.action in {"worktree", "staged", "all"}:
+        count = counts.get(entry.action)
+        if count is not None:
+            return f"{entry.label} ({plural_count(count, 'file')})"
+    if entry.action == BrowserPage.COMMIT_PICKER:
+        count = counts.get("commits")
+        if count is not None:
+            return f"{entry.label} ({plural_count(count, 'commit')})"
+    return entry.label
+
+
+def plural_count(count: int, singular: str) -> str:
+    suffix = "" if count == 1 else "s"
+    return f"{count} {singular}{suffix}"
 
 
 def browse_list_lines(

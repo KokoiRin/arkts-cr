@@ -4326,6 +4326,32 @@ class CliTests(unittest.TestCase):
         self.assertIn("Explicit range", text)
         self.assertIn(": range OLD..NEW", text)
 
+    def test_scope_home_screen_shows_live_scope_counts(self):
+        state = BrowserState(
+            [],
+            page=BrowserPage.SCOPE_HOME,
+            scope_counts={
+                "worktree": 2,
+                "staged": 1,
+                "all": 3,
+                "commits": 4,
+            },
+        )
+
+        lines = page_content.browse_scope_home_screen_lines(
+            state,
+            TerminalStyle(),
+            max_lines=20,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("Worktree (2 files)", text)
+        self.assertIn("Staged (1 file)", text)
+        self.assertIn("All local changes (3 files)", text)
+        self.assertIn("Recent commits (4 commits)", text)
+        self.assertNotIn("Base ref (", text)
+        self.assertNotIn("Explicit range (", text)
+
     def test_scope_home_command_opens_scope_home(self):
         args = argparse_namespace(
             color="never",
@@ -4367,6 +4393,100 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         self.assertIn("scopes", frames)
+
+    def test_scope_home_command_loads_scope_counts(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch(
+            "cr.ui.browser._load_scope_home_counts",
+            return_value={"worktree": 2, "staged": 1, "all": 3, "commits": 4},
+        ) as load_counts:
+            result = executor.execute(parse_browser_command("scopes", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.SCOPE_HOME)
+        self.assertEqual(state.scope_counts["worktree"], 2)
+        load_counts.assert_called_once_with(args)
+
+    def test_scope_home_refresh_reloads_scope_counts(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            page=BrowserPage.SCOPE_HOME,
+            scope_counts={"worktree": 1},
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch(
+            "cr.ui.browser._load_scope_home_counts",
+            return_value={"worktree": 4},
+        ) as load_counts:
+            result = executor.execute(parse_browser_command("r", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.SCOPE_HOME)
+        self.assertEqual(state.scope_counts["worktree"], 4)
+        load_counts.assert_called_once_with(args)
+
+    def test_scope_home_count_loader_counts_review_scope_candidates(self):
+        args = argparse_namespace(paths=["src"], code=True, untracked=True)
+
+        def changed_files(paths, staged=False, all_changes=False, include_untracked=False):
+            self.assertEqual(paths, ["src"])
+            if staged:
+                self.assertFalse(include_untracked)
+                return [FileChange("src/Staged.ts", 1, 0)]
+            if all_changes:
+                self.assertTrue(include_untracked)
+                return [
+                    FileChange("src/Staged.ts", 1, 0),
+                    FileChange("src/Unstaged.ts", 1, 0),
+                    FileChange("README.md", 1, 0),
+                ]
+            self.assertTrue(include_untracked)
+            return [
+                FileChange("src/Unstaged.ts", 1, 0),
+                FileChange("README.md", 1, 0),
+            ]
+
+        with patch("cr.ui.browser.git.changed_files", side_effect=changed_files):
+            with patch(
+                "cr.ui.browser.git.recent_commits",
+                return_value=[
+                    CommitSummary(
+                        commit="abcdef1234567890",
+                        parent=None,
+                        authored_at="2026-06-24",
+                        subject="Example",
+                    )
+                ],
+            ):
+                counts = browser_module._load_scope_home_counts(args)
+
+        self.assertEqual(
+            counts,
+            {"worktree": 1, "staged": 1, "all": 2, "commits": 1},
+        )
 
     def test_scope_home_enter_switches_to_staged_scope(self):
         args = argparse_namespace(

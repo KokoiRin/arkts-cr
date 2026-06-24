@@ -18,6 +18,7 @@ import time
 
 from ..review.changes import (
     change_hunk_lines,
+    filter_changes,
     is_code_file,
     modified_names,
     other_change_counts,
@@ -78,6 +79,7 @@ class BrowserState:
     command_selected: int = 0
     command_filter_text: str = ""
     status_message: str = ""
+    scope_counts: dict[str, int] = field(default_factory=dict)
     workspace: ReviewWorkspace | None = None
     page_back_stack: list[BrowserPageSnapshot] = field(default_factory=list)
     page_forward_stack: list[BrowserPageSnapshot] = field(default_factory=list)
@@ -291,7 +293,7 @@ class BrowserCommandExecutor:
             BrowserNavigation.show_command_palette(state)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SHOW_SCOPE_HOME:
-            BrowserNavigation.show_scope_home(state)
+            _show_scope_home(state, args)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SHOW_COMMITS:
             state.commits = _load_recent_commits()
@@ -528,6 +530,8 @@ class BrowserCommandExecutor:
             if state.page == BrowserPage.COMMIT_PICKER:
                 state.commits = _load_recent_commits()
                 state.commit_scroll = 0
+            elif state.page == BrowserPage.SCOPE_HOME:
+                state.scope_counts = _load_scope_home_counts(args)
             else:
                 _refresh_changed_files_after_action(state, args)
             return BrowserActionResult(needs_redraw=True)
@@ -1079,6 +1083,44 @@ def _load_recent_commits() -> list[git.CommitSummary]:
         return git.recent_commits()
     except git.GitError:
         return []
+
+
+def _load_scope_home_counts(args: argparse.Namespace) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    count_specs = (
+        ("worktree", {"staged": False, "all_changes": False}),
+        ("staged", {"staged": True, "all_changes": False}),
+        ("all", {"staged": False, "all_changes": True}),
+    )
+    for key, options in count_specs:
+        changes = _load_scope_count_changes(args, **options)
+        if changes is not None:
+            counts[key] = len(changes)
+    counts["commits"] = len(_load_recent_commits())
+    return counts
+
+
+def _load_scope_count_changes(
+    args: argparse.Namespace,
+    *,
+    staged: bool,
+    all_changes: bool,
+) -> list[git.FileChange] | None:
+    try:
+        changes = git.changed_files(
+            getattr(args, "paths", []),
+            staged=staged,
+            all_changes=all_changes,
+            include_untracked=getattr(args, "untracked", False) and not staged,
+        )
+    except git.GitError:
+        return None
+    return filter_changes(changes, code_only=getattr(args, "code", False))
+
+
+def _show_scope_home(state: BrowserState, args: argparse.Namespace) -> None:
+    state.scope_counts = _load_scope_home_counts(args)
+    BrowserNavigation.show_scope_home(state)
 
 
 def _refresh_changed_files_after_action(

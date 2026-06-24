@@ -32,11 +32,11 @@ mapping, idle tick/EOF/interrupt sentinels, and terminal raw-mode restoration.
 It does not parse browser commands, mutate browser state, save workspace state,
 or draw the Browser Frame.
 `cr.ui.page_content` owns browser page main-content rendering: prompt labels,
-help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree
-rows including local change source badges and summaries, Commit Picker rows,
-empty states, File Detail lines, and page scroll window calculations. It does
-not read raw input, draw the Browser Frame, run commands, switch review scopes,
-persist workspace state, or execute file actions.
+help lines, scope breadcrumbs/context, Scope Home entries and overview counts,
+Changed Files tree rows including local change source badges and summaries,
+Commit Picker rows, empty states, File Detail lines, and page scroll window
+calculations. It does not read raw input, draw the Browser Frame, run commands,
+switch review scopes, persist workspace state, or execute file actions.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
 loading, path/source filtering, progress markers, per-file review notes,
 selected-file state, and browser workspace-state data interpretation.
@@ -99,6 +99,10 @@ Product navigation terms:
   for Scope Home, Commit Picker, Changed Files, empty states, and File Detail.
   It owns page text and scroll-window rendering rules, while Browser Frame owns
   screen placement.
+- `Scope Home Counts`: temporary overview counts shown on Scope Home for
+  Worktree, Staged, All local changes, and Recent commits. Browser
+  orchestration samples these counts when Scope Home opens or refreshes; Page
+  Content renders them; workspace persistence does not store them.
 - `Change Source Badges`: lightweight local Git source labels shown in Changed
   Files rows, such as `staged`, `unstaged`, and `mixed`. `cr.vcs.git` owns the
   facts; `Page Content` owns row display.

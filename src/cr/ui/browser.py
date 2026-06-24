@@ -69,6 +69,7 @@ class BrowserState:
     remaining_only: bool = False
     command_selected: int = 0
     command_filter_text: str = ""
+    status_message: str = ""
 
     @property
     def visible_changes(self) -> list[git.FileChange]:
@@ -463,9 +464,14 @@ def run_browser(args: argparse.Namespace) -> int:
             visible = state.visible_changes
             if visible:
                 state.clamp_selection()
-                _open_change(visible[state.selected], args)
+                message = _open_change(visible[state.selected], args)
+                _show_browser_message(state, message, raw_keys, frame)
+                if raw_keys:
+                    needs_redraw = True
             else:
-                print("No changed file to open.")
+                _show_browser_message(state, "No changed file to open.", raw_keys, frame)
+                if raw_keys:
+                    needs_redraw = True
             continue
         if command in {"build", "compile"}:
             if raw_keys:
@@ -565,7 +571,9 @@ def run_browser(args: argparse.Namespace) -> int:
             continue
         if command in {"enter", "right", "l"}:
             if state.mode == "commits":
-                _select_commit(state, args)
+                message = _select_commit(state, args)
+                if message:
+                    _show_browser_message(state, message, raw_keys, frame)
                 needs_redraw = True
             elif state.visible_changes:
                 state.mode = "file"
@@ -607,10 +615,19 @@ def run_browser(args: argparse.Namespace) -> int:
             if state.mode == "commits":
                 if 1 <= choice <= len(state.commits):
                     state.selected = choice - 1
-                    _select_commit(state, args)
+                    message = _select_commit(state, args)
+                    if message:
+                        _show_browser_message(state, message, raw_keys, frame)
                     needs_redraw = True
                 else:
-                    print(f"Choose 1-{len(state.commits)}.")
+                    _show_browser_message(
+                        state,
+                        f"Choose 1-{len(state.commits)}.",
+                        raw_keys,
+                        frame,
+                    )
+                    if raw_keys:
+                        needs_redraw = True
                 continue
             visible = state.visible_changes
             if 1 <= choice <= len(visible):
@@ -618,14 +635,28 @@ def run_browser(args: argparse.Namespace) -> int:
                 state.mode = "file"
                 needs_redraw = True
             else:
-                print(f"Choose 1-{len(visible)}.")
+                _show_browser_message(state, f"Choose 1-{len(visible)}.", raw_keys, frame)
+                if raw_keys:
+                    needs_redraw = True
             continue
         if command:
-            print(
-                "Unknown command. Use arrows, Enter, /, c, a number, "
-                "o, n, p, b, g, r, h, m, remaining, build, stop, rerun, "
-                "staged, all, base, range, or q."
+            unknown_message = (
+                "Unknown command. Open commands for available actions."
+                if raw_keys
+                else (
+                    "Unknown command. Use arrows, Enter, /, c, a number, "
+                    "o, n, p, b, g, r, h, m, remaining, build, stop, rerun, "
+                    "staged, all, base, range, or q."
+                )
             )
+            _show_browser_message(
+                state,
+                unknown_message,
+                raw_keys,
+                frame,
+            )
+            if raw_keys:
+                needs_redraw = True
 
 
 def filter_changes_by_query(
@@ -829,10 +860,9 @@ def _show_commits_when_empty(state: BrowserState, args: argparse.Namespace) -> N
         state.selected = 0
 
 
-def _select_commit(state: BrowserState, args: argparse.Namespace) -> None:
+def _select_commit(state: BrowserState, args: argparse.Namespace) -> str | None:
     if not state.commits:
-        print("No recent commits.")
-        return
+        return "No recent commits."
     state.clamp_selection()
     commit = state.commits[state.selected]
     if state.previous_scope is None:
@@ -850,6 +880,7 @@ def _select_commit(state: BrowserState, args: argparse.Namespace) -> None:
     state.selected = 0
     state.list_scroll = 0
     state.clamp_selection()
+    return None
 
 
 def _switch_review_scope(
@@ -1159,7 +1190,7 @@ def _draw_build_panel_only(
     layout = _screen_layout(build)
     height = layout.build_height
     if frame is not None:
-        if not frame.complete or frame.layout != layout:
+        if frame.dirty or not frame.complete or frame.layout != layout:
             frame.dirty = True
             return False
     lines = _build_panel_lines(build, style, height, history)
@@ -1408,7 +1439,24 @@ def _scope_context_line(
     args: argparse.Namespace,
     style: TerminalStyle,
 ) -> str:
-    return style.dim(f"Scope: {_scope_label(state, args)}")
+    line = f"Scope: {_scope_label(state, args)}"
+    if state.status_message:
+        line = f"{line}  |  {state.status_message}"
+    return style.dim(_fit_terminal_line(line))
+
+
+def _show_browser_message(
+    state: BrowserState,
+    message: str,
+    raw_keys: bool,
+    frame: BrowserFrame | None = None,
+) -> None:
+    if raw_keys:
+        state.status_message = message
+        if frame is not None:
+            frame.dirty = True
+        return
+    print(message)
 
 
 def _browse_list_lines(
@@ -2187,7 +2235,7 @@ def _build_command(repo: Path, configured: str | None = None) -> list[str] | Non
     return None
 
 
-def _open_change(change: git.FileChange, args: argparse.Namespace) -> None:
+def _open_change(change: git.FileChange, args: argparse.Namespace) -> str:
     line = git.first_changed_line(
         change.path,
         staged=args.staged,
@@ -2198,17 +2246,15 @@ def _open_change(change: git.FileChange, args: argparse.Namespace) -> None:
     repo_file = git.repo_path(change.path)
     command = _open_command(repo_file, line, args.open_cmd)
     if not command:
-        print(
+        return (
             "No editor opener found. Set --open-cmd or CR_OPEN_CMD, "
             "for example: --open-cmd 'code -g {fileline}'"
         )
-        return
     try:
         subprocess.Popen(command)
     except OSError as exc:
-        print(f"Open failed: {exc}")
-        return
-    print(f"Opened {shorten_path(change.path)}{':' + str(line) if line else ''}")
+        return f"Open failed: {exc}"
+    return f"Opened {shorten_path(change.path)}{':' + str(line) if line else ''}"
 
 
 def _open_command(

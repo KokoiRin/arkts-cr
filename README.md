@@ -13,13 +13,13 @@ cr
 交互界面由一个固定 browser frame 管理，不是普通 stdout 日志流。当前 frame 分四层：
 
 ```text
-上下文区        当前按键、当前 review scope，比如 worktree / staged / range
+上下文区        当前 review scope 和临时状态反馈，比如 opened / invalid choice
 主工作区        文件树、commit 列表、单文件 diff、command palette
 后台任务面板    build 等后台任务的状态、最近输出和最近任务结果
 命令提示区      cr:list> / cr:file> / cr:commits>
 ```
 
-build 运行时只允许刷新后台任务面板；主工作区仍然可以继续浏览，最底下的命令提示不会被日志挤走。用户打开 `:` 或 `/` 这种临时输入后，界面会回到同一个固定 frame。
+build 运行时只允许刷新后台任务面板；主工作区仍然可以继续浏览，最底下的命令提示不会被日志挤走。raw-key 模式里的普通操作反馈会显示在上下文区，不会追加到 prompt 下面。用户打开 `:` 或 `/` 这种临时输入后，界面会回到同一个固定 frame。
 
 ## 安装
 

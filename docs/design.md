@@ -50,8 +50,9 @@ Implement a terminal-first code review workbench named `cr`.
   - Treats leading options such as `cr --code` or `cr --context 0` as `cr browse --code` and `cr browse --context 0`.
   - Shows a changed-file list first, then a focused per-file diff view.
   - Uses stable screen regions in interactive TTYs so navigation and background tasks do not append repeated output.
-  - Renders four page layers: help/context, main content, background task panel, and input prompt.
-  - Displays the active review scope in the context area: worktree, staged, all local changes, base ref, explicit range, recent commits, or selected commit.
+  - Renders four page layers: context/status, main content, background task panel, and input prompt.
+  - Displays the active review scope in the context/status area: worktree, staged, all local changes, base ref, explicit range, recent commits, or selected commit.
+  - Shows raw-key operation feedback such as opened files, invalid selections, and unknown commands in the context/status layer instead of appending stdout below the prompt.
   - Supports in-session review-scope switching with `worktree`, `staged`, `all`, `base REF`, and `range OLD..NEW`.
   - Keeps the input prompt on the final terminal row.
   - Shows build output in a 5-10 line bottom task panel above the prompt while the main content remains usable.
@@ -141,6 +142,8 @@ Implement a terminal-first code review workbench named `cr`.
   - Treat `commands` mode as the command palette layer: raw-key users can filter/select executable commands and run them with Enter, while parameterized commands remain available through `:` input.
   - Treat browser screen layout as one module-owned concept: content height, background task height, task panel start row, and prompt row are calculated together.
   - Treat raw-key rendering as one browser frame, not independent stdout writes: full redraw records the current layout and task-panel snapshot; partial task-panel refreshes are allowed only while that frame remains valid.
+  - Treat browser page ownership as four explicit layers: context/status, main content, background task panel, and input prompt. Raw-key feedback belongs in the context/status layer, never as ad hoc stdout below the prompt.
+  - Mark the frame dirty when a raw-key action produces status feedback, so background task output cannot apply a stale partial panel refresh over an incomplete page.
   - Restore the fixed browser frame after temporary line input (`:` commands or `/` filters), so the next visual update cannot be a stale bottom-panel patch.
   - Keep build task lifecycle in `BuildState` until a second real background task exists; task history is a compact session-level record, not a generic concurrent task manager.
   - Treat in-session review progress as browser workspace state: seen paths and remaining-only view belong in `BrowserState` and persist with `.git/cr/browse-state.json`.
@@ -186,6 +189,7 @@ Implement a terminal-first code review workbench named `cr`.
 - Unit tests cover interactive browser filtering, fixed-screen redraw rendering, and non-TTY filtered selection.
 - Unit tests cover browse progress markers, remaining-only filtering, unmarking, persistence, and seen/todo rendering.
 - Unit tests cover browser frame state, safe build-panel partial refresh, stale-layout refusal, and line-input frame restoration.
+- Unit tests cover browser layer ownership: raw-key operation feedback stays inside the context/status layer, and dirty frames reject task-panel partial refreshes.
 - Unit tests cover executable command palette entries, command selection, palette rendering, and Enter execution without accidentally opening files.
 - Unit tests cover command palette filtering, empty results, file-filter isolation, clear behavior, and filtered command execution.
 - Unit tests cover task history rendering, completed-build single recording, rerun history retention, and workspace-state exclusion.

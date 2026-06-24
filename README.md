@@ -73,12 +73,12 @@ Home/End       跳到顶部 / 底部
 scopes        打开 Review Scope 首页
 g             选择最近 commit
 w             回到工作区改动
-r             刷新改动
+r             刷新改动；在文件详情里会尽量保留当前文件
 o             用编辑器打开当前文件
 q             退出
 ```
 
-在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`]` / `[` 会跳到下一个 / 上一个 diff hunk；`: open hunk` 会打开当前 hunk，`: copy hunk` 会复制当前 hunk review 片段；`n/p` 仍然用于切到下一个 / 上一个文件。
+在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`]` / `[` 会跳到下一个 / 上一个 diff hunk；`: open hunk` 会打开当前 hunk，`: copy hunk` 会复制当前 hunk review 片段；`r` 刷新后如果当前文件仍在当前 scope/filter 里，会留在这个文件详情；`n/p` 仍然用于切到下一个 / 上一个文件。
 
 打开 command palette：
 

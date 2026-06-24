@@ -88,6 +88,15 @@ class BrowserNavigation:
         state.file_scroll = 0
 
     @staticmethod
+    def replace_with_file_detail(state: _BrowserNavigationState) -> None:
+        state.page = BrowserPage.FILE_DETAIL
+
+    @staticmethod
+    def replace_with_changed_files(state: _BrowserNavigationState) -> None:
+        state.page = BrowserPage.CHANGED_FILES
+        state.file_scroll = 0
+
+    @staticmethod
     def go_back(state: _BrowserNavigationState) -> None:
         if state.page_back_stack:
             current = BrowserNavigation._snapshot(state)

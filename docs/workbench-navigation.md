@@ -384,7 +384,7 @@ Status: implemented.
 
 Status: implemented.
 
-`BrowserNavigation` now keeps an in-session page back/forward stack. `back` restores the previous page snapshot, `forward` restores the page left by `back`, new navigation branches clear forward history, and Review Scope switches / refreshes reset the stack.
+`BrowserNavigation` now keeps an in-session page back/forward stack. `back` restores the previous page snapshot, `forward` restores the page left by `back`, new navigation branches clear forward history, and Review Scope switches / refreshes reset the stack. Ordinary refresh preserves File Detail when the selected file still exists in the refreshed visible changes; otherwise it falls back to Changed Files.
 
 ### P0: Selected-file index actions
 

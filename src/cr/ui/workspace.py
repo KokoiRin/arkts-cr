@@ -154,6 +154,21 @@ class ReviewWorkspace:
             return
         self.switch_scope(args, self.previous_scope, loader=loader)
 
+    def reload_changes(
+        self,
+        args: argparse.Namespace,
+        *,
+        loader: ChangedFileLoader = load_workspace_changes,
+        preserve_selected_path: str | None = None,
+    ) -> None:
+        self.changes = loader(args)
+        self._restore_selection(
+            {
+                "selected_path": preserve_selected_path,
+                "selected_index": self.selected,
+            }
+        )
+
     def state_data(self, args: argparse.Namespace, *, mode: str) -> dict[str, object]:
         visible = self.visible_changes
         selected_path = None

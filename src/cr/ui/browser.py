@@ -578,7 +578,9 @@ class BrowserCommandExecutor:
             elif state.page == BrowserPage.SCOPE_HOME:
                 state.scope_counts = _load_scope_home_counts(args)
             else:
-                _refresh_changed_files_after_action(state, args)
+                message = _refresh_changed_files_for_command(state, args, style)
+                if message:
+                    _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SHOW_CHANGED_FILES:
             BrowserNavigation.show_changed_files(state)
@@ -1157,6 +1159,46 @@ def _refresh_changed_files_after_action(
     state.list_scroll = 0
     _show_commits_when_empty(state, args)
     state.clamp_selection()
+
+
+def _refresh_changed_files_for_command(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str | None:
+    keep_file_detail = state.page == BrowserPage.FILE_DETAIL
+    selected_path = _selected_visible_path(state) if keep_file_detail else None
+    previous_scroll = state.file_scroll
+    workspace = state._sync_to_workspace()
+    workspace.reload_changes(
+        args,
+        loader=_load_browse_changes,
+        preserve_selected_path=selected_path,
+    )
+    state._sync_from_workspace()
+    state.first_line_cache.clear()
+    state.file_line_cache.clear()
+    BrowserNavigation.reset_history(state)
+    _show_commits_when_empty(state, args)
+    state.clamp_selection()
+    if keep_file_detail and selected_path and _selected_visible_path(state) == selected_path:
+        BrowserNavigation.replace_with_file_detail(state)
+        state.file_scroll = min(previous_scroll, _max_file_scroll(state, args, style))
+        return None
+    if keep_file_detail and selected_path and state.page == BrowserPage.FILE_DETAIL:
+        BrowserNavigation.replace_with_changed_files(state)
+        return "Current file no longer visible after refresh."
+    if state.page == BrowserPage.FILE_DETAIL:
+        BrowserNavigation.replace_with_changed_files(state)
+    return None
+
+
+def _selected_visible_path(state: BrowserState) -> str | None:
+    visible = state.visible_changes
+    if not visible:
+        return None
+    state.clamp_selection()
+    return visible[state.selected].path
 
 
 def _run_selected_index_action(

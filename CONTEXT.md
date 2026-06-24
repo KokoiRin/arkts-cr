@@ -43,8 +43,9 @@ commit filtering, and filtered selection helpers. It does not render terminal
 rows, parse commands, load commits from Git, draw the Browser Frame, or persist
 workspace state.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
-loading, path/source filtering, progress markers, per-file review notes,
-selected-file state, and browser workspace-state data interpretation.
+loading/reloading, selected-path restoration after reload, path/source
+filtering, progress markers, per-file review notes, selected-file state, and
+browser workspace-state data interpretation.
 `cr.ui.workspace_persistence` owns browser workspace persistence file I/O:
 `.git/cr/browse-state.json` path construction, schema version wrapping and
 validation, tolerant JSON read/write, and default-session save/restore

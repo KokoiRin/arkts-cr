@@ -76,7 +76,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Supports prompt handoff from inside the browser with `copy prompt` for the current visible Review Scope and `copy prompt file` for the selected File Detail / Changed Files item, reusing the same Markdown renderer as `cr review --prompt` and including matching review notes.
   - Shows file action source diagnostics with `file actions`, covering open/copy/reveal CLI, environment, platform fallback, or missing sources.
   - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` / `test` / `lint` from the command prompt for repo tasks.
-  - Persists the default browser workspace in `.git/cr/browse-state.json`, restoring scope, filter, selected file, review notes, and list/file layer unless the user passes an explicit scope or pathspec.
+  - Persists the default browser workspace in `.git/cr/browse-state.json`, restoring scope, filter, selected file, review notes, and list/file layer unless the user passes an explicit scope or pathspec; persistence file I/O and schema wrapping live in `cr.ui.workspace_persistence`.
 
 ## Not doing
 
@@ -150,6 +150,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat `BrowserPage` as the canonical internal page vocabulary for Scope Home, Commit Picker, Changed Files, File Detail, and Command Palette.
   - Treat `BrowserNavigation` as the owner of page transition rules, in-session page history, and small local state resets such as file scroll, command selection, scope selection, and commit picker selection resets.
   - Treat `ReviewWorkspace` as the owner of active review scope, changed-file loading, filter/progress/note state, selected file, selected commit, previous scope, and workspace-state data mapping. Browser file I/O remains at the UI edge.
+  - Treat `Workspace Persistence` as the owner of `.git/cr/browse-state.json` path construction, schema version wrapping/validation, tolerant JSON read/write, and default-session restore/save eligibility. `browser.py` decides when to call it, while `ReviewWorkspace` interprets product state.
   - Treat `BrowserCommand` dispatch as the owner of command text aliases, parameter parsing, numeric selections, and unknown-command fallback. `browser.py` may execute parsed actions, but it should not re-own string parsing rules.
   - Treat `Command Catalog` as the owner of grouped command help, executable command palette entries, filtering/ranking, and command surface row rendering. `browser.py` owns command filter/selection/scroll state and frame placement, not catalog data.
   - Treat `BrowserCommandExecutor` as the owner of parsed action execution and loop-control results. `run_browser` should keep input prompts, sentinels, workspace save-on-exit, and render-loop scheduling, but it should not re-own every action branch.

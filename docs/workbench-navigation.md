@@ -225,7 +225,13 @@ Status: implemented.
 
 Status: implemented.
 
-`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress/note state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns terminal rendering, command dispatch, background tasks, selected-file action execution, and file I/O for `.git/cr/browse-state.json`.
+`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress/note state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns terminal rendering, command dispatch, background tasks, selected-file action execution, and live state synchronization around persistence calls.
+
+### P0: Workspace persistence extraction
+
+Status: implemented.
+
+`cr.ui.workspace_persistence` now owns `.git/cr/browse-state.json` path construction, schema version wrapping and validation, tolerant JSON read/write, and default-session restore/save eligibility. `ReviewWorkspace` keeps product state interpretation, and `browser.py` keeps startup/exit orchestration plus live `BrowserState` synchronization.
 
 ### P0: Command dispatch deepening
 
@@ -328,5 +334,5 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and persistence file I/O.
-- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, and `cr.ui.file_actions` hides open/copy/reveal platform behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, prompt input, and persistence file I/O.
-- The next product opportunity should come from concrete usage friction around richer review handoff workflows or deeper persistence/rendering extraction.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `Workspace Persistence` hides persisted workspace file I/O, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, and `cr.ui.file_actions` hides open/copy/reveal platform behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, and prompt input.
+- The next product opportunity should come from concrete usage friction around richer review handoff workflows or deeper rendering/task-panel extraction.

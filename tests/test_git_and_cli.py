@@ -60,6 +60,7 @@ from cr.review.changes import format_counts
 from cr.review.data import build_review_data
 from cr.review.prompt import render_prompt_handoff
 from cr.ui import command_catalog
+from cr.ui import workspace_persistence
 from cr.ui.terminal import TerminalStyle
 from cr.vcs.git import CommitSummary, FileChange
 
@@ -78,6 +79,93 @@ def argparse_namespace(**kwargs):
 
 
 class CliTests(unittest.TestCase):
+    def test_workspace_persistence_module_paths_and_eligibility(self):
+        repo = Path("/tmp/sample-repo")
+        default_args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            paths=[],
+        )
+        path_args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            paths=["src"],
+        )
+
+        self.assertEqual(
+            workspace_persistence.workspace_state_path(repo),
+            repo / ".git" / "cr" / "browse-state.json",
+        )
+        self.assertTrue(workspace_persistence.should_restore_workspace_state(default_args))
+        self.assertTrue(workspace_persistence.should_save_workspace_state(default_args))
+        self.assertFalse(workspace_persistence.should_restore_workspace_state(path_args))
+        self.assertFalse(workspace_persistence.should_save_workspace_state(path_args))
+
+    def test_workspace_persistence_module_saves_and_loads_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / ".git").mkdir()
+            workspace = ReviewWorkspace(
+                [
+                    FileChange("src/First.ts", 1, 0),
+                    FileChange("src/Second.ts", 2, 1),
+                ],
+                selected=0,
+                filter_text="Second",
+                seen_paths={"src/First.ts"},
+                review_notes={"src/Second.ts": "check lifecycle"},
+            )
+            args = argparse_namespace(
+                staged=True,
+                all_changes=False,
+                base=None,
+                ref_range=None,
+                untracked=False,
+                paths=[],
+            )
+
+            workspace_persistence.save_workspace_state(
+                workspace,
+                args,
+                repo,
+                mode=BrowserPage.FILE_DETAIL,
+            )
+            loaded = workspace_persistence.load_workspace_state(repo)
+
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded["version"], 1)
+        self.assertEqual(loaded["scope"]["staged"], True)
+        self.assertEqual(loaded["filter_text"], "Second")
+        self.assertEqual(loaded["selected_path"], "src/Second.ts")
+        self.assertEqual(loaded["mode"], BrowserPage.FILE_DETAIL)
+        self.assertEqual(loaded["seen_paths"], ["src/First.ts"])
+        self.assertEqual(loaded["review_notes"], {"src/Second.ts": "check lifecycle"})
+        self.assertNotIn("task_history", loaded)
+
+    def test_workspace_persistence_module_ignores_invalid_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            path = repo / ".git" / "cr" / "browse-state.json"
+            path.parent.mkdir(parents=True)
+
+            path.write_text("{not-json", encoding="utf-8")
+            self.assertIsNone(workspace_persistence.load_workspace_state(repo))
+
+            path.write_text(
+                json.dumps({"version": 999, "scope": {}}),
+                encoding="utf-8",
+            )
+            self.assertIsNone(workspace_persistence.load_workspace_state(repo))
+
+            path.write_text(json.dumps({"version": 1}), encoding="utf-8")
+            self.assertIsNone(workspace_persistence.load_workspace_state(repo))
+
     def test_prompt_handoff_renders_review_notes_in_summary_and_detail(self):
         prompt = render_prompt_handoff(
             {

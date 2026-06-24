@@ -27,6 +27,10 @@ in-session page history, and their small local state resets.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
 loading, filtering, progress markers, per-file review notes, selected-file
 state, and browser workspace-state data interpretation.
+`cr.ui.workspace_persistence` owns browser workspace persistence file I/O:
+`.git/cr/browse-state.json` path construction, schema version wrapping and
+validation, tolerant JSON read/write, and default-session save/restore
+eligibility.
 `cr.ui.commands` owns browser command parsing: it translates typed commands,
 key aliases, parameterized commands, numeric selections, and unknown input into
 stable product actions without executing those actions, rendering output, or
@@ -67,6 +71,9 @@ Product navigation terms:
 - `Review Workspace`: the internal module that owns the current Review Scope,
   changed files, filter/progress/note state, selected file, selected commit,
   previous scope, and persistence data mapping for `cr browse`.
+- `Workspace Persistence`: the internal module that owns `.git/cr/browse-state.json`
+  path construction, version validation, tolerant JSON read/write, and default
+  workspace save/restore eligibility.
 - `Review Notes`: lightweight per-file notes inside the current Review
   Workspace, surfaced by `note TEXT` / `note` / `notes` / `notes QUERY` /
   `copy notes` / `copy notes QUERY` and persisted with browse state.

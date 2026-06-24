@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
-import json
 from pathlib import Path
 import select
 import shlex
@@ -47,17 +46,16 @@ from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
+from . import workspace_persistence
 from .workspace import (
     ReviewScope,
     ReviewWorkspace,
     capture_scope,
     filter_changes_by_query,
     load_workspace_changes,
-    restore_scope_from_state,
 )
 
 
-BROWSER_WORKSPACE_STATE_VERSION = 1
 @dataclass
 class BrowserState:
     changes: list[git.FileChange]
@@ -823,14 +821,7 @@ def run_browser(args: argparse.Namespace) -> int:
 
 
 def _should_restore_browser_workspace_state(args: argparse.Namespace) -> bool:
-    return (
-        not args.staged
-        and not args.all_changes
-        and args.base is None
-        and args.ref_range is None
-        and not args.untracked
-        and not args.paths
-    )
+    return workspace_persistence.should_restore_workspace_state(args)
 
 
 def _mark_selected_seen(state: BrowserState) -> None:
@@ -992,7 +983,7 @@ def _file_action_diagnostic_lines(args: argparse.Namespace) -> list[str]:
 
 
 def _browser_workspace_state_path(repo: Path) -> Path:
-    return repo / ".git" / "cr" / "browse-state.json"
+    return workspace_persistence.workspace_state_path(repo)
 
 
 def _save_browser_workspace_state_on_exit(
@@ -1000,7 +991,7 @@ def _save_browser_workspace_state_on_exit(
     args: argparse.Namespace,
     repo: Path,
 ) -> None:
-    if args.paths:
+    if not workspace_persistence.should_save_workspace_state(args):
         return
     _save_browser_workspace_state(state, args, repo)
 
@@ -1010,53 +1001,36 @@ def _save_browser_workspace_state(
     args: argparse.Namespace,
     repo: Path,
 ) -> None:
-    path = _browser_workspace_state_path(repo)
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = path.with_suffix(".json.tmp")
-        tmp_path.write_text(
-            json.dumps(
-                _browser_workspace_state_data(state, args),
-                ensure_ascii=False,
-                sort_keys=True,
-            ),
-            encoding="utf-8",
-        )
-        tmp_path.replace(path)
-    except OSError:
-        return
+    workspace_persistence.save_workspace_state(
+        state._sync_to_workspace(),
+        args,
+        repo,
+        mode=_browser_workspace_state_mode(state),
+    )
 
 
 def _browser_workspace_state_data(
     state: BrowserState,
     args: argparse.Namespace,
 ) -> dict[str, object]:
+    return workspace_persistence.workspace_state_data(
+        state._sync_to_workspace(),
+        args,
+        mode=_browser_workspace_state_mode(state),
+    )
+
+
+def _browser_workspace_state_mode(state: BrowserState) -> str:
     mode = (
         BrowserPage.FILE_DETAIL
         if state.page == BrowserPage.FILE_DETAIL
         else BrowserPage.CHANGED_FILES
     )
-    data = state._sync_to_workspace().state_data(args, mode=mode)
-    return {
-        "version": BROWSER_WORKSPACE_STATE_VERSION,
-        **data,
-    }
+    return mode
 
 
 def _load_browser_workspace_state(repo: Path) -> dict[str, object] | None:
-    path = _browser_workspace_state_path(repo)
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    if not isinstance(raw, dict):
-        return None
-    if raw.get("version") != BROWSER_WORKSPACE_STATE_VERSION:
-        return None
-    scope = raw.get("scope")
-    if not isinstance(scope, dict):
-        return None
-    return raw
+    return workspace_persistence.load_workspace_state(repo)
 
 
 def _restore_browser_workspace_state(
@@ -1080,7 +1054,7 @@ def _restore_browser_workspace_scope(
     args: argparse.Namespace,
     workspace_state: dict[str, object],
 ) -> None:
-    restore_scope_from_state(args, workspace_state)
+    workspace_persistence.restore_workspace_scope(args, workspace_state)
 
 
 def _load_browse_changes(args: argparse.Namespace) -> list[git.FileChange]:

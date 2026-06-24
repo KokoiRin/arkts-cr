@@ -15,6 +15,7 @@ import cr.ui.browser as browser_module
 from cr.ui.browser import (
     TaskState,
     BrowserFrame,
+    BrowserPage,
     BrowserState,
     TaskRecord,
     _build_command,
@@ -66,6 +67,34 @@ def argparse_namespace(**kwargs):
 
 
 class CliTests(unittest.TestCase):
+    def test_browser_page_model_names_current_pages(self):
+        self.assertEqual(BrowserPage.SCOPE_HOME, "scopes")
+        self.assertEqual(BrowserPage.COMMIT_PICKER, "commits")
+        self.assertEqual(BrowserPage.CHANGED_FILES, "list")
+        self.assertEqual(BrowserPage.FILE_DETAIL, "file")
+        self.assertEqual(BrowserPage.COMMAND_PALETTE, "commands")
+
+        state = BrowserState([])
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.mode, BrowserPage.CHANGED_FILES)
+
+        state.mode = BrowserPage.FILE_DETAIL
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+
+        state.page = BrowserPage.COMMAND_PALETTE
+        self.assertEqual(state.mode, BrowserPage.COMMAND_PALETTE)
+
+    def test_browser_page_model_is_used_by_main_browser_implementation(self):
+        source = Path(browser_module.__file__).read_text(encoding="utf-8")
+
+        self.assertIn("BrowserPage.CHANGED_FILES", source)
+        self.assertIn("BrowserPage.FILE_DETAIL", source)
+        self.assertIn("BrowserPage.COMMIT_PICKER", source)
+        self.assertIn("BrowserPage.SCOPE_HOME", source)
+        self.assertIn("BrowserPage.COMMAND_PALETTE", source)
+        self.assertNotIn('mode: str = "list"', source)
+        self.assertNotIn("state.mode", source)
+
     def test_background_task_runtime_uses_task_state_names(self):
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
 
@@ -1015,7 +1044,7 @@ class CliTests(unittest.TestCase):
             link_scheme="file",
             context=2,
         )
-        state = BrowserState([FileChange("src/Sample.ts", 1, 1)], mode="file")
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)], page="file")
         output = StringIO()
 
         with patch("cr.ui.browser.git.first_changed_line", return_value=3):
@@ -1047,7 +1076,7 @@ class CliTests(unittest.TestCase):
                     subject="Example change",
                 )
             ],
-            mode="commits",
+            page="commits",
         )
         output = StringIO()
 
@@ -1092,7 +1121,7 @@ class CliTests(unittest.TestCase):
             ref_range=None,
             link_scheme="file",
         )
-        state = BrowserState([FileChange("src/Sample.ts", 1, 1)], mode="scopes")
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)], page="scopes")
         output = StringIO()
 
         with redirect_stdout(output):
@@ -1540,7 +1569,7 @@ class CliTests(unittest.TestCase):
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
             task=TaskState(["true"], process, lines=["compile line"]),
-            mode="commands",
+            page="commands",
         )
         output = StringIO()
 
@@ -1656,7 +1685,7 @@ class CliTests(unittest.TestCase):
             list_scroll=4,
             commit_scroll=2,
             file_scroll=9,
-            mode="file",
+            page="file",
             filter_text="Old",
         )
         state.first_line_cache["src/Old.ts"] = 1
@@ -1716,9 +1745,9 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("Enter / 1..N", commands)
 
     def test_command_palette_filter_matches_command_group_and_description(self):
-        build_state = BrowserState([], mode="commands", command_filter_text="build")
-        stage_state = BrowserState([], mode="commands", command_filter_text="scope")
-        reopen_state = BrowserState([], mode="commands", command_filter_text="editor")
+        build_state = BrowserState([], page="commands", command_filter_text="build")
+        stage_state = BrowserState([], page="commands", command_filter_text="scope")
+        reopen_state = BrowserState([], page="commands", command_filter_text="editor")
 
         self.assertIn(
             "build",
@@ -1740,7 +1769,7 @@ class CliTests(unittest.TestCase):
                 FileChange("src/Second.ts", 1, 0),
             ],
             selected=1,
-            mode="commands",
+            page="commands",
         )
 
         _move_selection(state, 1)
@@ -1758,7 +1787,7 @@ class CliTests(unittest.TestCase):
         )
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
-            mode="commands",
+            page="commands",
             command_selected=1,
         )
         output = StringIO()
@@ -1781,7 +1810,7 @@ class CliTests(unittest.TestCase):
         )
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
-            mode="commands",
+            page="commands",
             command_filter_text="zz-missing",
         )
         output = StringIO()
@@ -2026,7 +2055,7 @@ class CliTests(unittest.TestCase):
     def test_command_palette_clear_keeps_file_filter(self):
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
-            mode="commands",
+            page="commands",
             filter_text="Sample",
             command_filter_text="build",
             command_selected=3,
@@ -2074,7 +2103,7 @@ class CliTests(unittest.TestCase):
             ref_range=None,
             link_scheme="file",
         )
-        state = BrowserState([FileChange("src/Sample.ts", 1, 1)], mode="file")
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)], page="file")
         full_lines = ["File 1/1  src/Sample.ts"] + [
             f"line {index}" for index in range(1, 21)
         ]
@@ -2150,7 +2179,7 @@ class CliTests(unittest.TestCase):
                     FileChange("src/Second.ts", 2, 1),
                 ],
                 selected=0,
-                mode="file",
+                page="file",
                 filter_text="Second",
             )
             args = argparse_namespace(

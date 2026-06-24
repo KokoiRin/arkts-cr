@@ -91,32 +91,33 @@ File Detail 是三级对象：它展示某个文件在当前 Review Scope 中的
 
 ## Current Implementation Mapping
 
-当前实现已经具备三层的大部分能力，但命名和入口还不够清晰：
+当前实现已经具备三层的大部分能力。内部页面命名现在通过 `BrowserPage` 表达产品语义，底层字符串值仍保持兼容旧 prompt、行模式和 `.git/cr/browse-state.json`：
 
 ```text
 Review Scope
   current implementation:
     worktree/staged/all/base/range are commands
-    recent commits live in mode="commits"
+    Scope Home is BrowserPage.SCOPE_HOME -> "scopes"
+    recent commits live in BrowserPage.COMMIT_PICKER -> "commits"
     selected commit is stored as selected_commit + ref_range
 
 Changed Files
   current implementation:
-    mode="list"
+    BrowserPage.CHANGED_FILES -> "list"
     visible_changes
     browse tree rows
     seen_paths / remaining_only
 
 File Detail
   current implementation:
-    mode="file"
+    BrowserPage.FILE_DETAIL -> "file"
     cached file lines
     file_scroll
     n/p navigation
 
 Command Palette
   current implementation:
-    mode="commands"
+    BrowserPage.COMMAND_PALETTE -> "commands"
     command_filter_text
 
 Task Panel / Browser Frame
@@ -127,6 +128,7 @@ Task Panel / Browser Frame
 ```
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
+Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 
 ## Implementation Rules
 
@@ -160,9 +162,11 @@ Status: implemented.
 
 Promote Review Scope into a clearer first-level page. Current implementation exposes worktree, staged, all local changes, recent commits, and base/range command hints through `scopes` / `scope`. Base/range remain parameterized command entries (`: base REF`, `: range OLD..NEW`) rather than inline forms.
 
-### P1: Page stack names
+### P0: Page stack names
 
-Rename or wrap internal `mode` values so implementation terms align with product terms:
+Status: implemented.
+
+Wrap internal page values so implementation terms align with product terms:
 
 ```text
 commits -> scope selection / commit picker
@@ -171,7 +175,7 @@ file -> file detail
 commands -> command palette
 ```
 
-This should be done behind tests and without breaking line-mode compatibility.
+`BrowserPage` now names the existing pages as Scope Home, Commit Picker, Changed Files, File Detail, and Command Palette. The persisted string values remain unchanged, and `mode` stays as a compatibility property over `BrowserState.page`.
 
 ### P0: Task command breadth
 
@@ -188,5 +192,5 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
-- The next deepening opportunity is page stack naming: wrap or rename internal `scopes/commits/list/file/commands` modes so implementation terms line up with the product hierarchy.
-- After that, consider a `BrowserNavigation` or `ReviewWorkspace` module whose interface hides scope/list/file transitions from the render loop.
+- The next deepening opportunity is a `BrowserNavigation` or `ReviewWorkspace` module whose interface hides scope/list/file transitions from the render loop.
+- A real page stack is still not implemented. Add it only when back/forward history needs behavior beyond the current product hierarchy.

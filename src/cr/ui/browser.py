@@ -53,6 +53,14 @@ TASK_LABELS = {
 }
 
 
+class BrowserPage:
+    SCOPE_HOME = "scopes"
+    COMMIT_PICKER = "commits"
+    CHANGED_FILES = "list"
+    FILE_DETAIL = "file"
+    COMMAND_PALETTE = "commands"
+
+
 @dataclass
 class BrowserState:
     changes: list[git.FileChange]
@@ -68,7 +76,7 @@ class BrowserState:
     commit_scroll: int = 0
     command_scroll: int = 0
     file_scroll: int = 0
-    mode: str = "list"
+    page: str = BrowserPage.CHANGED_FILES
     filter_text: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
@@ -78,6 +86,14 @@ class BrowserState:
     status_message: str = ""
 
     @property
+    def mode(self) -> str:
+        return self.page
+
+    @mode.setter
+    def mode(self, value: str) -> None:
+        self.page = value
+
+    @property
     def visible_changes(self) -> list[git.FileChange]:
         changes = filter_changes_by_query(self.changes, self.filter_text)
         if self.remaining_only:
@@ -85,27 +101,27 @@ class BrowserState:
         return changes
 
     def clamp_selection(self) -> None:
-        if self.mode == "commits":
+        if self.page == BrowserPage.COMMIT_PICKER:
             total = len(self.commits)
-        elif self.mode == "scopes":
+        elif self.page == BrowserPage.SCOPE_HOME:
             total = len(_scope_home_entries())
-        elif self.mode == "commands":
+        elif self.page == BrowserPage.COMMAND_PALETTE:
             total = len(_filtered_command_palette_entries(self))
         else:
             total = len(self.visible_changes)
         if total == 0:
-            if self.mode == "scopes":
+            if self.page == BrowserPage.SCOPE_HOME:
                 self.scope_selected = 0
-            elif self.mode == "commands":
+            elif self.page == BrowserPage.COMMAND_PALETTE:
                 self.command_selected = 0
             else:
                 self.selected = 0
-            if self.mode == "file":
-                self.mode = "list"
+            if self.page == BrowserPage.FILE_DETAIL:
+                self.page = BrowserPage.CHANGED_FILES
             return
-        if self.mode == "scopes":
+        if self.page == BrowserPage.SCOPE_HOME:
             self.scope_selected = max(0, min(self.scope_selected, total - 1))
-        elif self.mode == "commands":
+        elif self.page == BrowserPage.COMMAND_PALETTE:
             self.command_selected = max(0, min(self.command_selected, total - 1))
         else:
             self.selected = max(0, min(self.selected, total - 1))
@@ -117,7 +133,7 @@ class BrowserState:
 
     def set_filter(self, query: str) -> None:
         self.filter_text = query.strip()
-        self.mode = "list"
+        self.page = BrowserPage.CHANGED_FILES
         self.selected = 0
         self.list_scroll = 0
         self.file_scroll = 0
@@ -263,9 +279,9 @@ def run_browser(args: argparse.Namespace) -> int:
         if raw_keys and (needs_redraw or frame.dirty):
             _draw_browse_screen(state, args, style, frame)
             needs_redraw = False
-        prompt = _browse_prompt(state.mode)
+        prompt = _browse_prompt(state.page)
         if not raw_keys:
-            if state.mode == "commits":
+            if state.page == BrowserPage.COMMIT_PICKER:
                 _print_lines(
                     _browse_commit_lines(
                         state.commits,
@@ -274,9 +290,9 @@ def run_browser(args: argparse.Namespace) -> int:
                         scope_label=_scope_label(state, args),
                     )
                 )
-            elif state.mode == "commands":
+            elif state.page == BrowserPage.COMMAND_PALETTE:
                 _print_lines(_browse_command_lines(style, max_lines=_screen_height()))
-            elif state.mode == "scopes":
+            elif state.page == BrowserPage.SCOPE_HOME:
                 _print_lines(
                     [
                         _scope_context_line(state, args, style),
@@ -287,7 +303,7 @@ def run_browser(args: argparse.Namespace) -> int:
                         ),
                     ]
                 )
-            elif state.mode == "list":
+            elif state.page == BrowserPage.CHANGED_FILES:
                 _print_lines(
                     _browse_list_lines(
                         visible,
@@ -326,7 +342,7 @@ def run_browser(args: argparse.Namespace) -> int:
                         scope_label=_scope_label(state, args),
                     )
                 )
-                state.mode = "list"
+                state.page = BrowserPage.CHANGED_FILES
 
         command_result = _read_browse_command(
             prompt,
@@ -345,7 +361,7 @@ def run_browser(args: argparse.Namespace) -> int:
             _save_browser_workspace_state_on_exit(state, args, repo)
             return 130
         command = command_result
-        if state.mode == "commands" and command in {"enter", "right", "l"}:
+        if state.page == BrowserPage.COMMAND_PALETTE and command in {"enter", "right", "l"}:
             palette_command = _selected_palette_command(state)
             if palette_command is None:
                 continue
@@ -353,12 +369,12 @@ def run_browser(args: argparse.Namespace) -> int:
 
         if command == "filter_prompt":
             query = _read_filter_query(
-                "command filter> " if state.mode == "commands" else "filter> "
+                "command filter> " if state.page == BrowserPage.COMMAND_PALETTE else "filter> "
             )
             if raw_keys:
                 frame.dirty = True
             if query != "__interrupt__":
-                if state.mode == "commands":
+                if state.page == BrowserPage.COMMAND_PALETTE:
                     state.set_command_filter(query)
                 else:
                     state.set_filter(query)
@@ -383,7 +399,7 @@ def run_browser(args: argparse.Namespace) -> int:
             needs_redraw = True
             continue
         if command in {"c", "clear"}:
-            if state.mode == "commands":
+            if state.page == BrowserPage.COMMAND_PALETTE:
                 state.clear_command_filter()
             else:
                 state.clear_filter()
@@ -399,7 +415,7 @@ def run_browser(args: argparse.Namespace) -> int:
             continue
         if command == "remaining":
             state.remaining_only = True
-            state.mode = "list"
+            state.page = BrowserPage.CHANGED_FILES
             state.selected = 0
             state.list_scroll = 0
             state.clamp_selection()
@@ -407,7 +423,7 @@ def run_browser(args: argparse.Namespace) -> int:
             continue
         if command in {"allfiles", "show all"}:
             state.remaining_only = False
-            state.mode = "list"
+            state.page = BrowserPage.CHANGED_FILES
             state.selected = 0
             state.list_scroll = 0
             state.clamp_selection()
@@ -416,18 +432,18 @@ def run_browser(args: argparse.Namespace) -> int:
         if command in {"q", "quit", "exit"}:
             _save_browser_workspace_state_on_exit(state, args, repo)
             return 0
-        if command in {"commands", "cmds", "help commands"}:
-            state.mode = "commands"
+        if command in {BrowserPage.COMMAND_PALETTE, "cmds", "help commands"}:
+            state.page = BrowserPage.COMMAND_PALETTE
             needs_redraw = True
             continue
-        if command in {"scopes", "scope"}:
-            state.mode = "scopes"
+        if command in {BrowserPage.SCOPE_HOME, "scope"}:
+            state.page = BrowserPage.SCOPE_HOME
             state.scope_selected = 0
             needs_redraw = True
             continue
-        if command in {"g", "commits", "log"}:
+        if command in {"g", BrowserPage.COMMIT_PICKER, "log"}:
             state.commits = _load_recent_commits()
-            state.mode = "commits"
+            state.page = BrowserPage.COMMIT_PICKER
             state.selected_commit = None
             state.selected = 0
             state.commit_scroll = 0
@@ -491,7 +507,7 @@ def run_browser(args: argparse.Namespace) -> int:
             continue
         if command in {"h", "?", "help"}:
             if raw_keys:
-                state.mode = "list"
+                state.page = BrowserPage.CHANGED_FILES
                 needs_redraw = True
             else:
                 _print_lines(_browse_help_lines(style))
@@ -542,117 +558,117 @@ def run_browser(args: argparse.Namespace) -> int:
                 _run_task_foreground(args, "build")
             continue
         if command in {"r", "refresh"}:
-            if state.mode == "commits":
+            if state.page == BrowserPage.COMMIT_PICKER:
                 state.commits = _load_recent_commits()
                 state.commit_scroll = 0
             else:
                 state.changes = _load_browse_changes(args)
                 state.clear_render_cache()
-                state.mode = "list"
+                state.page = BrowserPage.CHANGED_FILES
                 state.list_scroll = 0
                 _show_commits_when_empty(state, args)
             state.clamp_selection()
             needs_redraw = True
             continue
-        if command in {"s", "summary", "list", "ls", "b", "back"}:
-            if command in {"b", "back"} and state.mode in {"commands", "scopes"}:
-                state.mode = "list"
+        if command in {"s", "summary", BrowserPage.CHANGED_FILES, "ls", "b", "back"}:
+            if command in {"b", "back"} and state.page in {BrowserPage.COMMAND_PALETTE, BrowserPage.SCOPE_HOME}:
+                state.page = BrowserPage.CHANGED_FILES
                 state.file_scroll = 0
-            elif command in {"b", "back"} and state.mode == "file":
-                state.mode = "list"
+            elif command in {"b", "back"} and state.page == BrowserPage.FILE_DETAIL:
+                state.page = BrowserPage.CHANGED_FILES
                 state.file_scroll = 0
             elif command in {"b", "back"} and state.selected_commit is not None:
-                state.mode = "commits"
+                state.page = BrowserPage.COMMIT_PICKER
                 state.file_scroll = 0
             else:
-                state.mode = "list"
+                state.page = BrowserPage.CHANGED_FILES
                 state.file_scroll = 0
             needs_redraw = True
             continue
         if command in {"down", "j"}:
-            if state.mode == "file":
+            if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, 1, args, style)
             else:
                 _move_selection(state, 1)
             needs_redraw = True
             continue
         if command in {"up", "k"}:
-            if state.mode == "file":
+            if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, -1, args, style)
             else:
                 _move_selection(state, -1)
             needs_redraw = True
             continue
         if command in {"pagedown", "space", "d"}:
-            if state.mode == "file":
+            if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, _page_step(), args, style)
             else:
                 _move_selection(state, _page_step())
             needs_redraw = True
             continue
         if command in {"pageup", "u"}:
-            if state.mode == "file":
+            if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, -_page_step(), args, style)
             else:
                 _move_selection(state, -_page_step())
             needs_redraw = True
             continue
         if command in {"home", "0"}:
-            if state.mode == "file":
+            if state.page == BrowserPage.FILE_DETAIL:
                 state.file_scroll = 0
-            elif state.mode == "scopes":
+            elif state.page == BrowserPage.SCOPE_HOME:
                 state.scope_selected = 0
-            elif state.mode == "commands":
+            elif state.page == BrowserPage.COMMAND_PALETTE:
                 state.command_selected = 0
             else:
                 state.selected = 0
             needs_redraw = True
             continue
         if command in {"end", "$"}:
-            if state.mode == "file":
+            if state.page == BrowserPage.FILE_DETAIL:
                 state.file_scroll = _max_file_scroll(state, args, style)
-            elif state.mode == "scopes":
+            elif state.page == BrowserPage.SCOPE_HOME:
                 total = len(_scope_home_entries())
                 if total:
                     state.scope_selected = total - 1
-            elif state.mode == "commands":
+            elif state.page == BrowserPage.COMMAND_PALETTE:
                 total = len(_filtered_command_palette_entries(state))
                 if total:
                     state.command_selected = total - 1
             else:
-                total = len(state.commits) if state.mode == "commits" else len(state.visible_changes)
+                total = len(state.commits) if state.page == BrowserPage.COMMIT_PICKER else len(state.visible_changes)
                 if total:
                     state.selected = total - 1
             needs_redraw = True
             continue
         if command in {"enter", "right", "l"}:
-            if state.mode == "commits":
+            if state.page == BrowserPage.COMMIT_PICKER:
                 message = _select_commit(state, args)
                 if message:
                     _show_browser_message(state, message, raw_keys, frame)
                 needs_redraw = True
-            elif state.mode == "scopes":
+            elif state.page == BrowserPage.SCOPE_HOME:
                 message = _select_scope_home_entry(state, args)
                 if message:
                     _show_browser_message(state, message, raw_keys, frame)
                 needs_redraw = True
             elif state.visible_changes:
-                state.mode = "file"
+                state.page = BrowserPage.FILE_DETAIL
                 state.file_scroll = 0
                 needs_redraw = True
             continue
         if command in {"left", "h"}:
-            if state.mode in {"commands", "scopes"}:
-                state.mode = "list"
+            if state.page in {BrowserPage.COMMAND_PALETTE, BrowserPage.SCOPE_HOME}:
+                state.page = BrowserPage.CHANGED_FILES
                 state.file_scroll = 0
-            elif state.mode == "file":
-                state.mode = "list"
+            elif state.page == BrowserPage.FILE_DETAIL:
+                state.page = BrowserPage.CHANGED_FILES
                 state.file_scroll = 0
             elif state.selected_commit is not None:
-                state.mode = "commits"
+                state.page = BrowserPage.COMMIT_PICKER
                 state.file_scroll = 0
             else:
-                state.mode = "list"
+                state.page = BrowserPage.CHANGED_FILES
                 state.file_scroll = 0
             needs_redraw = True
             continue
@@ -660,20 +676,20 @@ def run_browser(args: argparse.Namespace) -> int:
             visible = state.visible_changes
             if visible:
                 state.selected = min(state.selected + 1, len(visible) - 1)
-                state.mode = "file"
+                state.page = BrowserPage.FILE_DETAIL
                 state.file_scroll = 0
                 needs_redraw = True
             continue
         if command in {"p", "prev", "previous"}:
             if state.visible_changes:
                 state.selected = max(state.selected - 1, 0)
-                state.mode = "file"
+                state.page = BrowserPage.FILE_DETAIL
                 state.file_scroll = 0
                 needs_redraw = True
             continue
         if command.isdigit():
             choice = int(command)
-            if state.mode == "scopes":
+            if state.page == BrowserPage.SCOPE_HOME:
                 total = len(_scope_home_entries())
                 if 1 <= choice <= total:
                     state.scope_selected = choice - 1
@@ -686,7 +702,7 @@ def run_browser(args: argparse.Namespace) -> int:
                     if raw_keys:
                         needs_redraw = True
                 continue
-            if state.mode == "commits":
+            if state.page == BrowserPage.COMMIT_PICKER:
                 if 1 <= choice <= len(state.commits):
                     state.selected = choice - 1
                     message = _select_commit(state, args)
@@ -706,7 +722,7 @@ def run_browser(args: argparse.Namespace) -> int:
             visible = state.visible_changes
             if 1 <= choice <= len(visible):
                 state.selected = choice - 1
-                state.mode = "file"
+                state.page = BrowserPage.FILE_DETAIL
                 needs_redraw = True
             else:
                 _show_browser_message(state, f"Choose 1-{len(visible)}.", raw_keys, frame)
@@ -828,7 +844,7 @@ def _browser_workspace_state_data(
         "filter_text": state.filter_text,
         "selected_path": selected_path,
         "selected_index": state.selected,
-        "mode": "file" if state.mode == "file" else "list",
+        "mode": BrowserPage.FILE_DETAIL if state.page == BrowserPage.FILE_DETAIL else BrowserPage.CHANGED_FILES,
         "seen_paths": sorted(state.seen_paths),
         "remaining_only": state.remaining_only,
     }
@@ -862,7 +878,7 @@ def _restore_browser_workspace_state(
     state.remaining_only = workspace_state.get("remaining_only") is True
     _restore_browser_workspace_selection(state, workspace_state)
     mode = workspace_state.get("mode")
-    state.mode = "file" if mode == "file" and state.visible_changes else "list"
+    state.page = BrowserPage.FILE_DETAIL if mode == BrowserPage.FILE_DETAIL and state.visible_changes else BrowserPage.CHANGED_FILES
     state.list_scroll = 0
     state.file_scroll = 0
     state.commit_scroll = 0
@@ -930,7 +946,7 @@ def _show_commits_when_empty(state: BrowserState, args: argparse.Namespace) -> N
         return
     state.commits = _load_recent_commits()
     if state.commits:
-        state.mode = "commits"
+        state.page = BrowserPage.COMMIT_PICKER
         state.selected = 0
 
 
@@ -950,7 +966,7 @@ def _select_commit(state: BrowserState, args: argparse.Namespace) -> str | None:
     state.filter_text = ""
     state.changes = _load_browse_changes(args)
     state.clear_render_cache()
-    state.mode = "list"
+    state.page = BrowserPage.CHANGED_FILES
     state.selected = 0
     state.list_scroll = 0
     state.clamp_selection()
@@ -972,7 +988,7 @@ def _switch_review_scope(
     state.filter_text = ""
     state.changes = _load_browse_changes(args)
     state.clear_render_cache()
-    state.mode = "list"
+    state.page = BrowserPage.CHANGED_FILES
     state.selected = 0
     state.list_scroll = 0
     state.commit_scroll = 0
@@ -1004,7 +1020,7 @@ def _restore_previous_scope(state: BrowserState, args: argparse.Namespace) -> No
     state.filter_text = ""
     state.changes = _load_browse_changes(args)
     state.clear_render_cache()
-    state.mode = "list"
+    state.page = BrowserPage.CHANGED_FILES
     state.selected = 0
     state.list_scroll = 0
     _show_commits_when_empty(state, args)
@@ -1012,19 +1028,19 @@ def _restore_previous_scope(state: BrowserState, args: argparse.Namespace) -> No
 
 
 def _move_selection(state: BrowserState, delta: int) -> None:
-    if state.mode == "commits":
+    if state.page == BrowserPage.COMMIT_PICKER:
         total = len(state.commits)
-    elif state.mode == "scopes":
+    elif state.page == BrowserPage.SCOPE_HOME:
         total = len(_scope_home_entries())
-    elif state.mode == "commands":
+    elif state.page == BrowserPage.COMMAND_PALETTE:
         total = len(_filtered_command_palette_entries(state))
     else:
         total = len(state.visible_changes)
     if not total:
         return
-    if state.mode == "scopes":
+    if state.page == BrowserPage.SCOPE_HOME:
         state.scope_selected = max(0, min(state.scope_selected + delta, total - 1))
-    elif state.mode == "commands":
+    elif state.page == BrowserPage.COMMAND_PALETTE:
         state.command_selected = max(0, min(state.command_selected + delta, total - 1))
     else:
         state.selected = max(0, min(state.selected + delta, total - 1))
@@ -1195,7 +1211,7 @@ def _draw_browse_screen(
     max_lines = layout.max_render_lines
     content_lines = layout.content_height
     task_panel_height = layout.task_height
-    if state.mode == "commits":
+    if state.page == BrowserPage.COMMIT_PICKER:
         lines = [
             *_browse_help_lines(style),
             _scope_context_line(state, args, style),
@@ -1205,7 +1221,7 @@ def _draw_browse_screen(
                 max(1, content_lines - len(_browse_help_lines(style)) - 1),
             ),
         ]
-    elif state.mode == "scopes":
+    elif state.page == BrowserPage.SCOPE_HOME:
         lines = [
             *_browse_help_lines(style),
             _scope_context_line(state, args, style),
@@ -1215,7 +1231,7 @@ def _draw_browse_screen(
                 max(1, content_lines - len(_browse_help_lines(style)) - 1),
             ),
         ]
-    elif state.mode == "commands":
+    elif state.page == BrowserPage.COMMAND_PALETTE:
         lines = [
             *_browse_help_lines(style),
             _scope_context_line(state, args, style),
@@ -1225,7 +1241,7 @@ def _draw_browse_screen(
                 max(1, content_lines - len(_browse_help_lines(style)) - 1),
             ),
         ]
-    elif state.mode == "list":
+    elif state.page == BrowserPage.CHANGED_FILES:
         lines = [
             *_browse_help_lines(style),
             _scope_context_line(state, args, style),
@@ -1269,7 +1285,7 @@ def _draw_browse_screen(
     print("\033[2J\033[H", end="")
     _print_lines(lines[:max_lines])
     print(
-        f"\033[{layout.prompt_row};1H\033[2K{_browse_prompt(state.mode)}",
+        f"\033[{layout.prompt_row};1H\033[2K{_browse_prompt(state.page)}",
         end="",
         flush=True,
     )
@@ -1331,13 +1347,13 @@ def _fit_terminal_line(line: str) -> str:
 
 
 def _browse_prompt(mode: str) -> str:
-    if mode == "file":
+    if mode == BrowserPage.FILE_DETAIL:
         return "cr:file> "
-    if mode == "commits":
+    if mode == BrowserPage.COMMIT_PICKER:
         return "cr:commits> "
-    if mode == "scopes":
+    if mode == BrowserPage.SCOPE_HOME:
         return "cr:scopes> "
-    if mode == "commands":
+    if mode == BrowserPage.COMMAND_PALETTE:
         return "cr:commands> "
     return "cr:list> "
 
@@ -1350,7 +1366,7 @@ def _print_lines(lines: list[str]) -> None:
 def _normalize_command_query(command: str) -> str:
     normalized = command.strip()
     if normalized in {"", "?"}:
-        return "commands"
+        return BrowserPage.COMMAND_PALETTE
     return normalized
 
 
@@ -1374,7 +1390,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("Enter / 1..N", "open selected file or choose by number"),
                 CommandEntry("b / back", "return to file list"),
                 CommandEntry("n / p", "next or previous file"),
-                CommandEntry("scopes / scope", "show Review Scope home", "scopes"),
+                CommandEntry("scopes / scope", "show Review Scope home", BrowserPage.SCOPE_HOME),
                 CommandEntry("g / commits", "show recent commits", "g"),
             ),
         ),
@@ -1414,7 +1430,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
         CommandGroup(
             "Session",
             (
-                CommandEntry("commands", "show this command list", "commands"),
+                CommandEntry(BrowserPage.COMMAND_PALETTE, "show this command list", BrowserPage.COMMAND_PALETTE),
                 CommandEntry("help", "show compact key help", "help"),
                 CommandEntry("quit", "exit browser", "quit"),
             ),
@@ -1444,7 +1460,7 @@ def _scope_home_entries() -> tuple[ScopeHomeEntry, ...]:
         ScopeHomeEntry("Worktree", "Review unstaged worktree changes", "worktree"),
         ScopeHomeEntry("Staged", "Review staged/index changes", "staged"),
         ScopeHomeEntry("All local changes", "Review staged and unstaged changes", "all"),
-        ScopeHomeEntry("Recent commits", "Choose a commit as the Review Scope", "commits"),
+        ScopeHomeEntry("Recent commits", "Choose a commit as the Review Scope", BrowserPage.COMMIT_PICKER),
         ScopeHomeEntry("Base ref", "Type : base REF to review changes against a base"),
         ScopeHomeEntry("Explicit range", "Type : range OLD..NEW to review two refs"),
     )
@@ -1476,9 +1492,9 @@ def _select_scope_home_entry(
             ReviewScope(False, True, None, None, _args_untracked(args)),
         )
         return None
-    if entry.action == "commits":
+    if entry.action == BrowserPage.COMMIT_PICKER:
         state.commits = _load_recent_commits()
-        state.mode = "commits"
+        state.page = BrowserPage.COMMIT_PICKER
         state.selected_commit = None
         state.selected = 0
         state.commit_scroll = 0
@@ -1605,9 +1621,9 @@ def _browse_scope_home_screen_lines(
 
 
 def _scope_label(state: BrowserState, args: argparse.Namespace) -> str:
-    if state.mode == "scopes":
+    if state.page == BrowserPage.SCOPE_HOME:
         return "scope home"
-    if state.mode == "commits":
+    if state.page == BrowserPage.COMMIT_PICKER:
         return "recent commits"
     if state.selected_commit is not None:
         return f"commit {state.selected_commit.commit[:8]}"
@@ -1626,11 +1642,11 @@ def _scope_label(state: BrowserState, args: argparse.Namespace) -> str:
 
 def _product_breadcrumb(state: BrowserState, args: argparse.Namespace) -> str:
     label = _scope_label(state, args)
-    if state.mode in {"scopes", "commits"}:
+    if state.page in {BrowserPage.SCOPE_HOME, BrowserPage.COMMIT_PICKER}:
         return label
-    if state.mode == "commands":
+    if state.page == BrowserPage.COMMAND_PALETTE:
         return f"{label} > Commands"
-    if state.mode == "file":
+    if state.page == BrowserPage.FILE_DETAIL:
         visible = state.visible_changes
         if visible and 0 <= state.selected < len(visible):
             return f"{label} > Files > {visible[state.selected].path}"

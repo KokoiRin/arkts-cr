@@ -88,6 +88,28 @@ class CliTests(unittest.TestCase):
         self.assertIn("└─ src", text)
         self.assertIn("└─ Sample.ts", text)
 
+    def test_browse_tree_dims_guides_and_uses_white_file_names(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        state = BrowserState([FileChange("src/pages/Sample.ts", 1, 1)])
+        output = StringIO()
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+            with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/pages/Sample.ts")):
+                with redirect_stdout(output):
+                    _draw_browse_screen(state, args, TerminalStyle(True))
+
+        text = output.getvalue()
+        self.assertIn("\033[2m└─ src/pages\033[0m", text)
+        self.assertIn("\033[2m   └─ \033[0m", text)
+        self.assertIn("\033[37mSample.ts", text)
+        self.assertNotIn("\033[36mSample.ts", text)
+
     def test_browse_filter_matches_paths_and_clamps_selection(self):
         changes = [
             FileChange("src/pages/Home.ets", 1, 1),

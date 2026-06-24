@@ -32,6 +32,9 @@ class TerminalStyle:
     def path(self, text: str, target: str | None = None) -> str:
         return self.link(self.wrap(text, "36"), target)
 
+    def file_path(self, text: str, target: str | None = None) -> str:
+        return self.link(self.wrap(text, "37"), target)
+
     def hunk(self, text: str) -> str:
         return self.wrap(text, "36;1")
 

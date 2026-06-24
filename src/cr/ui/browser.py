@@ -619,7 +619,7 @@ def _format_browse_tree_row(
     state: BrowserState | None = None,
 ) -> str:
     if row.change is None or row.change_index is None:
-        return f"  {' ' * index_width}  {style.path(row.label)}"
+        return f"  {' ' * index_width}  {_style_tree_directory(row.label, style)}"
 
     marker = ">" if selected == row.change_index else " "
     first_line = (
@@ -634,12 +634,42 @@ def _format_browse_tree_row(
         )
     )
     status = " modified" if row.change.status == "modified" else ""
+    styled_label = _style_tree_file(
+        row.label,
+        label_width,
+        _link_target(row.change.path, first_line, args),
+        style,
+    )
     return (
         f"{marker} {str(row.change_index + 1).rjust(index_width)}  "
-        f"{style.path(row.label.ljust(label_width), _link_target(row.change.path, first_line, args))}  "
+        f"{styled_label}  "
         f"{style_change_summary(row.change, style)}"
         f"{status}"
     )
+
+
+def _style_tree_directory(label: str, style: TerminalStyle) -> str:
+    return style.dim(label)
+
+
+def _style_tree_file(
+    label: str,
+    width: int,
+    target: str | None,
+    style: TerminalStyle,
+) -> str:
+    guide, filename = _split_tree_label(label)
+    padding = " " * max(0, width - len(label))
+    rendered = f"{style.dim(guide)}{style.file_path(filename + padding)}"
+    return style.link(rendered, target)
+
+
+def _split_tree_label(label: str) -> tuple[str, str]:
+    marker = "─ "
+    if marker not in label:
+        return "", label
+    index = label.rfind(marker) + len(marker)
+    return label[:index], label[index:]
 
 
 def _selected_tree_row(rows: list[BrowseTreeRow], selected: int) -> int:

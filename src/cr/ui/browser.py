@@ -1,10 +1,11 @@
 """Interactive review browser for cr.
 
-This module owns browse orchestration, prompt input flow, selected-file action
-execution, and browser session startup/shutdown. Page-specific terminal
-content, review workspace state, page navigation rules, Browser Frame layout,
-task runtime, and platform file action details live in deeper UI modules so
-the CLI parser can stay shallow.
+This module owns browse orchestration, prompt-input interpretation,
+selected-file action execution, and browser session startup/shutdown.
+Page-specific terminal content, terminal input protocol, review workspace
+state, page navigation rules, Browser Frame layout, task runtime, and platform
+file action details live in deeper UI modules so the CLI parser can stay
+shallow.
 """
 
 from __future__ import annotations
@@ -12,11 +13,8 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, field
 from pathlib import Path
-import select
 import sys
 import time
-import termios
-import tty
 
 from ..review.changes import (
     change_hunk_lines,
@@ -38,6 +36,7 @@ from . import file_actions
 from . import frame as frame_module
 from .frame import BrowserFrame, ScreenLayout
 from . import handoff as handoff_module
+from . import input as input_module
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import page_content
 from . import tasks as task_runtime
@@ -741,15 +740,15 @@ def run_browser(args: argparse.Namespace) -> int:
             raw_keys,
             tick_when_idle=state.task is not None and state.task.running,
         )
-        if command_result == "__tick__":
+        if command_result == input_module.TICK:
             _draw_task_panel_only(state.task, style, frame, state.task_history)
             if frame.dirty:
                 needs_redraw = True
             continue
-        if command_result == "__eof__":
+        if command_result == input_module.EOF_COMMAND:
             _save_browser_workspace_state_on_exit(state, args, repo)
             return 0
-        if command_result == "__interrupt__":
+        if command_result == input_module.INTERRUPT:
             _save_browser_workspace_state_on_exit(state, args, repo)
             return 130
         command = command_result
@@ -767,7 +766,7 @@ def run_browser(args: argparse.Namespace) -> int:
             )
             if raw_keys:
                 frame.dirty = True
-            if query != "__interrupt__":
+            if query != input_module.INTERRUPT:
                 if state.page == BrowserPage.COMMAND_PALETTE:
                     state.set_command_filter(query)
                 else:
@@ -780,7 +779,7 @@ def run_browser(args: argparse.Namespace) -> int:
             command = _normalize_command_query(_read_command_query())
             if raw_keys:
                 frame.dirty = True
-            if command == "__interrupt__":
+            if command == input_module.INTERRUPT:
                 if raw_keys:
                     needs_redraw = True
                 continue
@@ -1771,12 +1770,7 @@ def _ensure_window(
 
 
 def _use_raw_keys() -> bool:
-    return bool(
-        hasattr(sys.stdin, "isatty")
-        and sys.stdin.isatty()
-        and hasattr(sys.stdout, "isatty")
-        and sys.stdout.isatty()
-    )
+    return input_module.use_raw_keys()
 
 
 def _read_browse_command(
@@ -1784,94 +1778,24 @@ def _read_browse_command(
     raw_keys: bool,
     tick_when_idle: bool = False,
 ) -> str:
-    if not raw_keys:
-        try:
-            return input(prompt).strip()
-        except EOFError:
-            print()
-            return "__eof__"
-        except KeyboardInterrupt:
-            print()
-            return "__interrupt__"
-
-    try:
-        key = _read_raw_key(timeout=0.2 if tick_when_idle else None)
-    except KeyboardInterrupt:
-        print()
-        return "__interrupt__"
-    if key == "__tick__":
-        return key
-    return key
+    return input_module.read_browse_command(
+        prompt,
+        raw_keys,
+        tick_when_idle,
+        raw_key_reader=_read_raw_key,
+    )
 
 
 def _read_filter_query(prompt: str = "filter> ") -> str:
-    try:
-        return input(prompt).strip()
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return "__interrupt__"
+    return input_module.read_filter_query(prompt)
 
 
 def _read_command_query() -> str:
-    try:
-        return input("command> ").strip()
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return "__interrupt__"
+    return input_module.read_command_query()
 
 
 def _read_raw_key(timeout: float | None = None) -> str:
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setraw(fd)
-        if timeout is not None:
-            ready, _, _ = select.select([sys.stdin], [], [], timeout)
-            if not ready:
-                return "__tick__"
-        char = sys.stdin.read(1)
-        if char == "\x03":
-            raise KeyboardInterrupt
-        if char in {"\r", "\n"}:
-            return "enter"
-        if char == "\x1b":
-            second = sys.stdin.read(1)
-            if second != "[":
-                return ""
-            sequence = ""
-            while len(sequence) < 6:
-                piece = sys.stdin.read(1)
-                if not piece:
-                    break
-                sequence += piece
-                if piece.isalpha() or piece == "~":
-                    break
-            return {
-                "A": "up",
-                "B": "down",
-                "C": "right",
-                "D": "left",
-                "H": "home",
-                "F": "end",
-                "1~": "home",
-                "4~": "end",
-                "5~": "pageup",
-                "6~": "pagedown",
-            }.get(sequence, "")
-        return {
-            "j": "down",
-            "k": "up",
-            "l": "right",
-            "h": "left",
-            "u": "pageup",
-            "d": "pagedown",
-            " ": "space",
-            "/": "filter_prompt",
-            ":": "command_prompt",
-            "\x04": "__eof__",
-        }.get(char, char)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return input_module.read_raw_key(timeout)
 
 
 def _start_task(

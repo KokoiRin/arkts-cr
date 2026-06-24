@@ -127,7 +127,8 @@ Task Panel / Browser Frame
     cr.ui.tasks owns TaskState, TaskRecord history, command resolution, project task presets, process lifecycle, output capture, stop, rerun, foreground run, and history recording
     cr.ui.frame owns BrowserFrame, screen layout, Task Panel presentation, terminal line fitting, and Task Panel-only refresh output
     cr.ui.page_content owns page-specific main content rendering
-    browser.py owns prompt input flow and frame composition
+    cr.ui.input owns terminal input protocol and raw-key reads
+    browser.py owns prompt input interpretation and frame composition
 
 Browser Navigation
   current implementation:
@@ -145,7 +146,7 @@ Browser Command Dispatch
 Browser Action Execution
   current implementation:
     BrowserCommandExecutor owns parsed action execution and returns BrowserActionResult loop control
-    browser.py still owns prompt input flow, selected-file action execution, frame composition, and workspace startup/exit orchestration
+    browser.py still owns prompt input interpretation, selected-file action execution, frame composition, and workspace startup/exit orchestration
 ```
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
@@ -226,7 +227,7 @@ Status: implemented.
 
 Status: implemented.
 
-`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress/note state, selected file state, selected commit, previous scope, and workspace-state data mapping. `cr.ui.page_content` owns page-specific main content rendering, while `browser.py` still owns prompt input flow, selected-file action execution, and live state synchronization around persistence calls.
+`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress/note state, selected file state, selected commit, previous scope, and workspace-state data mapping. `cr.ui.page_content` owns page-specific main content rendering, while `browser.py` still owns prompt-input interpretation, selected-file action execution, and live state synchronization around persistence calls.
 
 ### P0: Workspace persistence extraction
 
@@ -238,13 +239,19 @@ Status: implemented.
 
 Status: implemented.
 
-`cr.ui.frame` now owns Browser Frame screen-layer behavior: terminal height and line fitting, content/task/prompt region layout, Task Panel line presentation, and Task Panel-only partial refresh output. `browser.py` keeps prompt input flow, command execution, frame composition, and workspace startup/exit orchestration.
+`cr.ui.frame` now owns Browser Frame screen-layer behavior: terminal height and line fitting, content/task/prompt region layout, Task Panel line presentation, and Task Panel-only partial refresh output. `browser.py` keeps prompt-input interpretation, command execution, frame composition, and workspace startup/exit orchestration.
 
 ### P0: Page Content extraction
 
 Status: implemented.
 
-`cr.ui.page_content` now owns browser page main-content rendering: prompt labels, help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree rows, Commit Picker rows, empty states, File Detail lines, and scroll-window calculations. `browser.py` keeps compatibility wrappers plus raw input, Browser Frame composition, command execution, selected-file side effects, and workspace startup/exit orchestration.
+`cr.ui.page_content` now owns browser page main-content rendering: prompt labels, help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree rows, Commit Picker rows, empty states, File Detail lines, and scroll-window calculations. `browser.py` keeps compatibility wrappers plus prompt-input interpretation, Browser Frame composition, command execution, selected-file side effects, and workspace startup/exit orchestration.
+
+### P0: Browser Input extraction
+
+Status: implemented.
+
+`cr.ui.input` now owns browser terminal input protocol: raw-key availability checks, browse command reads, temporary filter/command query reads, raw escape-sequence mapping, idle tick, EOF, and interrupt sentinels. `browser.py` keeps compatibility wrappers plus prompt-input interpretation, frame dirty/redraw recovery, workspace save-on-exit, command execution, selected-file side effects, and workspace startup/exit orchestration.
 
 ### P0: Command dispatch deepening
 
@@ -346,6 +353,6 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 
 Current architecture risk:
 
-- `src/cr/ui/browser.py` is still a large module that owns session orchestration, prompt input flow, selected-file action handoff, and frame composition.
-- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `Workspace Persistence` hides persisted workspace file I/O, `Browser Frame` hides screen-layer layout and Task Panel presentation, `Page Content` hides product-page main content rendering, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, and `cr.ui.file_actions` hides open/copy/reveal platform behavior.
-- The next product opportunity should come from concrete usage friction around richer review handoff workflows or deeper prompt-input / selected-file action extraction.
+- `src/cr/ui/browser.py` is still a large module that owns session orchestration, prompt-input interpretation, selected-file action handoff, and frame composition.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `Workspace Persistence` hides persisted workspace file I/O, `Browser Frame` hides screen-layer layout and Task Panel presentation, `Browser Input` hides terminal input protocol, `Page Content` hides product-page main content rendering, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, and `cr.ui.file_actions` hides open/copy/reveal platform behavior.
+- The next product opportunity should come from concrete usage friction around richer review handoff workflows or deeper selected-file action extraction.

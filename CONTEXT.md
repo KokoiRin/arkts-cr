@@ -21,10 +21,15 @@ the four module groups before the CLI knows about it. In particular,
 `cr.review.changes` owns shared review-scope facts used by both `review` and
 `diff`. The interactive browser also reuses `cr.review.changes` for changed-file
 selection, sorting, code-file detection, hunk rendering, and modified-symbol
-facts; `cr.ui.browser` should own browse orchestration, prompt input flow,
-selected-file action handoff, and session startup/shutdown, while
+facts; `cr.ui.browser` should own browse orchestration, prompt-input
+interpretation, selected-file action handoff, and session startup/shutdown, while
 `cr.ui.navigation.BrowserNavigation` owns page transition rules, in-session page
 history, and their small local state resets.
+`cr.ui.input` owns browser terminal input protocol: raw-key availability,
+browse command reads, temporary filter/command query reads, raw escape-sequence
+mapping, idle tick/EOF/interrupt sentinels, and terminal raw-mode restoration.
+It does not parse browser commands, mutate browser state, save workspace state,
+or draw the Browser Frame.
 `cr.ui.page_content` owns browser page main-content rendering: prompt labels,
 help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree
 rows, Commit Picker rows, empty states, File Detail lines, and page scroll
@@ -80,6 +85,10 @@ Product navigation terms:
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
   content, task panel, and prompt regions. Internally, `cr.ui.frame` owns the
   screen-layer layout and Task Panel presentation helpers.
+- `Browser Input`: the internal module that reads browser terminal input and
+  returns stable command/query/sentinel tokens. It owns raw-key detection,
+  escape-sequence mapping, idle tick, EOF, interrupt, and temporary line query
+  reading, while `browser.py` decides how those tokens affect product state.
 - `Page Content`: the internal module that renders product-page main content
   for Scope Home, Commit Picker, Changed Files, empty states, and File Detail.
   It owns page text and scroll-window rendering rules, while Browser Frame owns

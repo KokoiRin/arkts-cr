@@ -11,14 +11,15 @@ from unittest.mock import patch
 from contextlib import redirect_stdout
 from io import StringIO
 
+import cr.ui.browser as browser_module
 from cr.ui.browser import (
-    BuildState,
+    TaskState,
     BrowserFrame,
     BrowserState,
     TaskRecord,
     _build_command,
-    _build_panel_lines,
-    _build_status,
+    _task_panel_lines,
+    _task_status,
     _browse_command_lines,
     _command_palette_entries,
     _filtered_command_palette_entries,
@@ -27,20 +28,20 @@ from cr.ui.browser import (
     _browser_workspace_state_path,
     _save_browser_workspace_state,
     _load_browser_workspace_state,
-    _draw_build_panel_only,
+    _draw_task_panel_only,
     _draw_browse_screen,
     _move_selection,
     _normalize_command_query,
     _open_command,
-    _poll_build,
-    _record_completed_build,
+    _poll_task,
+    _record_completed_task,
     _read_browse_command,
     _restore_browser_workspace_state,
-    _rerun_build,
+    _rerun_task,
     _screen_layout,
     _show_browser_message,
-    _start_build,
-    _stop_build,
+    _start_task,
+    _stop_task,
     _switch_review_scope,
     _task_command,
     filter_changes_by_query,
@@ -65,6 +66,18 @@ def argparse_namespace(**kwargs):
 
 
 class CliTests(unittest.TestCase):
+    def test_background_task_runtime_uses_task_state_names(self):
+        source = Path(browser_module.__file__).read_text(encoding="utf-8")
+
+        self.assertTrue(hasattr(browser_module, "TaskState"))
+        self.assertFalse(hasattr(browser_module, "BuildState"))
+        self.assertIn('task: "TaskState | None"', source)
+        self.assertNotIn('build: "BuildState | None"', source)
+        self.assertIn("def _poll_task", source)
+        self.assertNotIn("def _poll_build", source)
+        self.assertIn("def _task_panel_lines", source)
+        self.assertNotIn("def _build_panel_lines", source)
+
     def test_format_counts_handles_binary_stats(self):
         self.assertEqual(format_counts(FileChange("asset.bin", None, None)), "+? -?")
 
@@ -138,7 +151,7 @@ class CliTests(unittest.TestCase):
             self.assertIsNone(_task_command(repo, args, "test"))
             self.assertIsNone(_task_command(repo, args, "lint"))
 
-    def test_build_panel_collects_background_output(self):
+    def test_task_panel_collects_background_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = (
@@ -149,20 +162,20 @@ class CliTests(unittest.TestCase):
             state = BrowserState([])
 
             with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                _start_build(state, args)
+                _start_task(state, args, "build")
                 for _ in range(100):
-                    _poll_build(state.build)
-                    if state.build and state.build.returncode is not None:
+                    _poll_task(state.task)
+                    if state.task and state.task.returncode is not None:
                         break
                     time.sleep(0.01)
 
-            self.assertIsNotNone(state.build)
-            if state.build.returncode is None:
-                state.build.process.terminate()
-                state.build.process.wait(timeout=1)
-            self.assertEqual(state.build.returncode, 0)
-            _poll_build(state.build)
-            lines = _build_panel_lines(state.build, TerminalStyle(False), 5)
+            self.assertIsNotNone(state.task)
+            if state.task.returncode is None:
+                state.task.process.terminate()
+                state.task.process.wait(timeout=1)
+            self.assertEqual(state.task.returncode, 0)
+            _poll_task(state.task)
+            lines = _task_panel_lines(state.task, TerminalStyle(False), 5)
             text = "\n".join(lines)
             self.assertIn("Build succeeded.", text)
             self.assertIn("compile line 1", text)
@@ -184,19 +197,19 @@ class CliTests(unittest.TestCase):
 
                 _start_task(state, args, "test")
                 for _ in range(100):
-                    _poll_build(state.build)
-                    if state.build and state.build.returncode is not None:
+                    _poll_task(state.task)
+                    if state.task and state.task.returncode is not None:
                         break
                     time.sleep(0.01)
 
-            self.assertIsNotNone(state.build)
-            if state.build.returncode is None:
-                state.build.process.terminate()
-                state.build.process.wait(timeout=1)
-            self.assertEqual(state.build.returncode, 0)
-            _poll_build(state.build)
-            _record_completed_build(state)
-            lines = _build_panel_lines(state.build, TerminalStyle(False), 5)
+            self.assertIsNotNone(state.task)
+            if state.task.returncode is None:
+                state.task.process.terminate()
+                state.task.process.wait(timeout=1)
+            self.assertEqual(state.task.returncode, 0)
+            _poll_task(state.task)
+            _record_completed_task(state)
+            lines = _task_panel_lines(state.task, TerminalStyle(False), 5)
             text = "\n".join(lines)
             self.assertIn("Test succeeded.", text)
             self.assertIn("test line", text)
@@ -217,18 +230,18 @@ class CliTests(unittest.TestCase):
 
                 _start_task(state, args, "lint")
 
-            self.assertIsNotNone(state.build)
-            self.assertEqual(state.build.kind, "lint")
-            self.assertEqual(_build_status(state.build), "failed to start")
+            self.assertIsNotNone(state.task)
+            self.assertEqual(state.task.kind, "lint")
+            self.assertEqual(_task_status(state.task), "failed to start")
             self.assertIn(
                 "No lint command configured. Set --lint-cmd or CR_LINT_CMD.",
-                state.build.lines,
+                state.task.lines,
             )
 
-    def test_build_panel_renders_recent_task_history(self):
+    def test_task_panel_renders_recent_task_history(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
-        build = BuildState(
+        build = TaskState(
             ["./build.sh"],
             process,
             lines=["compile line"],
@@ -243,7 +256,7 @@ class CliTests(unittest.TestCase):
             )
         ]
 
-        lines = _build_panel_lines(build, TerminalStyle(False), 6, history)
+        lines = _task_panel_lines(build, TerminalStyle(False), 6, history)
         text = "\n".join(lines)
 
         self.assertIn("Recent: build failed (1) ./build.sh", text)
@@ -254,7 +267,7 @@ class CliTests(unittest.TestCase):
         process.wait(timeout=1)
         state = BrowserState(
             [],
-            build=BuildState(
+            task=TaskState(
                 ["./build.sh"],
                 process,
                 lines=["Build succeeded."],
@@ -262,8 +275,8 @@ class CliTests(unittest.TestCase):
             ),
         )
 
-        _record_completed_build(state)
-        _record_completed_build(state)
+        _record_completed_task(state)
+        _record_completed_task(state)
 
         self.assertEqual(len(state.task_history), 1)
         self.assertEqual(state.task_history[0].kind, "build")
@@ -273,12 +286,12 @@ class CliTests(unittest.TestCase):
     def test_stop_without_running_build_does_not_record_task_history(self):
         state = BrowserState([])
 
-        _stop_build(state)
-        _record_completed_build(state)
+        _stop_task(state)
+        _record_completed_task(state)
 
         self.assertEqual(state.task_history, [])
 
-    def test_browse_screen_build_panel_includes_task_history(self):
+    def test_browse_screen_task_panel_includes_task_history(self):
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -290,7 +303,7 @@ class CliTests(unittest.TestCase):
         process.wait(timeout=1)
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
-            build=BuildState(["./build.sh"], process, lines=["compile line"]),
+            task=TaskState(["./build.sh"], process, lines=["compile line"]),
             task_history=[
                 TaskRecord(
                     kind="build",
@@ -322,20 +335,20 @@ class CliTests(unittest.TestCase):
             state = BrowserState([])
 
             with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                _start_build(state, args)
+                _start_task(state, args, "build")
 
-            self.assertIsNotNone(state.build)
+            self.assertIsNotNone(state.task)
             try:
                 self.assertEqual(
-                    state.build.process_group_id,
-                    state.build.process.pid,
+                    state.task.process_group_id,
+                    state.task.process.pid,
                 )
             finally:
-                if state.build.running:
-                    state.build.process.terminate()
-                    state.build.process.wait(timeout=1)
-                if state.build.process.stdout is not None:
-                    state.build.process.stdout.close()
+                if state.task.running:
+                    state.task.process.terminate()
+                    state.task.process.wait(timeout=1)
+                if state.task.process.stdout is not None:
+                    state.task.process.stdout.close()
 
     def test_build_stop_terminates_child_processes(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -365,8 +378,8 @@ class CliTests(unittest.TestCase):
 
             try:
                 with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                    _start_build(state, args)
-                    self.assertIsNotNone(state.build)
+                    _start_task(state, args, "build")
+                    self.assertIsNotNone(state.task)
                     for _ in range(100):
                         if child_pid_file.exists():
                             child_pid = int(child_pid_file.read_text(encoding="utf-8"))
@@ -375,10 +388,10 @@ class CliTests(unittest.TestCase):
                     self.assertIsNotNone(child_pid)
                     self.assertTrue(pid_is_running(child_pid))
 
-                    _stop_build(state)
+                    _stop_task(state)
                     for _ in range(100):
-                        _poll_build(state.build)
-                        if state.build.returncode is not None and not pid_is_running(child_pid):
+                        _poll_task(state.task)
+                        if state.task.returncode is not None and not pid_is_running(child_pid):
                             break
                         time.sleep(0.01)
 
@@ -386,9 +399,9 @@ class CliTests(unittest.TestCase):
             finally:
                 if child_pid is not None and pid_is_running(child_pid):
                     os.kill(child_pid, signal.SIGKILL)
-                if state.build is not None and state.build.running:
-                    state.build.process.terminate()
-                    state.build.process.wait(timeout=1)
+                if state.task is not None and state.task.running:
+                    state.task.process.terminate()
+                    state.task.process.wait(timeout=1)
 
     def test_build_stop_falls_back_when_process_group_stop_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -398,31 +411,31 @@ class CliTests(unittest.TestCase):
             state = BrowserState([])
 
             with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                _start_build(state, args)
-                self.assertIsNotNone(state.build)
+                _start_task(state, args, "build")
+                self.assertIsNotNone(state.task)
                 with patch(
                     "cr.ui.browser.os.killpg",
                     side_effect=OSError("pg gone"),
                 ):
-                    _stop_build(state)
+                    _stop_task(state)
                 for _ in range(100):
-                    _poll_build(state.build)
-                    if state.build.returncode is not None:
+                    _poll_task(state.task)
+                    if state.task.returncode is not None:
                         break
                     time.sleep(0.01)
 
             try:
-                self.assertIsNotNone(state.build.returncode)
-                self.assertEqual(_build_status(state.build), "stopped")
+                self.assertIsNotNone(state.task.returncode)
+                self.assertEqual(_task_status(state.task), "stopped")
                 self.assertTrue(
                     any(
                         "Build process group stop failed: pg gone" in line
-                        for line in state.build.lines
+                        for line in state.task.lines
                     )
                 )
             finally:
-                if state.build is not None and state.build.running:
-                    state.build.process.kill()
+                if state.task is not None and state.task.running:
+                    state.task.process.kill()
 
     def test_poll_escalates_stopped_build_to_process_group_kill(self):
         class RunningProcess:
@@ -434,7 +447,7 @@ class CliTests(unittest.TestCase):
             def kill(self):
                 raise AssertionError("process.kill should not be used with a process group")
 
-        build = BuildState(
+        build = TaskState(
             ["fake-build"],
             RunningProcess(),
             process_group_id=1234,
@@ -444,7 +457,7 @@ class CliTests(unittest.TestCase):
 
         with patch("cr.ui.browser.time.monotonic", return_value=10.0):
             with patch("cr.ui.browser.os.killpg") as killpg:
-                _poll_build(build)
+                _poll_task(build)
 
         killpg.assert_called_once_with(1234, signal.SIGKILL)
         self.assertTrue(build.stop_escalated)
@@ -460,7 +473,7 @@ class CliTests(unittest.TestCase):
             def kill(self):
                 raise AssertionError("process.kill should not run inside grace period")
 
-        build = BuildState(
+        build = TaskState(
             ["fake-build"],
             RunningProcess(),
             process_group_id=1234,
@@ -470,7 +483,7 @@ class CliTests(unittest.TestCase):
 
         with patch("cr.ui.browser.time.monotonic", return_value=10.0):
             with patch("cr.ui.browser.os.killpg") as killpg:
-                _poll_build(build)
+                _poll_task(build)
 
         killpg.assert_not_called()
         self.assertFalse(build.stop_escalated)
@@ -483,7 +496,7 @@ class CliTests(unittest.TestCase):
             def poll(self):
                 return None
 
-        build = BuildState(
+        build = TaskState(
             ["fake-build"],
             RunningProcess(),
             process_group_id=1234,
@@ -493,8 +506,8 @@ class CliTests(unittest.TestCase):
 
         with patch("cr.ui.browser.time.monotonic", return_value=10.0):
             with patch("cr.ui.browser.os.killpg") as killpg:
-                _poll_build(build)
-                _poll_build(build)
+                _poll_task(build)
+                _poll_task(build)
 
         killpg.assert_called_once_with(1234, signal.SIGKILL)
         self.assertEqual(
@@ -516,7 +529,7 @@ class CliTests(unittest.TestCase):
                 self.kill_count += 1
 
         process = RunningProcess()
-        build = BuildState(
+        build = TaskState(
             ["fake-build"],
             process,
             process_group_id=None,
@@ -526,7 +539,7 @@ class CliTests(unittest.TestCase):
 
         with patch("cr.ui.browser.time.monotonic", return_value=10.0):
             with patch("cr.ui.browser.os.killpg") as killpg:
-                _poll_build(build)
+                _poll_task(build)
 
         killpg.assert_not_called()
         self.assertEqual(process.kill_count, 1)
@@ -541,22 +554,22 @@ class CliTests(unittest.TestCase):
             state = BrowserState([])
 
             with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                _start_build(state, args)
-                self.assertIsNotNone(state.build)
+                _start_task(state, args, "build")
+                self.assertIsNotNone(state.task)
                 before_stop = time.monotonic()
-                _stop_build(state)
+                _stop_task(state)
                 after_stop = time.monotonic()
 
             try:
-                self.assertGreaterEqual(state.build.stop_requested_at, before_stop)
-                self.assertLessEqual(state.build.stop_requested_at, after_stop)
-                self.assertFalse(state.build.stop_escalated)
+                self.assertGreaterEqual(state.task.stop_requested_at, before_stop)
+                self.assertLessEqual(state.task.stop_requested_at, after_stop)
+                self.assertFalse(state.task.stop_escalated)
             finally:
-                if state.build is not None and state.build.running:
-                    state.build.process.kill()
-                    state.build.process.wait(timeout=1)
-                if state.build.process.stdout is not None:
-                    state.build.process.stdout.close()
+                if state.task is not None and state.task.running:
+                    state.task.process.kill()
+                    state.task.process.wait(timeout=1)
+                if state.task.process.stdout is not None:
+                    state.task.process.stdout.close()
 
     def test_build_stop_marks_stopped_not_failed(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -566,24 +579,24 @@ class CliTests(unittest.TestCase):
             state = BrowserState([])
 
             with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                _start_build(state, args)
-                self.assertIsNotNone(state.build)
-                self.assertTrue(state.build.running)
+                _start_task(state, args, "build")
+                self.assertIsNotNone(state.task)
+                self.assertTrue(state.task.running)
 
-                _stop_build(state)
-                self.assertTrue(state.build.stop_requested)
-                self.assertEqual(_build_status(state.build), "stopping")
-                self.assertIn("Stopping build...", state.build.lines)
+                _stop_task(state)
+                self.assertTrue(state.task.stop_requested)
+                self.assertEqual(_task_status(state.task), "stopping")
+                self.assertIn("Stopping build...", state.task.lines)
 
                 for _ in range(100):
-                    _poll_build(state.build)
-                    if state.build.returncode is not None:
+                    _poll_task(state.task)
+                    if state.task.returncode is not None:
                         break
                     time.sleep(0.01)
 
-            self.assertIsNotNone(state.build.returncode)
-            self.assertEqual(_build_status(state.build), "stopped")
-            self.assertIn("Build stopped.", state.build.lines)
+            self.assertIsNotNone(state.task.returncode)
+            self.assertEqual(_task_status(state.task), "stopped")
+            self.assertIn("Build stopped.", state.task.lines)
 
     def test_build_rerun_starts_new_process_after_completion(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -600,22 +613,22 @@ class CliTests(unittest.TestCase):
             state = BrowserState([])
 
             with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                _start_build(state, args)
+                _start_task(state, args, "build")
                 for _ in range(100):
-                    _poll_build(state.build)
-                    if state.build and state.build.returncode is not None:
+                    _poll_task(state.task)
+                    if state.task and state.task.returncode is not None:
                         break
                     time.sleep(0.01)
-                self.assertEqual(state.build.returncode, 0)
+                self.assertEqual(state.task.returncode, 0)
 
-                _rerun_build(state, args)
+                _rerun_task(state, args)
                 for _ in range(100):
-                    _poll_build(state.build)
-                    if state.build and state.build.returncode is not None:
+                    _poll_task(state.task)
+                    if state.task and state.task.returncode is not None:
                         break
                     time.sleep(0.01)
 
-            self.assertEqual(state.build.returncode, 0)
+            self.assertEqual(state.task.returncode, 0)
             self.assertEqual(output.read_text(encoding="utf-8"), "run\nrun\n")
 
     def test_rerun_repeats_recent_test_task_kind(self):
@@ -641,22 +654,22 @@ class CliTests(unittest.TestCase):
 
                 _start_task(state, args, "test")
                 for _ in range(100):
-                    _poll_build(state.build)
-                    if state.build and state.build.returncode is not None:
+                    _poll_task(state.task)
+                    if state.task and state.task.returncode is not None:
                         break
                     time.sleep(0.01)
-                self.assertEqual(state.build.kind, "test")
-                self.assertEqual(state.build.returncode, 0)
+                self.assertEqual(state.task.kind, "test")
+                self.assertEqual(state.task.returncode, 0)
 
-                _rerun_build(state, args)
-                self.assertEqual(state.build.kind, "test")
+                _rerun_task(state, args)
+                self.assertEqual(state.task.kind, "test")
                 for _ in range(100):
-                    _poll_build(state.build)
-                    if state.build and state.build.returncode is not None:
+                    _poll_task(state.task)
+                    if state.task and state.task.returncode is not None:
                         break
                     time.sleep(0.01)
 
-            self.assertEqual(state.build.returncode, 0)
+            self.assertEqual(state.task.returncode, 0)
             self.assertEqual(output.read_text(encoding="utf-8"), "test\ntest\n")
 
     def test_build_rerun_keeps_previous_task_history(self):
@@ -675,27 +688,27 @@ class CliTests(unittest.TestCase):
             state = BrowserState([])
 
             with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                _start_build(state, args)
+                _start_task(state, args, "build")
                 for _ in range(100):
-                    _poll_build(state.build)
-                    if state.build and state.build.returncode is not None:
+                    _poll_task(state.task)
+                    if state.task and state.task.returncode is not None:
                         break
                     time.sleep(0.01)
-                _record_completed_build(state)
+                _record_completed_task(state)
 
                 self.assertEqual(len(state.task_history), 1)
 
-                _rerun_build(state, args)
+                _rerun_task(state, args)
 
             self.assertEqual(len(state.task_history), 1)
             self.assertEqual(state.task_history[0].status, "succeeded")
-            self.assertIsNotNone(state.build)
-            self.assertIsNone(state.build.returncode)
-            if state.build.running:
-                state.build.process.terminate()
-                state.build.process.wait(timeout=1)
-            if state.build.process.stdout is not None:
-                state.build.process.stdout.close()
+            self.assertIsNotNone(state.task)
+            self.assertIsNone(state.task.returncode)
+            if state.task.running:
+                state.task.process.terminate()
+                state.task.process.wait(timeout=1)
+            if state.task.process.stdout is not None:
+                state.task.process.stdout.close()
 
     def test_build_rerun_while_running_does_not_start_second_process(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -705,33 +718,33 @@ class CliTests(unittest.TestCase):
             state = BrowserState([])
 
             with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                _start_build(state, args)
-                self.assertIsNotNone(state.build)
-                first_process = state.build.process
+                _start_task(state, args, "build")
+                self.assertIsNotNone(state.task)
+                first_process = state.task.process
 
-                _rerun_build(state, args)
+                _rerun_task(state, args)
 
-            self.assertIs(state.build.process, first_process)
-            self.assertIn("Build is already running. Stop it before rerun.", state.build.lines)
-            _stop_build(state)
+            self.assertIs(state.task.process, first_process)
+            self.assertIn("Build is already running. Stop it before rerun.", state.task.lines)
+            _stop_task(state)
             for _ in range(100):
-                _poll_build(state.build)
-                if state.build.returncode is not None:
+                _poll_task(state.task)
+                if state.task.returncode is not None:
                     break
                 time.sleep(0.01)
 
     def test_build_stop_without_running_build_shows_feedback(self):
         state = BrowserState([])
 
-        _stop_build(state)
+        _stop_task(state)
 
-        self.assertIsNotNone(state.build)
-        self.assertEqual(_build_status(state.build), "idle")
-        self.assertIn("No build is running.", state.build.lines)
+        self.assertIsNotNone(state.task)
+        self.assertEqual(_task_status(state.task), "idle")
+        self.assertIn("No build is running.", state.task.lines)
 
-    def test_build_panel_partial_refresh_does_not_clear_screen(self):
+    def test_task_panel_partial_refresh_does_not_clear_screen(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
-        build = BuildState(["true"], process, lines=["compile line"])
+        build = TaskState(["true"], process, lines=["compile line"])
         output = StringIO()
 
         with patch(
@@ -739,7 +752,7 @@ class CliTests(unittest.TestCase):
             return_value=os.terminal_size((100, 12)),
         ):
             with redirect_stdout(output):
-                _draw_build_panel_only(build, TerminalStyle(False))
+                _draw_task_panel_only(build, TerminalStyle(False))
 
         text = output.getvalue()
         self.assertNotIn("\033[2J", text)
@@ -754,12 +767,12 @@ class CliTests(unittest.TestCase):
             return_value=os.terminal_size((100, 12)),
         ):
             with redirect_stdout(output):
-                _draw_build_panel_only(build, TerminalStyle(False))
+                _draw_task_panel_only(build, TerminalStyle(False))
 
         self.assertEqual(output.getvalue(), "")
         process.wait(timeout=1)
 
-    def test_full_browser_redraw_primes_build_panel_frame_cache(self):
+    def test_full_browser_redraw_primes_task_panel_frame_cache(self):
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -770,7 +783,7 @@ class CliTests(unittest.TestCase):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
-            build=BuildState(["true"], process, lines=["compile line"]),
+            task=TaskState(["true"], process, lines=["compile line"]),
         )
         frame = BrowserFrame()
         output = StringIO()
@@ -786,8 +799,8 @@ class CliTests(unittest.TestCase):
 
                     output = StringIO()
                     with redirect_stdout(output):
-                        refreshed = _draw_build_panel_only(
-                            state.build,
+                        refreshed = _draw_task_panel_only(
+                            state.task,
                             TerminalStyle(False),
                             frame,
                         )
@@ -796,13 +809,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
         process.wait(timeout=1)
 
-    def test_build_panel_partial_refresh_refuses_stale_frame_layout(self):
+    def test_task_panel_partial_refresh_refuses_stale_frame_layout(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
-        build = BuildState(["true"], process, lines=["first line"])
+        build = TaskState(["true"], process, lines=["first line"])
         frame = BrowserFrame(
             layout=_screen_layout(build, rows=12),
             complete=True,
-            build_panel=["old panel"],
+            task_panel=["old panel"],
             dirty=False,
         )
         build.last_rendered_panel = ["old panel"]
@@ -814,20 +827,20 @@ class CliTests(unittest.TestCase):
             return_value=os.terminal_size((100, 30)),
         ):
             with redirect_stdout(output):
-                refreshed = _draw_build_panel_only(build, TerminalStyle(False), frame)
+                refreshed = _draw_task_panel_only(build, TerminalStyle(False), frame)
 
         self.assertFalse(refreshed)
         self.assertEqual(output.getvalue(), "")
         self.assertTrue(frame.dirty)
         process.wait(timeout=1)
 
-    def test_build_panel_partial_refresh_refuses_dirty_frame(self):
+    def test_task_panel_partial_refresh_refuses_dirty_frame(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
-        build = BuildState(["true"], process, lines=["first line"])
+        build = TaskState(["true"], process, lines=["first line"])
         frame = BrowserFrame(
             layout=_screen_layout(build, rows=12),
             complete=True,
-            build_panel=["old panel"],
+            task_panel=["old panel"],
             dirty=True,
         )
         output = StringIO()
@@ -837,7 +850,7 @@ class CliTests(unittest.TestCase):
             return_value=os.terminal_size((100, 12)),
         ):
             with redirect_stdout(output):
-                refreshed = _draw_build_panel_only(build, TerminalStyle(False), frame)
+                refreshed = _draw_task_panel_only(build, TerminalStyle(False), frame)
 
         self.assertFalse(refreshed)
         self.assertEqual(output.getvalue(), "")
@@ -846,14 +859,14 @@ class CliTests(unittest.TestCase):
 
     def test_browser_status_message_marks_frame_dirty_before_task_refresh(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
-        build = BuildState(["true"], process, lines=["first line"])
+        build = TaskState(["true"], process, lines=["first line"])
         frame = BrowserFrame(
             layout=_screen_layout(build, rows=12),
             complete=True,
-            build_panel=["old panel"],
+            task_panel=["old panel"],
             dirty=False,
         )
-        state = BrowserState([], build=build)
+        state = BrowserState([], task=build)
         output = StringIO()
 
         _show_browser_message(state, "Opened src/Sample.ts:3", raw_keys=True, frame=frame)
@@ -863,7 +876,7 @@ class CliTests(unittest.TestCase):
             return_value=os.terminal_size((100, 12)),
         ):
             with redirect_stdout(output):
-                refreshed = _draw_build_panel_only(build, TerminalStyle(False), frame)
+                refreshed = _draw_task_panel_only(build, TerminalStyle(False), frame)
 
         self.assertEqual(state.status_message, "Opened src/Sample.ts:3")
         self.assertFalse(refreshed)
@@ -953,21 +966,21 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(draw.call_count, 2)
 
-    def test_screen_layout_reserves_prompt_and_build_panel_regions(self):
+    def test_screen_layout_reserves_prompt_and_task_panel_regions(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
-        build = BuildState(["true"], process, lines=["compile line"])
+        build = TaskState(["true"], process, lines=["compile line"])
 
         plain = _screen_layout(None, rows=12)
-        with_build = _screen_layout(build, rows=12)
+        with_task = _screen_layout(build, rows=12)
 
         self.assertEqual(plain.prompt_row, 12)
         self.assertEqual(plain.content_height, 11)
-        self.assertEqual(plain.build_height, 0)
-        self.assertIsNone(plain.build_start_row)
-        self.assertEqual(with_build.prompt_row, 12)
-        self.assertEqual(with_build.build_start_row, 7)
-        self.assertEqual(with_build.build_height, 5)
-        self.assertEqual(with_build.content_height, 6)
+        self.assertEqual(plain.task_height, 0)
+        self.assertIsNone(plain.task_start_row)
+        self.assertEqual(with_task.prompt_row, 12)
+        self.assertEqual(with_task.task_start_row, 7)
+        self.assertEqual(with_task.task_height, 5)
+        self.assertEqual(with_task.content_height, 6)
         process.wait(timeout=1)
 
     def test_browse_screen_redraws_in_place(self):
@@ -1288,7 +1301,7 @@ class CliTests(unittest.TestCase):
         self.assertIn(("list", 1), frames)
         self.assertEqual(frames[-1], ("list", 0))
 
-    def test_browse_screen_places_build_panel_above_prompt(self):
+    def test_browse_screen_places_task_panel_above_prompt(self):
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -1299,7 +1312,7 @@ class CliTests(unittest.TestCase):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
-            build=BuildState(["true"], process, lines=["compile line"]),
+            task=TaskState(["true"], process, lines=["compile line"]),
         )
         output = StringIO()
 
@@ -1486,7 +1499,7 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("Unknown command.", output.getvalue())
         self.assertTrue(any(message.startswith("Unknown command.") for message in frames))
 
-    def test_browse_screen_pads_short_content_before_build_panel(self):
+    def test_browse_screen_pads_short_content_before_task_panel(self):
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -1497,7 +1510,7 @@ class CliTests(unittest.TestCase):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
-            build=BuildState(["true"], process, lines=["compile line"]),
+            task=TaskState(["true"], process, lines=["compile line"]),
         )
         output = StringIO()
 
@@ -1515,7 +1528,7 @@ class CliTests(unittest.TestCase):
         process.wait(timeout=1)
         self.assertEqual(before_panel.count("\n"), 23)
 
-    def test_browse_screen_shows_command_list_with_build_panel(self):
+    def test_browse_screen_shows_command_list_with_task_panel(self):
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -1526,7 +1539,7 @@ class CliTests(unittest.TestCase):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
-            build=BuildState(["true"], process, lines=["compile line"]),
+            task=TaskState(["true"], process, lines=["compile line"]),
             mode="commands",
         )
         output = StringIO()
@@ -1623,7 +1636,7 @@ class CliTests(unittest.TestCase):
             ["src/Second.ts"],
         )
 
-    def test_switch_review_scope_resets_view_state_but_keeps_build_panel(self):
+    def test_switch_review_scope_resets_view_state_but_keeps_task_panel(self):
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -1635,10 +1648,10 @@ class CliTests(unittest.TestCase):
             code=False,
         )
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
-        build = BuildState(["true"], process, returncode=0)
+        build = TaskState(["true"], process, returncode=0)
         state = BrowserState(
             [FileChange("src/Old.ts", 1, 1)],
-            build=build,
+            task=build,
             selected=3,
             list_scroll=4,
             commit_scroll=2,
@@ -1658,7 +1671,7 @@ class CliTests(unittest.TestCase):
 
         self.assertTrue(args.staged)
         self.assertEqual(state.changes, [FileChange("src/New.ts", 2, 0)])
-        self.assertIs(state.build, build)
+        self.assertIs(state.task, build)
         self.assertEqual(state.mode, "list")
         self.assertEqual(state.selected, 0)
         self.assertEqual(state.list_scroll, 0)
@@ -1820,7 +1833,7 @@ class CliTests(unittest.TestCase):
                                     side_effect=commands,
                                 ):
                                     with patch("cr.ui.browser._draw_browse_screen"):
-                                        with patch("cr.ui.browser._start_build") as start_build:
+                                        with patch("cr.ui.browser._start_task") as start_build:
                                             from cr.ui.browser import run_browser
 
                                             result = run_browser(args)
@@ -2002,7 +2015,7 @@ class CliTests(unittest.TestCase):
                                         return_value="build",
                                     ):
                                         with patch("cr.ui.browser._draw_browse_screen"):
-                                            with patch("cr.ui.browser._start_build") as start_build:
+                                            with patch("cr.ui.browser._start_task") as start_build:
                                                 from cr.ui.browser import run_browser
 
                                                 result = run_browser(args)

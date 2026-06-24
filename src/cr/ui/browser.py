@@ -57,7 +57,7 @@ TASK_LABELS = {
 class BrowserState:
     changes: list[git.FileChange]
     commits: list[git.CommitSummary] = field(default_factory=list)
-    build: "BuildState | None" = None
+    task: "TaskState | None" = None
     task_history: list["TaskRecord"] = field(default_factory=list)
     previous_scope: "ReviewScope | None" = None
     selected_commit: git.CommitSummary | None = None
@@ -197,7 +197,7 @@ class TaskRecord:
 
 
 @dataclass
-class BuildState:
+class TaskState:
     command: list[str]
     process: subprocess.Popen[bytes]
     kind: str = "build"
@@ -220,9 +220,9 @@ class BuildState:
 @dataclass(frozen=True)
 class ScreenLayout:
     content_height: int
-    build_height: int
+    task_height: int
     prompt_row: int
-    build_start_row: int | None
+    task_start_row: int | None
 
     @property
     def max_render_lines(self) -> int:
@@ -233,7 +233,7 @@ class ScreenLayout:
 class BrowserFrame:
     layout: ScreenLayout | None = None
     complete: bool = False
-    build_panel: list[str] = field(default_factory=list)
+    task_panel: list[str] = field(default_factory=list)
     dirty: bool = True
 
 
@@ -256,8 +256,8 @@ def run_browser(args: argparse.Namespace) -> int:
     if not raw_keys:
         _print_lines(_browse_help_lines(style))
     while True:
-        _poll_build(state.build)
-        _record_completed_build(state)
+        _poll_task(state.task)
+        _record_completed_task(state)
         state.clamp_selection()
         visible = state.visible_changes
         if raw_keys and (needs_redraw or frame.dirty):
@@ -331,10 +331,10 @@ def run_browser(args: argparse.Namespace) -> int:
         command_result = _read_browse_command(
             prompt,
             raw_keys,
-            tick_when_idle=state.build is not None and state.build.running,
+            tick_when_idle=state.task is not None and state.task.running,
         )
         if command_result == "__tick__":
-            _draw_build_panel_only(state.build, style, frame, state.task_history)
+            _draw_task_panel_only(state.task, style, frame, state.task_history)
             if frame.dirty:
                 needs_redraw = True
             continue
@@ -511,7 +511,7 @@ def run_browser(args: argparse.Namespace) -> int:
             continue
         if command in {"build", "compile"}:
             if raw_keys:
-                _start_build(state, args)
+                _start_task(state, args, "build")
                 needs_redraw = True
             else:
                 _run_task_foreground(args, "build")
@@ -531,15 +531,15 @@ def run_browser(args: argparse.Namespace) -> int:
                 _run_task_foreground(args, "lint")
             continue
         if command in {"stop", "cancel"}:
-            _stop_build(state)
+            _stop_task(state)
             needs_redraw = True
             continue
         if command in {"rebuild", "rerun"}:
             if raw_keys:
-                _rerun_build(state, args)
+                _rerun_task(state, args)
                 needs_redraw = True
             else:
-                _run_build_foreground(args)
+                _run_task_foreground(args, "build")
             continue
         if command in {"r", "refresh"}:
             if state.mode == "commits":
@@ -1073,45 +1073,45 @@ def _file_body_capacity() -> int:
     return max(1, _screen_height() - 3)
 
 
-def _build_panel_height(build: BuildState | None, available_lines: int) -> int:
-    if build is None:
+def _task_panel_height(task: TaskState | None, available_lines: int) -> int:
+    if task is None:
         return 0
     return max(3, min(10, max(5, available_lines // 4), max(3, available_lines - 6)))
 
 
-def _screen_layout(build: BuildState | None, rows: int | None = None) -> ScreenLayout:
+def _screen_layout(task: TaskState | None, rows: int | None = None) -> ScreenLayout:
     terminal_rows = _screen_height() if rows is None else max(8, rows)
     max_render_lines = max(1, terminal_rows - 1)
-    build_height = _build_panel_height(build, max_render_lines)
-    content_height = max(1, max_render_lines - build_height)
-    build_start_row = content_height + 1 if build_height else None
+    task_height = _task_panel_height(task, max_render_lines)
+    content_height = max(1, max_render_lines - task_height)
+    task_start_row = content_height + 1 if task_height else None
     return ScreenLayout(
         content_height=content_height,
-        build_height=build_height,
+        task_height=task_height,
         prompt_row=terminal_rows,
-        build_start_row=build_start_row,
+        task_start_row=task_start_row,
     )
 
 
-def _build_panel_lines(
-    build: BuildState | None,
+def _task_panel_lines(
+    task: TaskState | None,
     style: TerminalStyle,
     max_lines: int,
     history: list[TaskRecord] | None = None,
 ) -> list[str]:
-    if build is None or max_lines <= 0:
+    if task is None or max_lines <= 0:
         return []
     width = shutil.get_terminal_size((100, 30)).columns
-    status = _build_status(build)
-    command = " ".join(shlex.quote(part) for part in build.command)
+    status = _task_status(task)
+    command = " ".join(shlex.quote(part) for part in task.command)
     lines = [
         style.dim("─" * min(width, 100)),
-        f"{style.bold(_task_label(build.kind))} {status}  {style.dim(command)}",
+        f"{style.bold(_task_label(task.kind))} {status}  {style.dim(command)}",
     ]
     if history:
         lines.append(_task_history_line(history[-3:]))
     capacity = max(0, max_lines - len(lines))
-    body = build.lines[-capacity:] if capacity else []
+    body = task.lines[-capacity:] if capacity else []
     if capacity and not body:
         body = [style.dim("(waiting for output)")]
     return [*lines, *body][-max_lines:]
@@ -1125,20 +1125,20 @@ def _task_history_line(history: list[TaskRecord]) -> str:
     return "Recent: " + " | ".join(summaries)
 
 
-def _build_status(build: BuildState) -> str:
-    if build.start_error is not None:
+def _task_status(task: TaskState) -> str:
+    if task.start_error is not None:
         return "failed to start"
-    if build.returncode is None and build.stop_requested:
+    if task.returncode is None and task.stop_requested:
         return "stopping"
-    if build.returncode is None:
+    if task.returncode is None:
         return "running"
-    if not build.command:
+    if not task.command:
         return "idle"
-    if build.stop_requested:
+    if task.stop_requested:
         return "stopped"
-    if build.returncode == 0:
+    if task.returncode == 0:
         return "succeeded"
-    return f"failed ({build.returncode})"
+    return f"failed ({task.returncode})"
 
 
 def _task_label(kind: str) -> str:
@@ -1162,25 +1162,25 @@ def _missing_task_command_message(kind: str) -> str:
     return f"No {_task_name(kind)} command configured."
 
 
-def _record_completed_build(state: BrowserState) -> None:
-    build = state.build
+def _record_completed_task(state: BrowserState) -> None:
+    task = state.task
     if (
-        build is None
-        or not build.command
-        or build.returncode is None
-        or build.history_recorded
+        task is None
+        or not task.command
+        or task.returncode is None
+        or task.history_recorded
     ):
         return
     state.task_history.append(
         TaskRecord(
-            kind=build.kind,
-            status=_build_status(build),
-            command=build.command,
-            returncode=build.returncode,
+            kind=task.kind,
+            status=_task_status(task),
+            command=task.command,
+            returncode=task.returncode,
         )
     )
     state.task_history = state.task_history[-5:]
-    build.history_recorded = True
+    task.history_recorded = True
 
 
 def _draw_browse_screen(
@@ -1191,10 +1191,10 @@ def _draw_browse_screen(
 ) -> None:
     state.clamp_selection()
     visible = state.visible_changes
-    layout = _screen_layout(state.build)
+    layout = _screen_layout(state.task)
     max_lines = layout.max_render_lines
     content_lines = layout.content_height
-    build_panel_height = layout.build_height
+    task_panel_height = layout.task_height
     if state.mode == "commits":
         lines = [
             *_browse_help_lines(style),
@@ -1253,16 +1253,16 @@ def _draw_browse_screen(
             total_changes=len(state.changes),
             scope_label=_scope_label(state, args),
         )
-    if build_panel_height:
+    if task_panel_height:
         content_frame = lines[:content_lines]
         if len(content_frame) < content_lines:
             content_frame.extend([""] * (content_lines - len(content_frame)))
         lines = [
             *content_frame,
-            *_build_panel_lines(
-                state.build,
+            *_task_panel_lines(
+                state.task,
                 style,
-                build_panel_height,
+                task_panel_height,
                 state.task_history,
             ),
         ]
@@ -1273,43 +1273,43 @@ def _draw_browse_screen(
         end="",
         flush=True,
     )
-    rendered_panel = _build_panel_lines(
-        state.build,
+    rendered_panel = _task_panel_lines(
+        state.task,
         style,
-        build_panel_height,
+        task_panel_height,
         state.task_history,
     )
-    if state.build is not None:
-        state.build.last_rendered_panel = rendered_panel
+    if state.task is not None:
+        state.task.last_rendered_panel = rendered_panel
     if frame is not None:
         frame.layout = layout
         frame.complete = True
-        frame.build_panel = rendered_panel
+        frame.task_panel = rendered_panel
         frame.dirty = False
 
 
-def _draw_build_panel_only(
-    build: BuildState | None,
+def _draw_task_panel_only(
+    task: TaskState | None,
     style: TerminalStyle,
     frame: BrowserFrame | None = None,
     history: list[TaskRecord] | None = None,
 ) -> bool:
-    if build is None:
+    if task is None:
         return False
-    layout = _screen_layout(build)
-    height = layout.build_height
+    layout = _screen_layout(task)
+    height = layout.task_height
     if frame is not None:
         if frame.dirty or not frame.complete or frame.layout != layout:
             frame.dirty = True
             return False
-    lines = _build_panel_lines(build, style, height, history)
-    previous_panel = frame.build_panel if frame is not None else build.last_rendered_panel
+    lines = _task_panel_lines(task, style, height, history)
+    previous_panel = frame.task_panel if frame is not None else task.last_rendered_panel
     if lines == previous_panel:
         return False
-    build.last_rendered_panel = lines
+    task.last_rendered_panel = lines
     if frame is not None:
-        frame.build_panel = lines
-    start_row = layout.build_start_row or 1
+        frame.task_panel = lines
+    start_row = layout.task_start_row or 1
     output: list[str] = ["\0337", f"\033[{start_row};1H"]
     for index in range(height):
         output.append("\033[2K")
@@ -2255,10 +2255,6 @@ def _read_raw_key(timeout: float | None = None) -> str:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
-def _start_build(state: BrowserState, args: argparse.Namespace) -> None:
-    _start_task(state, args, "build")
-
-
 def _start_task(
     state: BrowserState,
     args: argparse.Namespace,
@@ -2267,14 +2263,14 @@ def _start_task(
     repo = git.repo_root()
     command = _task_command(repo, args, kind)
     if command is None:
-        state.build = _failed_build_state(
+        state.task = _failed_task_state(
             [],
             _missing_task_command_message(kind),
             kind,
         )
         return
-    if state.build is not None and state.build.running:
-        state.build.lines.append(f"{_task_label(state.build.kind)} is already running.")
+    if state.task is not None and state.task.running:
+        state.task.lines.append(f"{_task_label(state.task.kind)} is already running.")
         return
     try:
         process = subprocess.Popen(
@@ -2286,7 +2282,7 @@ def _start_task(
         )
     except OSError as exc:
         label = _task_label(kind)
-        state.build = _failed_build_state(
+        state.task = _failed_task_state(
             command,
             f"{label} failed to start: {exc}",
             kind,
@@ -2294,7 +2290,7 @@ def _start_task(
         return
     if process.stdout is not None:
         os.set_blocking(process.stdout.fileno(), False)
-    state.build = BuildState(
+    state.task = TaskState(
         command=command,
         process=process,
         kind=kind,
@@ -2303,11 +2299,11 @@ def _start_task(
     )
 
 
-def _stop_build(state: BrowserState) -> None:
-    if state.build is None:
+def _stop_task(state: BrowserState) -> None:
+    if state.task is None:
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait()
-        state.build = BuildState(
+        state.task = TaskState(
             command=[],
             process=process,
             kind="build",
@@ -2315,38 +2311,34 @@ def _stop_build(state: BrowserState) -> None:
             returncode=0,
         )
         return
-    if not state.build.running:
-        state.build.lines.append(f"No {_task_name(state.build.kind)} is running.")
+    if not state.task.running:
+        state.task.lines.append(f"No {_task_name(state.task.kind)} is running.")
         return
-    state.build.stop_requested = True
-    state.build.lines.append(f"Stopping {_task_name(state.build.kind)}...")
-    state.build.stop_requested_at = time.monotonic()
-    if state.build.process_group_id is not None and hasattr(os, "killpg"):
+    state.task.stop_requested = True
+    state.task.lines.append(f"Stopping {_task_name(state.task.kind)}...")
+    state.task.stop_requested_at = time.monotonic()
+    if state.task.process_group_id is not None and hasattr(os, "killpg"):
         try:
-            os.killpg(state.build.process_group_id, signal.SIGTERM)
+            os.killpg(state.task.process_group_id, signal.SIGTERM)
             return
         except OSError as exc:
-            state.build.lines.append(
-                f"{_task_label(state.build.kind)} process group stop failed: {exc}"
+            state.task.lines.append(
+                f"{_task_label(state.task.kind)} process group stop failed: {exc}"
             )
     try:
-        state.build.process.terminate()
+        state.task.process.terminate()
     except OSError as exc:
-        state.build.lines.append(f"{_task_label(state.build.kind)} stop failed: {exc}")
+        state.task.lines.append(f"{_task_label(state.task.kind)} stop failed: {exc}")
 
 
-def _rerun_build(state: BrowserState, args: argparse.Namespace) -> None:
-    if state.build is not None and state.build.running:
-        state.build.lines.append(
-            f"{_task_label(state.build.kind)} is already running. Stop it before rerun."
+def _rerun_task(state: BrowserState, args: argparse.Namespace) -> None:
+    if state.task is not None and state.task.running:
+        state.task.lines.append(
+            f"{_task_label(state.task.kind)} is already running. Stop it before rerun."
         )
         return
-    kind = state.build.kind if state.build is not None else "build"
+    kind = state.task.kind if state.task is not None else "build"
     _start_task(state, args, kind)
-
-
-def _run_build_foreground(args: argparse.Namespace) -> None:
-    _run_task_foreground(args, "build")
 
 
 def _run_task_foreground(args: argparse.Namespace, kind: str) -> None:
@@ -2368,14 +2360,14 @@ def _run_task_foreground(args: argparse.Namespace, kind: str) -> None:
         print(f"{label} failed with exit code {result.returncode}.")
 
 
-def _failed_build_state(
+def _failed_task_state(
     command: list[str],
     message: str,
     kind: str = "build",
-) -> BuildState:
+) -> TaskState:
     process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
     process.wait()
-    return BuildState(
+    return TaskState(
         command=command,
         process=process,
         kind=kind,
@@ -2385,90 +2377,90 @@ def _failed_build_state(
     )
 
 
-def _poll_build(build: BuildState | None) -> None:
-    if build is None or build.start_error is not None:
+def _poll_task(task: TaskState | None) -> None:
+    if task is None or task.start_error is not None:
         return
-    if build.returncode is not None:
+    if task.returncode is not None:
         return
-    _drain_build_output(build)
-    returncode = build.process.poll()
-    if returncode is not None and build.returncode is None:
-        _drain_build_output(build)
-        if build.partial:
-            build.lines.append(build.partial)
-            build.partial = ""
-        build.returncode = returncode
-        if build.stop_requested:
-            message = f"{_task_label(build.kind)} stopped."
+    _drain_task_output(task)
+    returncode = task.process.poll()
+    if returncode is not None and task.returncode is None:
+        _drain_task_output(task)
+        if task.partial:
+            task.lines.append(task.partial)
+            task.partial = ""
+        task.returncode = returncode
+        if task.stop_requested:
+            message = f"{_task_label(task.kind)} stopped."
         else:
-            label = _task_label(build.kind)
+            label = _task_label(task.kind)
             message = (
                 f"{label} succeeded."
                 if returncode == 0
                 else f"{label} failed with exit code {returncode}."
             )
-        build.lines.append(message)
-        if build.process.stdout is not None:
-            build.process.stdout.close()
+        task.lines.append(message)
+        if task.process.stdout is not None:
+            task.process.stdout.close()
     else:
-        _maybe_escalate_build_stop(build)
+        _maybe_escalate_task_stop(task)
 
 
-def _maybe_escalate_build_stop(build: BuildState) -> None:
+def _maybe_escalate_task_stop(task: TaskState) -> None:
     if (
-        not build.stop_requested
-        or build.stop_requested_at is None
-        or build.stop_escalated
+        not task.stop_requested
+        or task.stop_requested_at is None
+        or task.stop_escalated
     ):
         return
-    if time.monotonic() - build.stop_requested_at < BUILD_STOP_KILL_GRACE_SECONDS:
+    if time.monotonic() - task.stop_requested_at < BUILD_STOP_KILL_GRACE_SECONDS:
         return
-    build.stop_escalated = True
-    if build.process_group_id is not None and hasattr(os, "killpg"):
-        build.lines.append(
-            f"{_task_label(build.kind)} did not stop; force killing process group."
+    task.stop_escalated = True
+    if task.process_group_id is not None and hasattr(os, "killpg"):
+        task.lines.append(
+            f"{_task_label(task.kind)} did not stop; force killing process group."
         )
         try:
-            os.killpg(build.process_group_id, signal.SIGKILL)
+            os.killpg(task.process_group_id, signal.SIGKILL)
             return
         except OSError as exc:
-            build.lines.append(
-                f"{_task_label(build.kind)} process group force kill failed: {exc}"
+            task.lines.append(
+                f"{_task_label(task.kind)} process group force kill failed: {exc}"
             )
-    build.lines.append(
-        f"{_task_label(build.kind)} did not stop; force killing {_task_name(build.kind)} process."
+    task.lines.append(
+        f"{_task_label(task.kind)} did not stop; force killing {_task_name(task.kind)} process."
     )
     try:
-        build.process.kill()
+        task.process.kill()
     except OSError as exc:
-        build.lines.append(f"{_task_label(build.kind)} force kill failed: {exc}")
+        task.lines.append(f"{_task_label(task.kind)} force kill failed: {exc}")
 
 
-def _drain_build_output(build: BuildState) -> None:
-    if build.process.stdout is None:
+def _drain_task_output(task: TaskState) -> None:
+    if task.process.stdout is None:
         return
-    fd = build.process.stdout.fileno()
+    fd = task.process.stdout.fileno()
     while True:
         try:
             chunk = os.read(fd, 4096)
         except BlockingIOError:
             break
         except OSError as exc:
-            build.lines.append(f"output read failed: {exc}")
+            task.lines.append(f"output read failed: {exc}")
             break
         if not chunk:
             break
         text = chunk.decode(errors="replace")
-        combined = build.partial + text
+        combined = task.partial + text
         parts = combined.splitlines(keepends=True)
-        build.partial = ""
+        task.partial = ""
         for part in parts:
             if part.endswith("\n") or part.endswith("\r"):
-                build.lines.append(part.rstrip("\r\n"))
+                task.lines.append(part.rstrip("\r\n"))
             else:
-                build.partial = part
-        if len(build.lines) > 200:
-            build.lines = build.lines[-200:]
+                task.partial = part
+        if len(task.lines) > 200:
+            task.lines = task.lines[-200:]
 
 
 def _build_command(repo: Path, configured: str | None = None) -> list[str] | None:

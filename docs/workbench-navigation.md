@@ -121,12 +121,12 @@ Command Palette
 
 Task Panel / Browser Frame
   current implementation:
-    BuildState
+    TaskState
     TaskRecord history
     BrowserFrame
 ```
 
-The next implementation work should make this mapping more explicit without doing a risky rewrite in one step.
+Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 
 ## Implementation Rules
 
@@ -187,6 +187,6 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 
 Current architecture risk:
 
-- `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, build lifecycle, and editor handoff.
-- The next deepening opportunity is likely task-state naming (`BuildState` / `_poll_build` / `_record_completed_build`) because Task Panel now covers build/test/lint while some internals still carry build-specific names.
+- `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
+- The next deepening opportunity is page stack naming: wrap or rename internal `scopes/commits/list/file/commands` modes so implementation terms line up with the product hierarchy.
 - After that, consider a `BrowserNavigation` or `ReviewWorkspace` module whose interface hides scope/list/file transitions from the render loop.

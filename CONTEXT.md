@@ -30,6 +30,10 @@ state, and browser workspace-state data interpretation.
 key aliases, parameterized commands, numeric selections, and unknown input into
 stable product actions without executing those actions, rendering output, or
 mutating browser state.
+`cr.ui.browser.BrowserCommandExecutor` owns browser action execution for parsed
+commands: it mutates browser state and calls UI edge helpers, then returns loop
+control (`needs_redraw` / `exit_code`) without reading raw input or saving
+workspace state.
 
 Product navigation terms:
 
@@ -52,3 +56,6 @@ Product navigation terms:
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.
+- `Browser Action Execution`: the internal interface that executes parsed
+  browser actions and returns loop control. It does not read prompt input or
+  own browser session shutdown.

@@ -14,6 +14,8 @@ from io import StringIO
 import cr.ui.browser as browser_module
 from cr.ui.browser import (
     TaskState,
+    BrowserActionResult,
+    BrowserCommandExecutor,
     BrowserFrame,
     BrowserNavigation,
     BrowserPage,
@@ -222,6 +224,69 @@ class CliTests(unittest.TestCase):
         self.assertIn("parse_browser_command(command, raw_keys=raw_keys)", source)
         self.assertNotIn('command.startswith("base ")', source)
         self.assertNotIn('command in {"build", "compile"}', source)
+
+    def test_browser_command_executor_reports_quit_intent(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+
+        result = executor.execute(parse_browser_command("q"))
+
+        self.assertEqual(result, BrowserActionResult(exit_code=0))
+
+    def test_browser_command_executor_changes_page_and_requests_redraw(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+
+        result = executor.execute(parse_browser_command("commands"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.COMMAND_PALETTE)
+
+    def test_browser_command_executor_reports_unknown_command_feedback(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with redirect_stdout(output):
+            result = executor.execute(parse_browser_command("wat"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        self.assertIn("Unknown command.", output.getvalue())
+
+    def test_browser_main_loop_delegates_action_execution(self):
+        source = Path(browser_module.__file__).read_text(encoding="utf-8")
+        run_loop_source = source[source.index("def run_browser") : source.index("def _should_restore")]
+
+        self.assertIn("BrowserCommandExecutor(", run_loop_source)
+        self.assertIn(".execute(parsed_command)", run_loop_source)
+        self.assertNotIn("BrowserCommandAction.RUN_BUILD", run_loop_source)
+        self.assertNotIn("BrowserCommandAction.CHOOSE_NUMBER", run_loop_source)
 
     def test_review_workspace_loads_filters_and_switches_scope(self):
         loads: list[tuple[bool, bool, str | None, str | None, bool]] = []

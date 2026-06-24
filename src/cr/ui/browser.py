@@ -39,7 +39,7 @@ from ..review.tree import (
 )
 from ..source.purpose import describe_file
 from ..vcs import git
-from .commands import BrowserCommandAction, parse_browser_command
+from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
 from .navigation import BrowserNavigation, BrowserPage
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
 from .workspace import (
@@ -285,6 +285,336 @@ class BrowserFrame:
     dirty: bool = True
 
 
+@dataclass(frozen=True)
+class BrowserActionResult:
+    handled: bool = True
+    needs_redraw: bool = False
+    exit_code: int | None = None
+
+
+class BrowserCommandExecutor:
+    """Executes parsed browser command actions.
+
+    This executor owns action-side state changes for already parsed commands.
+    Temporary prompt input, raw-key sentinels, frame redraw scheduling, and
+    workspace saving remain in the browser run loop.
+    """
+
+    def __init__(
+        self,
+        state: BrowserState,
+        args: argparse.Namespace,
+        style: TerminalStyle,
+        frame: BrowserFrame,
+        *,
+        raw_keys: bool,
+    ) -> None:
+        self.state = state
+        self.args = args
+        self.style = style
+        self.frame = frame
+        self.raw_keys = raw_keys
+
+    def execute(self, parsed_command: BrowserCommand) -> BrowserActionResult:
+        state = self.state
+        args = self.args
+        style = self.style
+        frame = self.frame
+        raw_keys = self.raw_keys
+        action = parsed_command.action
+        if action == BrowserCommandAction.SET_FILE_FILTER:
+            state.set_filter(parsed_command.value)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.CLEAR_FILTER:
+            if state.page == BrowserPage.COMMAND_PALETTE:
+                state.clear_command_filter()
+            else:
+                state.clear_filter()
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.MARK_SEEN:
+            _mark_selected_seen(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.MARK_TODO:
+            _unmark_selected_seen(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SHOW_REMAINING:
+            state.remaining_only = True
+            BrowserNavigation.show_changed_files(state)
+            state.selected = 0
+            state.list_scroll = 0
+            state.clamp_selection()
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SHOW_ALL_FILES:
+            state.remaining_only = False
+            BrowserNavigation.show_changed_files(state)
+            state.selected = 0
+            state.list_scroll = 0
+            state.clamp_selection()
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.QUIT:
+            return BrowserActionResult(exit_code=0)
+        if action == BrowserCommandAction.SHOW_COMMAND_PALETTE:
+            BrowserNavigation.show_command_palette(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SHOW_SCOPE_HOME:
+            BrowserNavigation.show_scope_home(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SHOW_COMMITS:
+            state.commits = _load_recent_commits()
+            BrowserNavigation.show_commit_picker(state, clear_selected_commit=True)
+            state.clamp_selection()
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SWITCH_WORKTREE:
+            _switch_review_scope(
+                state,
+                args,
+                ReviewScope(False, False, None, None, _args_untracked(args)),
+            )
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.RESTORE_WORKSPACE:
+            if state.previous_scope is not None:
+                _restore_previous_scope(state, args)
+            else:
+                _switch_review_scope(
+                    state,
+                    args,
+                    ReviewScope(False, False, None, None, _args_untracked(args)),
+                )
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SWITCH_STAGED:
+            _switch_review_scope(
+                state,
+                args,
+                ReviewScope(True, False, None, None, False),
+            )
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SWITCH_ALL:
+            _switch_review_scope(
+                state,
+                args,
+                ReviewScope(False, True, None, None, _args_untracked(args)),
+            )
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SWITCH_BASE:
+            ref = parsed_command.value
+            if ref:
+                _switch_review_scope(
+                    state,
+                    args,
+                    ReviewScope(False, False, ref, None, False),
+                )
+                return BrowserActionResult(needs_redraw=True)
+            return BrowserActionResult()
+        if action == BrowserCommandAction.SWITCH_RANGE:
+            ref_range = parsed_command.value
+            if ref_range:
+                _switch_review_scope(
+                    state,
+                    args,
+                    ReviewScope(False, False, None, ref_range, False),
+                )
+                return BrowserActionResult(needs_redraw=True)
+            return BrowserActionResult()
+        if action == BrowserCommandAction.HELP:
+            if raw_keys:
+                BrowserNavigation.show_changed_files(state)
+                return BrowserActionResult(needs_redraw=True)
+            _print_lines(_browse_help_lines(style))
+            return BrowserActionResult()
+        if action == BrowserCommandAction.OPEN_FILE:
+            visible = state.visible_changes
+            if visible:
+                state.clamp_selection()
+                message = _open_change(visible[state.selected], args)
+                _show_browser_message(state, message, raw_keys, frame)
+                return BrowserActionResult(needs_redraw=raw_keys)
+            _show_browser_message(state, "No changed file to open.", raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.RUN_BUILD:
+            if raw_keys:
+                _start_task(state, args, "build")
+                return BrowserActionResult(needs_redraw=True)
+            _run_task_foreground(args, "build")
+            return BrowserActionResult()
+        if action == BrowserCommandAction.RUN_TEST:
+            if raw_keys:
+                _start_task(state, args, "test")
+                return BrowserActionResult(needs_redraw=True)
+            _run_task_foreground(args, "test")
+            return BrowserActionResult()
+        if action == BrowserCommandAction.RUN_LINT:
+            if raw_keys:
+                _start_task(state, args, "lint")
+                return BrowserActionResult(needs_redraw=True)
+            _run_task_foreground(args, "lint")
+            return BrowserActionResult()
+        if action == BrowserCommandAction.STOP_TASK:
+            _stop_task(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.RERUN_TASK:
+            if raw_keys:
+                _rerun_task(state, args)
+                return BrowserActionResult(needs_redraw=True)
+            _run_task_foreground(args, "build")
+            return BrowserActionResult()
+        if action == BrowserCommandAction.REFRESH:
+            if state.page == BrowserPage.COMMIT_PICKER:
+                state.commits = _load_recent_commits()
+                state.commit_scroll = 0
+            else:
+                state.changes = _load_browse_changes(args)
+                state.clear_render_cache()
+                BrowserNavigation.show_changed_files(state)
+                state.list_scroll = 0
+                _show_commits_when_empty(state, args)
+            state.clamp_selection()
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SHOW_CHANGED_FILES:
+            BrowserNavigation.show_changed_files(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.BACK:
+            BrowserNavigation.go_back(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.MOVE_DOWN:
+            if state.page == BrowserPage.FILE_DETAIL:
+                _scroll_file(state, 1, args, style)
+            else:
+                _move_selection(state, 1)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.MOVE_UP:
+            if state.page == BrowserPage.FILE_DETAIL:
+                _scroll_file(state, -1, args, style)
+            else:
+                _move_selection(state, -1)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.PAGE_DOWN:
+            if state.page == BrowserPage.FILE_DETAIL:
+                _scroll_file(state, _page_step(), args, style)
+            else:
+                _move_selection(state, _page_step())
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.PAGE_UP:
+            if state.page == BrowserPage.FILE_DETAIL:
+                _scroll_file(state, -_page_step(), args, style)
+            else:
+                _move_selection(state, -_page_step())
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.HOME:
+            if state.page == BrowserPage.FILE_DETAIL:
+                state.file_scroll = 0
+            elif state.page == BrowserPage.SCOPE_HOME:
+                state.scope_selected = 0
+            elif state.page == BrowserPage.COMMAND_PALETTE:
+                state.command_selected = 0
+            else:
+                state.selected = 0
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.END:
+            if state.page == BrowserPage.FILE_DETAIL:
+                state.file_scroll = _max_file_scroll(state, args, style)
+            elif state.page == BrowserPage.SCOPE_HOME:
+                total = len(_scope_home_entries())
+                if total:
+                    state.scope_selected = total - 1
+            elif state.page == BrowserPage.COMMAND_PALETTE:
+                total = len(_filtered_command_palette_entries(state))
+                if total:
+                    state.command_selected = total - 1
+            else:
+                total = len(state.commits) if state.page == BrowserPage.COMMIT_PICKER else len(state.visible_changes)
+                if total:
+                    state.selected = total - 1
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.ENTER:
+            if state.page == BrowserPage.COMMIT_PICKER:
+                message = _select_commit(state, args)
+                if message:
+                    _show_browser_message(state, message, raw_keys, frame)
+                return BrowserActionResult(needs_redraw=True)
+            if state.page == BrowserPage.SCOPE_HOME:
+                message = _select_scope_home_entry(state, args)
+                if message:
+                    _show_browser_message(state, message, raw_keys, frame)
+                return BrowserActionResult(needs_redraw=True)
+            if state.visible_changes:
+                BrowserNavigation.open_file_detail(state)
+                return BrowserActionResult(needs_redraw=True)
+            return BrowserActionResult()
+        if action == BrowserCommandAction.LEFT:
+            BrowserNavigation.go_back(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.NEXT_FILE:
+            visible = state.visible_changes
+            if visible:
+                state.selected = min(state.selected + 1, len(visible) - 1)
+                BrowserNavigation.open_file_detail(state)
+                return BrowserActionResult(needs_redraw=True)
+            return BrowserActionResult()
+        if action == BrowserCommandAction.PREVIOUS_FILE:
+            if state.visible_changes:
+                state.selected = max(state.selected - 1, 0)
+                BrowserNavigation.open_file_detail(state)
+                return BrowserActionResult(needs_redraw=True)
+            return BrowserActionResult()
+        if action == BrowserCommandAction.CHOOSE_NUMBER:
+            return self._choose_number(parsed_command.value)
+        if parsed_command.value:
+            unknown_message = (
+                "Unknown command. Open commands for available actions."
+                if raw_keys
+                else (
+                    "Unknown command. Use arrows, Enter, /, c, a number, "
+                    "o, n, p, b, g, r, h, m, remaining, build, stop, rerun, "
+                    "test, lint, staged, all, base, range, or q."
+                )
+            )
+            _show_browser_message(
+                state,
+                unknown_message,
+                raw_keys,
+                frame,
+            )
+            return BrowserActionResult(needs_redraw=raw_keys)
+        return BrowserActionResult(handled=False)
+
+    def _choose_number(self, value: str) -> BrowserActionResult:
+        state = self.state
+        raw_keys = self.raw_keys
+        frame = self.frame
+        choice = int(value)
+        if state.page == BrowserPage.SCOPE_HOME:
+            total = len(_scope_home_entries())
+            if 1 <= choice <= total:
+                state.scope_selected = choice - 1
+                message = _select_scope_home_entry(state, self.args)
+                if message:
+                    _show_browser_message(state, message, raw_keys, frame)
+                return BrowserActionResult(needs_redraw=True)
+            _show_browser_message(state, f"Choose 1-{total}.", raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if state.page == BrowserPage.COMMIT_PICKER:
+            if 1 <= choice <= len(state.commits):
+                state.selected = choice - 1
+                message = _select_commit(state, self.args)
+                if message:
+                    _show_browser_message(state, message, raw_keys, frame)
+                return BrowserActionResult(needs_redraw=True)
+            _show_browser_message(
+                state,
+                f"Choose 1-{len(state.commits)}.",
+                raw_keys,
+                frame,
+            )
+            return BrowserActionResult(needs_redraw=raw_keys)
+        visible = state.visible_changes
+        if 1 <= choice <= len(visible):
+            state.selected = choice - 1
+            BrowserNavigation.open_file_detail(state)
+            return BrowserActionResult(needs_redraw=True)
+        _show_browser_message(state, f"Choose 1-{len(visible)}.", raw_keys, frame)
+        return BrowserActionResult(needs_redraw=raw_keys)
+
+
 def run_browser(args: argparse.Namespace) -> int:
     repo = git.repo_root()
     style = make_style(args.color, sys.stdout, args.links)
@@ -425,334 +755,18 @@ def run_browser(args: argparse.Namespace) -> int:
                     needs_redraw = True
                 continue
             parsed_command = parse_browser_command(command, raw_keys=raw_keys)
-        if parsed_command.action == BrowserCommandAction.SET_FILE_FILTER:
-            state.set_filter(parsed_command.value)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.CLEAR_FILTER:
-            if state.page == BrowserPage.COMMAND_PALETTE:
-                state.clear_command_filter()
-            else:
-                state.clear_filter()
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.MARK_SEEN:
-            _mark_selected_seen(state)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.MARK_TODO:
-            _unmark_selected_seen(state)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SHOW_REMAINING:
-            state.remaining_only = True
-            BrowserNavigation.show_changed_files(state)
-            state.selected = 0
-            state.list_scroll = 0
-            state.clamp_selection()
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SHOW_ALL_FILES:
-            state.remaining_only = False
-            BrowserNavigation.show_changed_files(state)
-            state.selected = 0
-            state.list_scroll = 0
-            state.clamp_selection()
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.QUIT:
+        result = BrowserCommandExecutor(
+            state,
+            args,
+            style,
+            frame,
+            raw_keys=raw_keys,
+        ).execute(parsed_command)
+        if result.exit_code is not None:
             _save_browser_workspace_state_on_exit(state, args, repo)
-            return 0
-        if parsed_command.action == BrowserCommandAction.SHOW_COMMAND_PALETTE:
-            BrowserNavigation.show_command_palette(state)
+            return result.exit_code
+        if result.needs_redraw:
             needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SHOW_SCOPE_HOME:
-            BrowserNavigation.show_scope_home(state)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SHOW_COMMITS:
-            state.commits = _load_recent_commits()
-            BrowserNavigation.show_commit_picker(state, clear_selected_commit=True)
-            state.clamp_selection()
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SWITCH_WORKTREE:
-            _switch_review_scope(
-                state,
-                args,
-                ReviewScope(False, False, None, None, _args_untracked(args)),
-            )
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.RESTORE_WORKSPACE:
-            if state.previous_scope is not None:
-                _restore_previous_scope(state, args)
-            else:
-                _switch_review_scope(
-                    state,
-                    args,
-                    ReviewScope(False, False, None, None, _args_untracked(args)),
-                )
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SWITCH_STAGED:
-            _switch_review_scope(
-                state,
-                args,
-                ReviewScope(True, False, None, None, False),
-            )
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SWITCH_ALL:
-            _switch_review_scope(
-                state,
-                args,
-                ReviewScope(False, True, None, None, _args_untracked(args)),
-            )
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SWITCH_BASE:
-            ref = parsed_command.value
-            if ref:
-                _switch_review_scope(
-                    state,
-                    args,
-                    ReviewScope(False, False, ref, None, False),
-                )
-                needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SWITCH_RANGE:
-            ref_range = parsed_command.value
-            if ref_range:
-                _switch_review_scope(
-                    state,
-                    args,
-                    ReviewScope(False, False, None, ref_range, False),
-                )
-                needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.HELP:
-            if raw_keys:
-                BrowserNavigation.show_changed_files(state)
-                needs_redraw = True
-            else:
-                _print_lines(_browse_help_lines(style))
-            continue
-        if parsed_command.action == BrowserCommandAction.OPEN_FILE:
-            visible = state.visible_changes
-            if visible:
-                state.clamp_selection()
-                message = _open_change(visible[state.selected], args)
-                _show_browser_message(state, message, raw_keys, frame)
-                if raw_keys:
-                    needs_redraw = True
-            else:
-                _show_browser_message(state, "No changed file to open.", raw_keys, frame)
-                if raw_keys:
-                    needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.RUN_BUILD:
-            if raw_keys:
-                _start_task(state, args, "build")
-                needs_redraw = True
-            else:
-                _run_task_foreground(args, "build")
-            continue
-        if parsed_command.action == BrowserCommandAction.RUN_TEST:
-            if raw_keys:
-                _start_task(state, args, "test")
-                needs_redraw = True
-            else:
-                _run_task_foreground(args, "test")
-            continue
-        if parsed_command.action == BrowserCommandAction.RUN_LINT:
-            if raw_keys:
-                _start_task(state, args, "lint")
-                needs_redraw = True
-            else:
-                _run_task_foreground(args, "lint")
-            continue
-        if parsed_command.action == BrowserCommandAction.STOP_TASK:
-            _stop_task(state)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.RERUN_TASK:
-            if raw_keys:
-                _rerun_task(state, args)
-                needs_redraw = True
-            else:
-                _run_task_foreground(args, "build")
-            continue
-        if parsed_command.action == BrowserCommandAction.REFRESH:
-            if state.page == BrowserPage.COMMIT_PICKER:
-                state.commits = _load_recent_commits()
-                state.commit_scroll = 0
-            else:
-                state.changes = _load_browse_changes(args)
-                state.clear_render_cache()
-                BrowserNavigation.show_changed_files(state)
-                state.list_scroll = 0
-                _show_commits_when_empty(state, args)
-            state.clamp_selection()
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.SHOW_CHANGED_FILES:
-            BrowserNavigation.show_changed_files(state)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.BACK:
-            BrowserNavigation.go_back(state)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.MOVE_DOWN:
-            if state.page == BrowserPage.FILE_DETAIL:
-                _scroll_file(state, 1, args, style)
-            else:
-                _move_selection(state, 1)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.MOVE_UP:
-            if state.page == BrowserPage.FILE_DETAIL:
-                _scroll_file(state, -1, args, style)
-            else:
-                _move_selection(state, -1)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.PAGE_DOWN:
-            if state.page == BrowserPage.FILE_DETAIL:
-                _scroll_file(state, _page_step(), args, style)
-            else:
-                _move_selection(state, _page_step())
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.PAGE_UP:
-            if state.page == BrowserPage.FILE_DETAIL:
-                _scroll_file(state, -_page_step(), args, style)
-            else:
-                _move_selection(state, -_page_step())
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.HOME:
-            if state.page == BrowserPage.FILE_DETAIL:
-                state.file_scroll = 0
-            elif state.page == BrowserPage.SCOPE_HOME:
-                state.scope_selected = 0
-            elif state.page == BrowserPage.COMMAND_PALETTE:
-                state.command_selected = 0
-            else:
-                state.selected = 0
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.END:
-            if state.page == BrowserPage.FILE_DETAIL:
-                state.file_scroll = _max_file_scroll(state, args, style)
-            elif state.page == BrowserPage.SCOPE_HOME:
-                total = len(_scope_home_entries())
-                if total:
-                    state.scope_selected = total - 1
-            elif state.page == BrowserPage.COMMAND_PALETTE:
-                total = len(_filtered_command_palette_entries(state))
-                if total:
-                    state.command_selected = total - 1
-            else:
-                total = len(state.commits) if state.page == BrowserPage.COMMIT_PICKER else len(state.visible_changes)
-                if total:
-                    state.selected = total - 1
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.ENTER:
-            if state.page == BrowserPage.COMMIT_PICKER:
-                message = _select_commit(state, args)
-                if message:
-                    _show_browser_message(state, message, raw_keys, frame)
-                needs_redraw = True
-            elif state.page == BrowserPage.SCOPE_HOME:
-                message = _select_scope_home_entry(state, args)
-                if message:
-                    _show_browser_message(state, message, raw_keys, frame)
-                needs_redraw = True
-            elif state.visible_changes:
-                BrowserNavigation.open_file_detail(state)
-                needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.LEFT:
-            BrowserNavigation.go_back(state)
-            needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.NEXT_FILE:
-            visible = state.visible_changes
-            if visible:
-                state.selected = min(state.selected + 1, len(visible) - 1)
-                BrowserNavigation.open_file_detail(state)
-                needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.PREVIOUS_FILE:
-            if state.visible_changes:
-                state.selected = max(state.selected - 1, 0)
-                BrowserNavigation.open_file_detail(state)
-                needs_redraw = True
-            continue
-        if parsed_command.action == BrowserCommandAction.CHOOSE_NUMBER:
-            choice = int(parsed_command.value)
-            if state.page == BrowserPage.SCOPE_HOME:
-                total = len(_scope_home_entries())
-                if 1 <= choice <= total:
-                    state.scope_selected = choice - 1
-                    message = _select_scope_home_entry(state, args)
-                    if message:
-                        _show_browser_message(state, message, raw_keys, frame)
-                    needs_redraw = True
-                else:
-                    _show_browser_message(state, f"Choose 1-{total}.", raw_keys, frame)
-                    if raw_keys:
-                        needs_redraw = True
-                continue
-            if state.page == BrowserPage.COMMIT_PICKER:
-                if 1 <= choice <= len(state.commits):
-                    state.selected = choice - 1
-                    message = _select_commit(state, args)
-                    if message:
-                        _show_browser_message(state, message, raw_keys, frame)
-                    needs_redraw = True
-                else:
-                    _show_browser_message(
-                        state,
-                        f"Choose 1-{len(state.commits)}.",
-                        raw_keys,
-                        frame,
-                    )
-                    if raw_keys:
-                        needs_redraw = True
-                continue
-            visible = state.visible_changes
-            if 1 <= choice <= len(visible):
-                state.selected = choice - 1
-                BrowserNavigation.open_file_detail(state)
-                needs_redraw = True
-            else:
-                _show_browser_message(state, f"Choose 1-{len(visible)}.", raw_keys, frame)
-                if raw_keys:
-                    needs_redraw = True
-            continue
-        if parsed_command.value:
-            unknown_message = (
-                "Unknown command. Open commands for available actions."
-                if raw_keys
-                else (
-                    "Unknown command. Use arrows, Enter, /, c, a number, "
-                    "o, n, p, b, g, r, h, m, remaining, build, stop, rerun, "
-                    "test, lint, staged, all, base, range, or q."
-                )
-            )
-            _show_browser_message(
-                state,
-                unknown_message,
-                raw_keys,
-                frame,
-            )
-            if raw_keys:
-                needs_redraw = True
 
 
 def _should_restore_browser_workspace_state(args: argparse.Namespace) -> bool:

@@ -175,6 +175,7 @@ cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 ```
 
 `copy path` / `copy anchor` 会把复制文本传给 copy 命令的 stdin，也支持 `{text}` 占位。`reveal` 支持 `{file}` 和 `{dir}` 占位。对应环境变量是 `CR_COPY_CMD` 和 `CR_REVEAL_CMD`。
+如果文件动作失败，错误信息会带上当前使用的是 CLI、环境变量、平台 fallback 还是 missing；也可以在浏览器里输入 `: file actions` 主动查看 `open` / `copy` / `reveal` 的解析来源。
 
 常用文件动作：
 
@@ -183,6 +184,7 @@ cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 : copy path    复制当前文件相对路径
 : copy anchor  复制当前文件 path:line review anchor
 : reveal       在系统文件管理器里定位当前文件
+: file actions 查看 open/copy/reveal 命令来源
 ```
 
 运行仓库任务：

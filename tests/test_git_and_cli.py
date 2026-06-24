@@ -260,6 +260,10 @@ class CliTests(unittest.TestCase):
             parse_browser_command("reveal").action,
             BrowserCommandAction.REVEAL_FILE,
         )
+        self.assertEqual(
+            parse_browser_command("file actions").action,
+            BrowserCommandAction.SHOW_FILE_ACTION_DIAGNOSTICS,
+        )
         note = parse_browser_command("note check lifecycle edge case")
         self.assertEqual(note.action, BrowserCommandAction.SET_REVIEW_NOTE)
         self.assertEqual(note.value, "check lifecycle edge case")
@@ -476,6 +480,37 @@ class CliTests(unittest.TestCase):
         self.assertFalse(result.needs_redraw)
         reveal.assert_called_once_with(repo_file, "reveal-tool --file {file}")
         self.assertIn("Revealed src/Sample.ts", output.getvalue())
+
+    def test_browser_command_executor_shows_file_action_diagnostics(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(
+            open_cmd="code -g {fileline}",
+            copy_cmd="copy-tool {text}",
+            reveal_cmd="reveal-tool {file}",
+        )
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.git.repo_root", return_value=Path("/tmp/repo")):
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("file actions"))
+
+        text = output.getvalue()
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        self.assertIsNone(state.task)
+        self.assertIn("File actions:", text)
+        self.assertIn("open: cli code -g", text)
+        self.assertIn("copy: cli copy-tool", text)
+        self.assertIn("reveal: cli reveal-tool", text)
 
     def test_browser_file_actions_report_when_no_changed_file_is_available(self):
         from cr.ui.browser import parse_browser_command
@@ -875,6 +910,52 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(command, ["code", "-g", "/tmp/space dir/Sample.ts:12"])
 
+    def test_open_command_source_reports_cli_env_platform_and_missing(self):
+        from cr.ui.browser import _open_command_source
+
+        with patch.dict(os.environ, {"CR_OPEN_CMD": "env-open {fileline}"}, clear=True):
+            env_source = _open_command_source(Path("/tmp/Sample.ts"), 7)
+            cli_source = _open_command_source(
+                Path("/tmp/Sample.ts"),
+                7,
+                "cli-open {file}",
+            )
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("cr.ui.browser.shutil.which", return_value=None):
+                missing_source = _open_command_source(Path("/tmp/Sample.ts"), 7)
+            with patch("cr.ui.browser.shutil.which", return_value="/usr/local/bin/code"):
+                platform_source = _open_command_source(Path("/tmp/Sample.ts"), 7)
+
+        self.assertEqual(env_source.source, "env")
+        self.assertEqual(env_source.command, ["env-open", "/tmp/Sample.ts:7"])
+        self.assertEqual(cli_source.source, "cli")
+        self.assertEqual(cli_source.command, ["cli-open", "/tmp/Sample.ts"])
+        self.assertEqual(platform_source.source, "platform")
+        self.assertEqual(platform_source.command, ["code", "-g", "/tmp/Sample.ts:7"])
+        self.assertEqual(missing_source.source, "missing")
+        self.assertIsNone(missing_source.command)
+
+    def test_open_change_includes_source_in_failures(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            open_cmd="missing-open {file}",
+        )
+        change = FileChange("src/Sample.ts", 1, 0)
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+            with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/Sample.ts")):
+                with patch(
+                    "cr.ui.browser.subprocess.Popen",
+                    side_effect=OSError("missing open"),
+                ):
+                    message = browser_module._open_change(change, args)
+
+        self.assertIn("Open failed (cli missing-open /tmp/Sample.ts)", message)
+        self.assertIn("missing open", message)
+
     def test_open_command_prefers_gui_editor_with_line(self):
         def fake_which(name):
             return f"/usr/local/bin/{name}" if name == "code" else None
@@ -931,11 +1012,14 @@ class CliTests(unittest.TestCase):
         from cr.ui.file_actions import copy_text, reveal_path
 
         with patch("cr.ui.file_actions.clipboard_command", return_value=None):
-            self.assertEqual(copy_text("src/Sample.ts"), "No clipboard command found.")
+            self.assertEqual(
+                copy_text("src/Sample.ts"),
+                "No clipboard command found (missing).",
+            )
         with patch("cr.ui.file_actions.reveal_command", return_value=None):
             self.assertEqual(
                 reveal_path(Path("/tmp/Sample.ts")),
-                "No file browser command found.",
+                "No file browser command found (missing).",
             )
 
     def test_file_action_helpers_use_configured_copy_command(self):
@@ -951,6 +1035,31 @@ class CliTests(unittest.TestCase):
             text=True,
             check=True,
         )
+
+    def test_file_action_helpers_include_source_in_failures(self):
+        from cr.ui.file_actions import copy_text, reveal_path
+
+        with patch(
+            "cr.ui.file_actions.subprocess.run",
+            side_effect=OSError("missing copy"),
+        ):
+            copy_result = copy_text("src/Sample.ts", "copy-tool {text}")
+        with patch(
+            "cr.ui.file_actions.subprocess.Popen",
+            side_effect=OSError("missing reveal"),
+        ):
+            reveal_result = reveal_path(
+                Path("/tmp/repo/src/Sample.ts"),
+                "reveal-tool {file}",
+            )
+
+        self.assertIn("Copy failed (cli copy-tool src/Sample.ts)", copy_result)
+        self.assertIn("missing copy", copy_result)
+        self.assertIn(
+            "Reveal failed (cli reveal-tool /tmp/repo/src/Sample.ts)",
+            reveal_result,
+        )
+        self.assertIn("missing reveal", reveal_result)
 
     def test_file_action_helpers_use_configured_reveal_command(self):
         from cr.ui.file_actions import reveal_path
@@ -973,7 +1082,12 @@ class CliTests(unittest.TestCase):
         )
 
     def test_file_action_helpers_use_environment_configuration(self):
-        from cr.ui.file_actions import configured_copy_command, configured_reveal_command
+        from cr.ui.file_actions import (
+            configured_copy_command,
+            configured_reveal_command,
+            copy_command_source,
+            reveal_command_source,
+        )
 
         with patch.dict(
             os.environ,
@@ -1002,6 +1116,39 @@ class CliTests(unittest.TestCase):
                 ),
                 ["cli-reveal", "/tmp/repo/src"],
             )
+            copy_env = copy_command_source("src/Sample.ts")
+            copy_cli = copy_command_source("src/Sample.ts", "cli-copy {text}")
+            reveal_env = reveal_command_source(Path("/tmp/repo/src/Sample.ts"))
+            reveal_cli = reveal_command_source(
+                Path("/tmp/repo/src/Sample.ts"),
+                "cli-reveal {dir}",
+            )
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("cr.ui.file_actions.clipboard_command", return_value=["pbcopy"]):
+                copy_platform = copy_command_source("src/Sample.ts")
+            with patch(
+                "cr.ui.file_actions.reveal_command",
+                return_value=["open", "-R", "/tmp/repo/src/Sample.ts"],
+            ):
+                reveal_platform = reveal_command_source(
+                    Path("/tmp/repo/src/Sample.ts")
+                )
+
+        self.assertEqual(copy_env.source, "env")
+        self.assertEqual(copy_env.command, ["env-copy", "src/Sample.ts"])
+        self.assertEqual(copy_cli.source, "cli")
+        self.assertEqual(copy_cli.command, ["cli-copy", "src/Sample.ts"])
+        self.assertEqual(copy_platform.source, "platform")
+        self.assertEqual(copy_platform.command, ["pbcopy"])
+        self.assertEqual(reveal_env.source, "env")
+        self.assertEqual(reveal_env.command, ["env-reveal", "/tmp/repo/src/Sample.ts"])
+        self.assertEqual(reveal_cli.source, "cli")
+        self.assertEqual(reveal_cli.command, ["cli-reveal", "/tmp/repo/src"])
+        self.assertEqual(reveal_platform.source, "platform")
+        self.assertEqual(
+            reveal_platform.command,
+            ["open", "-R", "/tmp/repo/src/Sample.ts"],
+        )
 
     def test_build_command_detects_douyin_harmony_repo(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2843,6 +2990,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy path", commands)
         self.assertIn("copy anchor", commands)
         self.assertIn("reveal", commands)
+        self.assertIn("file actions", commands)
         self.assertIn("tasks", commands)
         self.assertIn("tasks help", commands)
         self.assertIn("staged", commands)

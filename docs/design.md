@@ -73,6 +73,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
   - Supports lightweight per-file review notes with `note TEXT` to set a note and `note` to clear it; noted files are marked in Changed Files and shown in File Detail.
+  - Shows file action source diagnostics with `file actions`, covering open/copy/reveal CLI, environment, platform fallback, or missing sources.
   - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` / `test` / `lint` from the command prompt for repo tasks.
   - Persists the default browser workspace in `.git/cr/browse-state.json`, restoring scope, filter, selected file, review notes, and list/file layer unless the user passes an explicit scope or pathspec.
 
@@ -150,7 +151,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat `ReviewWorkspace` as the owner of active review scope, changed-file loading, filter/progress/note state, selected file, selected commit, previous scope, and workspace-state data mapping. Browser file I/O remains at the UI edge.
   - Treat `BrowserCommand` dispatch as the owner of command text aliases, parameter parsing, numeric selections, and unknown-command fallback. `browser.py` may execute parsed actions, but it should not re-own string parsing rules.
   - Treat `BrowserCommandExecutor` as the owner of parsed action execution and loop-control results. `run_browser` should keep input prompts, sentinels, workspace save-on-exit, and render-loop scheduling, but it should not re-own every action branch.
-  - Treat `cr.ui.file_actions` as the owner of copy/reveal command templates, environment fallbacks, platform fallbacks, and subprocess execution. `browser.py` passes selected-file data and configured command strings only.
+  - Treat `cr.ui.file_actions` as the owner of copy/reveal command templates, environment fallbacks, platform fallbacks, source diagnostics, and subprocess execution. `browser.py` passes selected-file data and configured command strings only. Open/editor handoff remains in `browser.py` until a broader editor-action extraction is justified.
   - Keep `BrowserState.mode` only as a compatibility property over `BrowserState.page`, preserving older tests, line-mode assumptions, and persisted workspace `mode` values.
   - Treat argparse scope fields as the source of truth for the active review scope; browser commands update those fields and reload through the shared review selection path.
   - Treat `commands` mode as the command palette layer: raw-key users can filter/select executable commands and run them with Enter, while parameterized commands remain available through `:` input.

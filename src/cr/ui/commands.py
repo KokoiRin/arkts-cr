@@ -36,6 +36,7 @@ class BrowserCommandAction:
     COPY_PATH = "copy_path"
     COPY_ANCHOR = "copy_anchor"
     REVEAL_FILE = "reveal_file"
+    SHOW_FILE_ACTION_DIAGNOSTICS = "show_file_action_diagnostics"
     SET_REVIEW_NOTE = "set_review_note"
     SHOW_TASK_DIAGNOSTICS = "show_task_diagnostics"
     SHOW_TASK_SCHEMA_HELP = "show_task_schema_help"
@@ -126,6 +127,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_ANCHOR)
     if command in {"reveal", "show in finder"}:
         return BrowserCommand(BrowserCommandAction.REVEAL_FILE)
+    if command in {"file actions", "actions", "action sources"}:
+        return BrowserCommand(BrowserCommandAction.SHOW_FILE_ACTION_DIAGNOSTICS)
     if command == "note":
         return BrowserCommand(BrowserCommandAction.SET_REVIEW_NOTE)
     if command.startswith("note "):

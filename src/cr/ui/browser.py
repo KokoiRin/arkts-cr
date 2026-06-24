@@ -40,6 +40,7 @@ from ..source.purpose import describe_file
 from ..vcs import git
 from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
 from . import file_actions
+from .file_actions import FileActionCommandSource
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
@@ -450,6 +451,13 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to reveal.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SHOW_FILE_ACTION_DIAGNOSTICS:
+            lines = _file_action_diagnostic_lines(args)
+            if raw_keys:
+                _show_browser_message(state, " | ".join(lines), raw_keys, frame)
+                return BrowserActionResult(needs_redraw=True)
+            _print_lines(lines)
+            return BrowserActionResult()
         if action == BrowserCommandAction.SET_REVIEW_NOTE:
             message = _set_selected_review_note(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
@@ -859,6 +867,26 @@ def _set_selected_review_note(state: BrowserState, note: str) -> str:
     state._sync_to_workspace()
     state.file_line_cache.clear()
     return f"Cleared note for {shorten_path(path)}"
+
+
+def _file_action_diagnostic_lines(args: argparse.Namespace) -> list[str]:
+    repo = git.repo_root()
+    sample_file = repo / "{selected-file}"
+    sources = [
+        _open_command_source(sample_file, 1, getattr(args, "open_cmd", None)),
+        file_actions.copy_command_source("{text}", getattr(args, "copy_cmd", None)),
+        file_actions.reveal_command_source(
+            sample_file,
+            getattr(args, "reveal_cmd", None),
+        ),
+    ]
+    return [
+        "File actions:",
+        *[
+            f"{source.kind}: {file_actions.command_source_label(source)}"
+            for source in sources
+        ],
+    ]
 
 
 def _browser_workspace_state_path(repo: Path) -> Path:
@@ -1327,7 +1355,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks help    note TEXT    copy path/anchor/reveal",
+        "  : command prompt    build/test/lint/tasks help    note TEXT    copy/path/actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1382,6 +1410,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("copy path", "copy selected file path", "copy path"),
                 CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
                 CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
+                CommandEntry("file actions", "show open/copy/reveal command sources", "file actions"),
                 CommandEntry("note TEXT", "set selected file review note"),
                 CommandEntry("note", "clear selected file review note"),
                 CommandEntry("refresh", "reload current review scope", "refresh"),
@@ -2303,16 +2332,17 @@ def _open_change(change: git.FileChange, args: argparse.Namespace) -> str:
         ref_range=args.ref_range,
     )
     repo_file = git.repo_path(change.path)
-    command = _open_command(repo_file, line, args.open_cmd)
+    source = _open_command_source(repo_file, line, args.open_cmd)
+    command = source.command
     if not command:
         return (
-            "No editor opener found. Set --open-cmd or CR_OPEN_CMD, "
+            "No editor opener found (missing). Set --open-cmd or CR_OPEN_CMD, "
             "for example: --open-cmd 'code -g {fileline}'"
         )
     try:
         subprocess.Popen(command)
     except OSError as exc:
-        return f"Open failed: {exc}"
+        return f"Open failed ({file_actions.command_source_label(source)}): {exc}"
     return f"Opened {shorten_path(change.path)}{':' + str(line) if line else ''}"
 
 
@@ -2321,19 +2351,41 @@ def _open_command(
     line: int | None,
     configured: str | None = None,
 ) -> list[str] | None:
-    template = configured or os.environ.get("CR_OPEN_CMD")
-    if template:
-        return _format_open_template(template, file_path, line)
+    return _open_command_source(file_path, line, configured).command
 
+
+def _open_command_source(
+    file_path: Path,
+    line: int | None,
+    configured: str | None = None,
+) -> FileActionCommandSource:
+    if configured:
+        return FileActionCommandSource(
+            "open",
+            "cli",
+            _format_open_template(configured, file_path, line),
+        )
+    env = os.environ.get("CR_OPEN_CMD")
+    if env:
+        return FileActionCommandSource(
+            "open",
+            "env",
+            _format_open_template(env, file_path, line),
+        )
     line_number = line or 1
     for executable in ("code", "cursor"):
         if shutil.which(executable):
-            return [executable, "-g", f"{file_path}:{line_number}"]
+            return FileActionCommandSource(
+                "open",
+                "platform",
+                [executable, "-g", f"{file_path}:{line_number}"],
+            )
 
     if platform.system() == "Darwin" and shutil.which("open"):
-        return ["open", str(file_path)]
+        return FileActionCommandSource("open", "platform", ["open", str(file_path)])
 
-    return None
+    return FileActionCommandSource("open", "missing")
+
 
 
 def _format_open_template(

@@ -129,7 +129,17 @@ cr --open-cmd 'code -g {fileline}'
 build
 ```
 
-编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。后台日志更新只重画这个面板，不会滚动主内容。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
+编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。后台日志更新只重画这个面板，不会滚动主内容。
+
+常用 build 命令：
+
+```text
+: build    启动编译
+: stop     停止正在运行的编译
+: rerun    重跑编译
+```
+
+build 面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
 
 ```bash
 cr --build-cmd './remote buildEntry --app douyin'

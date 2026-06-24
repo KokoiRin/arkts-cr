@@ -54,6 +54,8 @@ Implement a terminal-first code review workbench named `cr`.
   - Keeps the input prompt on the final terminal row.
   - Shows build output in a 5-10 line bottom task panel above the prompt while the main content remains usable.
   - Updates build output by repainting only the task panel when the user is idle.
+  - Lets users stop a running build with `stop` / `cancel` and rerun the configured build with `rerun` / `rebuild`.
+  - Distinguishes build task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
   - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return, `r` to refresh, and `q` to quit.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
@@ -129,6 +131,7 @@ Implement a terminal-first code review workbench named `cr`.
   - Reuse `src/cr/review/changes.py` for changed-file selection, sorting, code-file detection, hunk rendering, and modified-symbol facts so `browse`, `review`, and `diff` share one implementation of review-scope rules.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, mode, and filter query.
   - Treat browser screen layout as one module-owned concept: content height, background task height, task panel start row, and prompt row are calculated together.
+  - Keep build task lifecycle in `BuildState` until a second real background task exists; do not introduce a generic task manager prematurely.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
   - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.
   - Treat raw-key navigation as command events, not text output; normal key reads must not emit an extra newline.

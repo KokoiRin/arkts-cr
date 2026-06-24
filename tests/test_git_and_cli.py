@@ -15,14 +15,17 @@ from cr.ui.browser import (
     BrowserState,
     _build_command,
     _build_panel_lines,
+    _build_status,
     _browse_file_screen_lines,
     _draw_build_panel_only,
     _draw_browse_screen,
     _open_command,
     _poll_build,
     _read_browse_command,
+    _rerun_build,
     _screen_layout,
     _start_build,
+    _stop_build,
     filter_changes_by_query,
 )
 from cr.review.changes import format_counts
@@ -119,6 +122,98 @@ class CliTests(unittest.TestCase):
             self.assertIn("Build succeeded.", text)
             self.assertIn("compile line 1", text)
             self.assertIn("compile line 2", text)
+
+    def test_build_stop_marks_stopped_not_failed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            command = f"{sys.executable} -c \"import time; time.sleep(10)\""
+            args = argparse_namespace(build_cmd=command)
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                _start_build(state, args)
+                self.assertIsNotNone(state.build)
+                self.assertTrue(state.build.running)
+
+                _stop_build(state)
+                self.assertTrue(state.build.stop_requested)
+                self.assertEqual(_build_status(state.build), "stopping")
+                self.assertIn("Stopping build...", state.build.lines)
+
+                for _ in range(100):
+                    _poll_build(state.build)
+                    if state.build.returncode is not None:
+                        break
+                    time.sleep(0.01)
+
+            self.assertIsNotNone(state.build.returncode)
+            self.assertEqual(_build_status(state.build), "stopped")
+            self.assertIn("Build stopped.", state.build.lines)
+
+    def test_build_rerun_starts_new_process_after_completion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            script = repo / "build.py"
+            output = repo / "build.out"
+            script.write_text(
+                "from pathlib import Path\n"
+                "path = Path('build.out')\n"
+                "path.write_text(path.read_text() + 'run\\n' if path.exists() else 'run\\n')\n",
+                encoding="utf-8",
+            )
+            args = argparse_namespace(build_cmd=f"{sys.executable} {script}")
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                _start_build(state, args)
+                for _ in range(100):
+                    _poll_build(state.build)
+                    if state.build and state.build.returncode is not None:
+                        break
+                    time.sleep(0.01)
+                self.assertEqual(state.build.returncode, 0)
+
+                _rerun_build(state, args)
+                for _ in range(100):
+                    _poll_build(state.build)
+                    if state.build and state.build.returncode is not None:
+                        break
+                    time.sleep(0.01)
+
+            self.assertEqual(state.build.returncode, 0)
+            self.assertEqual(output.read_text(encoding="utf-8"), "run\nrun\n")
+
+    def test_build_rerun_while_running_does_not_start_second_process(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            command = f"{sys.executable} -c \"import time; time.sleep(10)\""
+            args = argparse_namespace(build_cmd=command)
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                _start_build(state, args)
+                self.assertIsNotNone(state.build)
+                first_process = state.build.process
+
+                _rerun_build(state, args)
+
+            self.assertIs(state.build.process, first_process)
+            self.assertIn("Build is already running. Stop it before rerun.", state.build.lines)
+            _stop_build(state)
+            for _ in range(100):
+                _poll_build(state.build)
+                if state.build.returncode is not None:
+                    break
+                time.sleep(0.01)
+
+    def test_build_stop_without_running_build_shows_feedback(self):
+        state = BrowserState([])
+
+        _stop_build(state)
+
+        self.assertIsNotNone(state.build)
+        self.assertEqual(_build_status(state.build), "idle")
+        self.assertIn("No build is running.", state.build.lines)
 
     def test_build_panel_partial_refresh_does_not_clear_screen(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

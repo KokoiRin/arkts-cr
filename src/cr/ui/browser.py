@@ -120,6 +120,7 @@ class BuildState:
     partial: str = ""
     returncode: int | None = None
     start_error: str | None = None
+    stop_requested: bool = False
 
     @property
     def running(self) -> bool:
@@ -263,6 +264,17 @@ def run_browser(args: argparse.Namespace) -> int:
             else:
                 _run_build_foreground(args)
             continue
+        if command in {"stop", "cancel"}:
+            _stop_build(state)
+            needs_redraw = True
+            continue
+        if command in {"rebuild", "rerun"}:
+            if raw_keys:
+                _rerun_build(state, args)
+                needs_redraw = True
+            else:
+                _run_build_foreground(args)
+            continue
         if command in {"r", "refresh"}:
             if state.mode == "commits":
                 state.commits = _load_recent_commits()
@@ -383,7 +395,7 @@ def run_browser(args: argparse.Namespace) -> int:
         if command:
             print(
                 "Unknown command. Use arrows, Enter, /, c, a number, "
-                "o, n, p, b, g, r, h, build, or q."
+                "o, n, p, b, g, r, h, build, stop, rerun, or q."
             )
 
 
@@ -565,8 +577,14 @@ def _build_panel_lines(
 def _build_status(build: BuildState) -> str:
     if build.start_error is not None:
         return "failed to start"
+    if build.returncode is None and build.stop_requested:
+        return "stopping"
     if build.returncode is None:
         return "running"
+    if not build.command:
+        return "idle"
+    if build.stop_requested:
+        return "stopped"
     if build.returncode == 0:
         return "succeeded"
     return f"failed ({build.returncode})"
@@ -691,7 +709,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back to list",
         "  /: filter files     c: clear filter      o: open in editor",
-        "  : command prompt    build: run repo build command",
+        "  : command prompt    build/stop/rerun: repo build task",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/previous        g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1278,6 +1296,35 @@ def _start_build(state: BrowserState, args: argparse.Namespace) -> None:
     )
 
 
+def _stop_build(state: BrowserState) -> None:
+    if state.build is None:
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait()
+        state.build = BuildState(
+            command=[],
+            process=process,
+            lines=["No build is running."],
+            returncode=0,
+        )
+        return
+    if not state.build.running:
+        state.build.lines.append("No build is running.")
+        return
+    state.build.stop_requested = True
+    state.build.lines.append("Stopping build...")
+    try:
+        state.build.process.terminate()
+    except OSError as exc:
+        state.build.lines.append(f"Build stop failed: {exc}")
+
+
+def _rerun_build(state: BrowserState, args: argparse.Namespace) -> None:
+    if state.build is not None and state.build.running:
+        state.build.lines.append("Build is already running. Stop it before rerun.")
+        return
+    _start_build(state, args)
+
+
 def _run_build_foreground(args: argparse.Namespace) -> None:
     repo = git.repo_root()
     command = _build_command(repo, args.build_cmd)
@@ -1323,11 +1370,14 @@ def _poll_build(build: BuildState | None) -> None:
             build.lines.append(build.partial)
             build.partial = ""
         build.returncode = returncode
-        message = (
-            "Build succeeded."
-            if returncode == 0
-            else f"Build failed with exit code {returncode}."
-        )
+        if build.stop_requested:
+            message = "Build stopped."
+        else:
+            message = (
+                "Build succeeded."
+                if returncode == 0
+                else f"Build failed with exit code {returncode}."
+            )
         build.lines.append(message)
         if build.process.stdout is not None:
             build.process.stdout.close()

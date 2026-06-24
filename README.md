@@ -56,6 +56,7 @@ n / p         下一项 / 上一项
 PageUp/PageDown 或 u/d  分页
 Home/End       跳到顶部 / 底部
 g             选择最近 commit
+w             回到工作区改动
 r             刷新改动
 o             用编辑器打开当前文件
 q             退出
@@ -102,6 +103,7 @@ cr --context 0
 ```
 
 工作区没有未提交改动，或者当前改动已经暂存时，直接运行 `cr` 会显示最近的 commit 列表。也可以在文件列表里按 `g`，手动切到最近 commit 列表；选中某个 commit 后会进入这个 commit 的 changed-file list。
+查看 commit 后，按 `b` 会回到最近 commit 列表，按 `w` 会回到原来的工作区改动范围。
 
 打开编辑器：
 

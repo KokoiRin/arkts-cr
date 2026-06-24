@@ -518,7 +518,7 @@ struct SamplePage {
 
             session = self._cr_input(
                 repo,
-                "g\n1\nq\n",
+                "g\n1\n1\nb\nw\n1\nq\n",
                 "browse",
                 "--context",
                 "0",
@@ -529,6 +529,10 @@ struct SamplePage {
             self.assertIn("Recent commits", session.stdout)
             self.assertIn("committed sample", session.stdout)
             self.assertIn("cr:commits>", session.stdout)
+            self.assertIn("-export const sample = 'old'", session.stdout)
+            self.assertIn("+export const sample = 'committed'", session.stdout)
+            self.assertIn("-export const sample = 'committed'", session.stdout)
+            self.assertIn("+export const sample = 'working tree'", session.stdout)
 
     def test_cli_interactive_browser_filters_files_in_line_mode(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -46,6 +46,8 @@ class BrowserState:
     changes: list[git.FileChange]
     commits: list[git.CommitSummary] = field(default_factory=list)
     build: "BuildState | None" = None
+    previous_scope: "ReviewScope | None" = None
+    selected_commit: git.CommitSummary | None = None
     first_line_cache: dict[str, int | None] = field(default_factory=dict)
     file_line_cache: dict[str, list[str]] = field(default_factory=dict)
     selected: int = 0
@@ -98,6 +100,15 @@ class _BrowseTreeNode:
     children: dict[str, "_BrowseTreeNode"] = field(default_factory=dict)
     change: git.FileChange | None = None
     change_index: int | None = None
+
+
+@dataclass(frozen=True)
+class ReviewScope:
+    staged: bool
+    all_changes: bool
+    base: str | None
+    ref_range: str | None
+    untracked: bool
 
 
 @dataclass
@@ -213,6 +224,11 @@ def run_browser(args: argparse.Namespace) -> int:
             state.clamp_selection()
             needs_redraw = True
             continue
+        if command in {"w", "worktree", "workspace"}:
+            if state.previous_scope is not None:
+                _restore_previous_scope(state, args)
+                needs_redraw = True
+            continue
         if command in {"h", "?", "help"}:
             if raw_keys:
                 state.mode = "list"
@@ -249,8 +265,12 @@ def run_browser(args: argparse.Namespace) -> int:
             needs_redraw = True
             continue
         if command in {"s", "summary", "list", "ls", "b", "back"}:
-            state.mode = "list"
-            state.file_scroll = 0
+            if command in {"b", "back"} and state.selected_commit is not None:
+                state.mode = "commits"
+                state.file_scroll = 0
+            else:
+                state.mode = "list"
+                state.file_scroll = 0
             needs_redraw = True
             continue
         if command in {"down", "j"}:
@@ -307,8 +327,12 @@ def run_browser(args: argparse.Namespace) -> int:
                 needs_redraw = True
             continue
         if command in {"left", "h"}:
-            state.mode = "list"
-            state.file_scroll = 0
+            if state.selected_commit is not None:
+                state.mode = "commits"
+                state.file_scroll = 0
+            else:
+                state.mode = "list"
+                state.file_scroll = 0
             needs_redraw = True
             continue
         if command in {"n", "next"}:
@@ -387,6 +411,9 @@ def _select_commit(state: BrowserState, args: argparse.Namespace) -> None:
         return
     state.clamp_selection()
     commit = state.commits[state.selected]
+    if state.previous_scope is None:
+        state.previous_scope = _capture_scope(args)
+    state.selected_commit = commit
     args.ref_range = git.commit_ref_range(commit)
     args.base = None
     args.staged = False
@@ -398,6 +425,37 @@ def _select_commit(state: BrowserState, args: argparse.Namespace) -> None:
     state.mode = "list"
     state.selected = 0
     state.list_scroll = 0
+    state.clamp_selection()
+
+
+def _capture_scope(args: argparse.Namespace) -> ReviewScope:
+    return ReviewScope(
+        staged=args.staged,
+        all_changes=args.all_changes,
+        base=args.base,
+        ref_range=args.ref_range,
+        untracked=args.untracked,
+    )
+
+
+def _restore_previous_scope(state: BrowserState, args: argparse.Namespace) -> None:
+    scope = state.previous_scope
+    if scope is None:
+        return
+    args.staged = scope.staged
+    args.all_changes = scope.all_changes
+    args.base = scope.base
+    args.ref_range = scope.ref_range
+    args.untracked = scope.untracked
+    state.selected_commit = None
+    state.previous_scope = None
+    state.filter_text = ""
+    state.changes = _load_browse_changes(args)
+    state.clear_render_cache()
+    state.mode = "list"
+    state.selected = 0
+    state.list_scroll = 0
+    _show_commits_when_empty(state, args)
     state.clamp_selection()
 
 
@@ -602,7 +660,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         "  /: filter files     c: clear filter      o: open in editor",
         "  : command prompt    build: run repo build command",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
-        "  n/p: next/previous        g: recent commits    r: refresh    q: quit",
+        "  n/p: next/previous        g: commits    w: worktree    r: refresh    q: quit",
         "",
     ]
 
@@ -839,7 +897,7 @@ def _browse_commit_lines(
         ]
     lines = [
         f"{style.bold('Recent commits')} ({len(commits)} shown)",
-        "Choose a commit to review its files.",
+        "Choose a commit to review its files. Press w to return to worktree.",
     ]
     index_width = len(str(len(commits)))
     for index, commit in enumerate(commits, start=1):
@@ -863,7 +921,7 @@ def _browse_commit_screen_lines(
         return ["No recent commits.", ""]
     lines = [
         f"{style.bold('Recent commits')} ({len(commits)} shown)",
-        "Enter: review commit   PgUp/PgDn: page   Home/End: jump",
+        "Enter: review commit   b: back here   w: worktree   PgUp/PgDn: page",
     ]
     row_capacity = max(1, max_lines - len(lines) - 1)
     start = _ensure_window(state.commit_scroll, state.selected, len(commits), row_capacity)

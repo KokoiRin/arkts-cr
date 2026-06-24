@@ -22,10 +22,11 @@ the four module groups before the CLI knows about it. In particular,
 `diff`. The interactive browser also reuses `cr.review.changes` for changed-file
 selection, sorting, code-file detection, hunk rendering, and modified-symbol
 facts; `cr.ui.browser` should own browse orchestration and terminal behavior,
-while `cr.ui.navigation.BrowserNavigation` owns page transition rules and their
-small local state resets. `cr.ui.workspace.ReviewWorkspace` owns active review
-scope state, changed-file loading, filtering, progress markers, selected-file
-state, and browser workspace-state data interpretation.
+while `cr.ui.navigation.BrowserNavigation` owns page transition rules,
+in-session page history, and their small local state resets.
+`cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
+loading, filtering, progress markers, selected-file state, and browser
+workspace-state data interpretation.
 `cr.ui.commands` owns browser command parsing: it translates typed commands,
 key aliases, parameterized commands, numeric selections, and unknown input into
 stable product actions without executing those actions, rendering output, or
@@ -57,8 +58,9 @@ Product navigation terms:
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
   content, task panel, and prompt regions.
 - `Browser Navigation`: the internal module that moves between Scope Home,
-  Commit Picker, Changed Files, File Detail, and Command Palette without
-  loading Git data or rendering terminal output.
+  Commit Picker, Changed Files, File Detail, and Command Palette, including
+  in-session back/forward page history, without loading Git data or rendering
+  terminal output.
 - `Review Workspace`: the internal module that owns the current Review Scope,
   changed files, filter/progress state, selected file, selected commit, previous
   scope, and persistence data mapping for `cr browse`.

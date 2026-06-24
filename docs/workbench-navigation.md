@@ -76,7 +76,7 @@ File Detail 是三级对象：它展示某个文件在当前 Review Scope 中的
 - 打开外部编辑器。
 - 在当前 scope 的文件之间 next/previous。
 
-这层必须始终知道自己属于哪个 Review Scope 和哪个 Changed Files 集合。`back` 应返回 Changed Files；再次返回才回到上一层 scope 选择或默认工作区入口。
+这层必须始终知道自己属于哪个 Review Scope 和哪个 Changed Files 集合。`back` 优先返回 in-session page stack 中的上一页；没有历史时再使用产品层级 fallback，例如从 File Detail 返回 Changed Files。
 
 ## Persistent Navigation Terms
 
@@ -128,8 +128,8 @@ Task Panel / Browser Frame
 
 Browser Navigation
   current implementation:
-    BrowserNavigation owns page transitions and local reset rules
-    it does not load Git data, switch scopes, render output, or keep a page stack
+    BrowserNavigation owns page transitions, in-session page history, and local reset rules
+    it does not load Git data, switch scopes, or render output
 
 Review Workspace
   current implementation:
@@ -147,7 +147,7 @@ Browser Action Execution
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
-Navigation rules are now explicit without adding a true page stack. `BrowserNavigation` owns the current hierarchy-aware transitions such as back-to-files, open-file-detail, show-scope-home, show-command-palette, and show-commit-picker.
+Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress state, selected file state, and workspace-state data mapping.
 Browser command dispatch is now explicit without changing user-visible commands. `BrowserCommandAction` and `parse_browser_command` map raw key aliases, line-mode commands, parameterized commands, and numeric selections to product actions before `browser.py` executes them.
 Browser action execution is now explicit without changing user-visible behavior. `BrowserCommandExecutor` executes parsed actions and returns `BrowserActionResult`, while `run_browser` keeps prompt input, sentinels, workspace save-on-exit, and redraw scheduling.
@@ -213,7 +213,7 @@ Status: implemented.
 
 Status: implemented.
 
-`BrowserNavigation` now owns page transition intent and local reset rules. The browser main loop calls navigation actions rather than scattering raw `state.page = ...` assignments. This keeps current behavior stable while giving later page-stack or ReviewWorkspace work a clearer place to attach.
+`BrowserNavigation` now owns page transition intent and local reset rules. The browser main loop calls navigation actions rather than scattering raw `state.page = ...` assignments. This keeps current behavior stable while giving page-stack and ReviewWorkspace work a clearer place to attach.
 
 ### P0: ReviewWorkspace deepening
 
@@ -257,6 +257,12 @@ Status: implemented.
 
 `tasks` now shows build/test/lint command sources through the command parser, command palette, and action executor. `cr.ui.tasks` owns the resolution explanation and reports malformed `.cr/tasks.json` without changing tolerant task execution.
 
+### P0: Real page stack
+
+Status: implemented.
+
+`BrowserNavigation` now keeps an in-session page back/forward stack. `back` restores the previous page snapshot, `forward` restores the page left by `back`, new navigation branches clear forward history, and Review Scope switches / refreshes reset the stack.
+
 ## Architecture Check Cadence
 
 Use the architecture skill periodically, especially before changes that touch `src/cr/ui/browser.py`, `src/cr/review/changes.py`, or workspace persistence.
@@ -267,5 +273,4 @@ Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
 - `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `BrowserCommandExecutor` hides action execution, and `cr.ui.tasks` hides task runtime behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, editor handoff helpers, prompt input, and persistence file I/O.
-- The next product opportunity is a real page stack if the current hierarchy-aware `back` behavior stops being enough.
-- A real page stack is still not implemented. Add it only when back/forward history needs behavior beyond the current product hierarchy.
+- The next product opportunity is file action configuration if real usage shows the built-in copy/reveal fallbacks are not enough.

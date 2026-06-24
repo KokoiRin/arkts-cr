@@ -40,7 +40,7 @@ from ..source.purpose import describe_file
 from ..vcs import git
 from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
 from . import file_actions
-from .navigation import BrowserNavigation, BrowserPage
+from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
@@ -79,6 +79,8 @@ class BrowserState:
     command_filter_text: str = ""
     status_message: str = ""
     workspace: ReviewWorkspace | None = None
+    page_back_stack: list[BrowserPageSnapshot] = field(default_factory=list)
+    page_forward_stack: list[BrowserPageSnapshot] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.workspace is None:
@@ -476,6 +478,7 @@ class BrowserCommandExecutor:
             else:
                 state.changes = _load_browse_changes(args)
                 state.clear_render_cache()
+                BrowserNavigation.reset_history(state)
                 BrowserNavigation.show_changed_files(state)
                 state.list_scroll = 0
                 _show_commits_when_empty(state, args)
@@ -486,6 +489,9 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.BACK:
             BrowserNavigation.go_back(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.FORWARD:
+            BrowserNavigation.go_forward(state)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.MOVE_DOWN:
             if state.page == BrowserPage.FILE_DETAIL:
@@ -930,6 +936,7 @@ def _select_commit(state: BrowserState, args: argparse.Namespace) -> str | None:
     state._sync_to_workspace().select_commit(args, commit, loader=_load_browse_changes)
     state._sync_from_workspace()
     state.clear_render_cache()
+    BrowserNavigation.reset_history(state)
     BrowserNavigation.show_changed_files(state)
     state.clamp_selection()
     return None
@@ -943,6 +950,7 @@ def _switch_review_scope(
     state._sync_to_workspace().switch_scope(args, scope, loader=_load_browse_changes)
     state._sync_from_workspace()
     state.clear_render_cache()
+    BrowserNavigation.reset_history(state)
     BrowserNavigation.show_changed_files(state)
     state.commit_scroll = 0
     _show_commits_when_empty(state, args)
@@ -959,6 +967,7 @@ def _restore_previous_scope(state: BrowserState, args: argparse.Namespace) -> No
     state._sync_to_workspace().restore_previous_scope(args, loader=_load_browse_changes)
     state._sync_from_workspace()
     state.clear_render_cache()
+    BrowserNavigation.reset_history(state)
     BrowserNavigation.show_changed_files(state)
     _show_commits_when_empty(state, args)
     state.clamp_selection()
@@ -1272,7 +1281,7 @@ def _normalize_command_query(command: str) -> str:
 def _browse_help_lines(style: TerminalStyle) -> list[str]:
     return [
         style.bold("Interactive review"),
-        "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back to list",
+        "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
         "  : command prompt    build/test/lint/tasks    copy path/anchor/reveal: file actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
@@ -1287,7 +1296,8 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
             "Navigation",
             (
                 CommandEntry("Enter / 1..N", "open selected file or choose by number"),
-                CommandEntry("b / back", "return to file list"),
+                CommandEntry("b / back", "return through page history"),
+                CommandEntry("forward", "return to the page left by back", "forward"),
                 CommandEntry("n / p", "next or previous file"),
                 CommandEntry("scopes / scope", "show Review Scope home", BrowserPage.SCOPE_HOME),
                 CommandEntry("g / commits", "show recent commits", "g"),

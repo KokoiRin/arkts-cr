@@ -175,6 +175,58 @@ class CliTests(unittest.TestCase):
         self.assertIs(state.selected_commit, commit)
         self.assertEqual(state.file_scroll, 0)
 
+    def test_browser_navigation_back_and_forward_restore_page_snapshots(self):
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 1, 0),
+            ],
+            selected=1,
+            list_scroll=4,
+            page=BrowserPage.CHANGED_FILES,
+        )
+
+        BrowserNavigation.open_file_detail(state)
+        state.file_scroll = 9
+        BrowserNavigation.go_back(state)
+
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(state.list_scroll, 4)
+
+        BrowserNavigation.go_forward(state)
+
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(state.file_scroll, 9)
+
+    def test_browser_navigation_back_returns_to_page_that_opened_command_palette(self):
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=12,
+        )
+
+        BrowserNavigation.show_command_palette(state)
+        BrowserNavigation.go_back(state)
+
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 12)
+
+    def test_browser_navigation_new_branch_clears_forward_stack(self):
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            page=BrowserPage.CHANGED_FILES,
+        )
+
+        BrowserNavigation.open_file_detail(state)
+        BrowserNavigation.go_back(state)
+        BrowserNavigation.show_scope_home(state)
+        BrowserNavigation.go_forward(state)
+
+        self.assertEqual(state.page, BrowserPage.SCOPE_HOME)
+
     def test_browser_command_parser_maps_aliases_parameters_and_unknown(self):
         from cr.ui.browser import parse_browser_command
 
@@ -209,6 +261,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("tasks").action,
             BrowserCommandAction.SHOW_TASK_DIAGNOSTICS,
+        )
+        self.assertEqual(
+            parse_browser_command("forward").action,
+            BrowserCommandAction.FORWARD,
         )
 
         base = parse_browser_command("base main")
@@ -459,6 +515,84 @@ class CliTests(unittest.TestCase):
         diagnostics.assert_called_once_with(repo, args)
         self.assertIn("Task commands:", output.getvalue())
         self.assertIn("build: missing", output.getvalue())
+
+    def test_browser_command_executor_runs_forward_navigation(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
+        BrowserNavigation.open_file_detail(state)
+        BrowserNavigation.go_back(state)
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("forward"))
+
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+
+    def test_switch_review_scope_resets_page_history(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+            code=False,
+        )
+        state = BrowserState([FileChange("src/Old.ts", 1, 1)])
+        BrowserNavigation.open_file_detail(state)
+        BrowserNavigation.go_back(state)
+        self.assertTrue(state.page_forward_stack)
+
+        with patch("cr.ui.browser._load_browse_changes", return_value=[FileChange("src/New.ts", 1, 1)]):
+            _switch_review_scope(
+                state,
+                args,
+                ReviewScope(True, False, None, None, False),
+            )
+
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.page_back_stack, [])
+        self.assertEqual(state.page_forward_stack, [])
+
+    def test_refresh_resets_page_history_for_reloaded_changes(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+        state = BrowserState([FileChange("src/Old.ts", 1, 1)])
+        BrowserNavigation.open_file_detail(state)
+        BrowserNavigation.go_back(state)
+        self.assertTrue(state.page_forward_stack)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser._load_browse_changes", return_value=[FileChange("src/New.ts", 1, 1)]):
+            with patch("cr.ui.browser._show_commits_when_empty"):
+                result = executor.execute(parse_browser_command("refresh"))
+
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page_back_stack, [])
+        self.assertEqual(state.page_forward_stack, [])
 
     def test_browser_main_loop_delegates_action_execution(self):
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
@@ -2500,7 +2634,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(_normalize_command_query(" build "), "build")
 
     def test_command_list_lines_group_commands_by_purpose(self):
-        lines = _browse_command_lines(TerminalStyle(False), max_lines=40)
+        lines = _browse_command_lines(TerminalStyle(False), max_lines=80)
         text = "\n".join(lines)
 
         self.assertIn("Commands", text)
@@ -2524,6 +2658,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("reveal", commands)
         self.assertIn("tasks", commands)
         self.assertIn("staged", commands)
+        self.assertIn("forward", commands)
         self.assertIn("remaining", commands)
         self.assertNotIn("b", commands)
         self.assertNotIn("n", commands)

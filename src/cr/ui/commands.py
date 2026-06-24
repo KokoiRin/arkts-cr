@@ -45,6 +45,7 @@ class BrowserCommandAction:
     REFRESH = "refresh"
     SHOW_CHANGED_FILES = "show_changed_files"
     BACK = "back"
+    FORWARD = "forward"
     MOVE_DOWN = "move_down"
     MOVE_UP = "move_up"
     PAGE_DOWN = "page_down"
@@ -141,6 +142,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.SHOW_CHANGED_FILES)
     if command in {"b", "back"}:
         return BrowserCommand(BrowserCommandAction.BACK)
+    if command in {"forward", "fwd"}:
+        return BrowserCommand(BrowserCommandAction.FORWARD)
     if command in {"down", "j"}:
         return BrowserCommand(BrowserCommandAction.MOVE_DOWN)
     if command in {"up", "k"}:

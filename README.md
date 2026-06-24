@@ -61,7 +61,8 @@ cr
 ```text
 ↑/↓ 或 j/k    移动选择
 Enter / →     打开当前文件的 review 视图
-← / b         回到文件列表
+← / b         返回上一页
+forward       前进到刚才返回前的页面
 /             按路径过滤文件
 :             输入命令
 c             清除过滤
@@ -132,7 +133,7 @@ cr --context 0
 ```
 
 工作区没有未提交改动，或者当前改动已经暂存时，直接运行 `cr` 会显示最近的 commit 列表。也可以在文件列表里按 `g`，手动切到最近 commit 列表；选中某个 commit 后会进入这个 commit 的 changed-file list。
-查看 commit 后，按 `b` 会逐层返回：文件 diff -> 该 commit 的 changed-file list -> 最近 commit 列表；按 `w` 会回到原来的工作区改动范围。
+查看 commit 后，按 `b` 会返回上一页；如果当前 session 没有页面历史，则回退到产品层级默认行为。按 `forward` 可以前进到刚才返回前的页面；按 `w` 会回到原来的工作区改动范围。
 
 标记 review 进度：
 

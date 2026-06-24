@@ -68,7 +68,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Runs interactive background tasks in an isolated process group and stops the group on `stop` / `cancel`, falling back to parent-process termination if group cleanup fails.
   - Escalates stopped tasks to force-kill after a short grace period when the process group does not exit.
   - Provides an in-session command palette via `commands`, `cmds`, or `help commands`; raw command prompt empty input or `?` opens the same palette, and `/` filters executable commands inside the palette.
-  - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return one visible navigation layer, `r` to refresh, and `q` to quit.
+  - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return through in-session page history, `forward` to move forward after back, `r` to refresh, and `q` to quit.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
   - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` / `test` / `lint` from the command prompt for repo tasks.
@@ -144,7 +144,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Reuse `src/cr/review/changes.py` for changed-file selection, sorting, code-file detection, hunk rendering, and modified-symbol facts so `browse`, `review`, and `diff` share one implementation of review-scope rules.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, page, and filter query.
   - Treat `BrowserPage` as the canonical internal page vocabulary for Scope Home, Commit Picker, Changed Files, File Detail, and Command Palette.
-  - Treat `BrowserNavigation` as the owner of page transition rules and small local state resets such as file scroll, command selection, scope selection, and commit picker selection resets.
+  - Treat `BrowserNavigation` as the owner of page transition rules, in-session page history, and small local state resets such as file scroll, command selection, scope selection, and commit picker selection resets.
   - Treat `ReviewWorkspace` as the owner of active review scope, changed-file loading, filter/progress state, selected file, selected commit, previous scope, and workspace-state data mapping. Browser file I/O remains at the UI edge.
   - Treat `BrowserCommand` dispatch as the owner of command text aliases, parameter parsing, numeric selections, and unknown-command fallback. `browser.py` may execute parsed actions, but it should not re-own string parsing rules.
   - Treat `BrowserCommandExecutor` as the owner of parsed action execution and loop-control results. `run_browser` should keep input prompts, sentinels, workspace save-on-exit, and render-loop scheduling, but it should not re-own every action branch.

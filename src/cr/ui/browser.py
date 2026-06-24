@@ -67,6 +67,7 @@ class BrowserState:
     filter_text: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
+    scope_selected: int = 0
     command_selected: int = 0
     command_filter_text: str = ""
     status_message: str = ""
@@ -81,19 +82,25 @@ class BrowserState:
     def clamp_selection(self) -> None:
         if self.mode == "commits":
             total = len(self.commits)
+        elif self.mode == "scopes":
+            total = len(_scope_home_entries())
         elif self.mode == "commands":
             total = len(_filtered_command_palette_entries(self))
         else:
             total = len(self.visible_changes)
         if total == 0:
-            if self.mode == "commands":
+            if self.mode == "scopes":
+                self.scope_selected = 0
+            elif self.mode == "commands":
                 self.command_selected = 0
             else:
                 self.selected = 0
             if self.mode == "file":
                 self.mode = "list"
             return
-        if self.mode == "commands":
+        if self.mode == "scopes":
+            self.scope_selected = max(0, min(self.scope_selected, total - 1))
+        elif self.mode == "commands":
             self.command_selected = max(0, min(self.command_selected, total - 1))
         else:
             self.selected = max(0, min(self.selected, total - 1))
@@ -142,6 +149,13 @@ class CommandEntry:
 class CommandGroup:
     title: str
     entries: tuple[CommandEntry, ...]
+
+
+@dataclass(frozen=True)
+class ScopeHomeEntry:
+    label: str
+    description: str
+    action: str | None = None
 
 
 @dataclass(frozen=True)
@@ -256,6 +270,17 @@ def run_browser(args: argparse.Namespace) -> int:
                 )
             elif state.mode == "commands":
                 _print_lines(_browse_command_lines(style, max_lines=_screen_height()))
+            elif state.mode == "scopes":
+                _print_lines(
+                    [
+                        _scope_context_line(state, args, style),
+                        *_browse_scope_home_screen_lines(
+                            state,
+                            style,
+                            max(1, _screen_height() - 2),
+                        ),
+                    ]
+                )
             elif state.mode == "list":
                 _print_lines(
                     _browse_list_lines(
@@ -389,6 +414,11 @@ def run_browser(args: argparse.Namespace) -> int:
             state.mode = "commands"
             needs_redraw = True
             continue
+        if command in {"scopes", "scope"}:
+            state.mode = "scopes"
+            state.scope_selected = 0
+            needs_redraw = True
+            continue
         if command in {"g", "commits", "log"}:
             state.commits = _load_recent_commits()
             state.mode = "commits"
@@ -505,7 +535,7 @@ def run_browser(args: argparse.Namespace) -> int:
             needs_redraw = True
             continue
         if command in {"s", "summary", "list", "ls", "b", "back"}:
-            if command in {"b", "back"} and state.mode == "commands":
+            if command in {"b", "back"} and state.mode in {"commands", "scopes"}:
                 state.mode = "list"
                 state.file_scroll = 0
             elif command in {"b", "back"} and state.mode == "file":
@@ -550,6 +580,8 @@ def run_browser(args: argparse.Namespace) -> int:
         if command in {"home", "0"}:
             if state.mode == "file":
                 state.file_scroll = 0
+            elif state.mode == "scopes":
+                state.scope_selected = 0
             elif state.mode == "commands":
                 state.command_selected = 0
             else:
@@ -559,6 +591,10 @@ def run_browser(args: argparse.Namespace) -> int:
         if command in {"end", "$"}:
             if state.mode == "file":
                 state.file_scroll = _max_file_scroll(state, args, style)
+            elif state.mode == "scopes":
+                total = len(_scope_home_entries())
+                if total:
+                    state.scope_selected = total - 1
             elif state.mode == "commands":
                 total = len(_filtered_command_palette_entries(state))
                 if total:
@@ -575,13 +611,18 @@ def run_browser(args: argparse.Namespace) -> int:
                 if message:
                     _show_browser_message(state, message, raw_keys, frame)
                 needs_redraw = True
+            elif state.mode == "scopes":
+                message = _select_scope_home_entry(state, args)
+                if message:
+                    _show_browser_message(state, message, raw_keys, frame)
+                needs_redraw = True
             elif state.visible_changes:
                 state.mode = "file"
                 state.file_scroll = 0
                 needs_redraw = True
             continue
         if command in {"left", "h"}:
-            if state.mode == "commands":
+            if state.mode in {"commands", "scopes"}:
                 state.mode = "list"
                 state.file_scroll = 0
             elif state.mode == "file":
@@ -612,6 +653,19 @@ def run_browser(args: argparse.Namespace) -> int:
             continue
         if command.isdigit():
             choice = int(command)
+            if state.mode == "scopes":
+                total = len(_scope_home_entries())
+                if 1 <= choice <= total:
+                    state.scope_selected = choice - 1
+                    message = _select_scope_home_entry(state, args)
+                    if message:
+                        _show_browser_message(state, message, raw_keys, frame)
+                    needs_redraw = True
+                else:
+                    _show_browser_message(state, f"Choose 1-{total}.", raw_keys, frame)
+                    if raw_keys:
+                        needs_redraw = True
+                continue
             if state.mode == "commits":
                 if 1 <= choice <= len(state.commits):
                     state.selected = choice - 1
@@ -940,13 +994,17 @@ def _restore_previous_scope(state: BrowserState, args: argparse.Namespace) -> No
 def _move_selection(state: BrowserState, delta: int) -> None:
     if state.mode == "commits":
         total = len(state.commits)
+    elif state.mode == "scopes":
+        total = len(_scope_home_entries())
     elif state.mode == "commands":
         total = len(_filtered_command_palette_entries(state))
     else:
         total = len(state.visible_changes)
     if not total:
         return
-    if state.mode == "commands":
+    if state.mode == "scopes":
+        state.scope_selected = max(0, min(state.scope_selected + delta, total - 1))
+    elif state.mode == "commands":
         state.command_selected = max(0, min(state.command_selected + delta, total - 1))
     else:
         state.selected = max(0, min(state.selected + delta, total - 1))
@@ -1106,6 +1164,16 @@ def _draw_browse_screen(
                 max(1, content_lines - len(_browse_help_lines(style)) - 1),
             ),
         ]
+    elif state.mode == "scopes":
+        lines = [
+            *_browse_help_lines(style),
+            _scope_context_line(state, args, style),
+            *_browse_scope_home_screen_lines(
+                state,
+                style,
+                max(1, content_lines - len(_browse_help_lines(style)) - 1),
+            ),
+        ]
     elif state.mode == "commands":
         lines = [
             *_browse_help_lines(style),
@@ -1226,6 +1294,8 @@ def _browse_prompt(mode: str) -> str:
         return "cr:file> "
     if mode == "commits":
         return "cr:commits> "
+    if mode == "scopes":
+        return "cr:scopes> "
     if mode == "commands":
         return "cr:commands> "
     return "cr:list> "
@@ -1250,7 +1320,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
         "  : command prompt    build/stop/rerun: repo build task",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
-        "  n/p: next/previous        g: commits    w: worktree    r: refresh    q: quit",
+        "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
     ]
 
@@ -1263,6 +1333,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("Enter / 1..N", "open selected file or choose by number"),
                 CommandEntry("b / back", "return to file list"),
                 CommandEntry("n / p", "next or previous file"),
+                CommandEntry("scopes / scope", "show Review Scope home", "scopes"),
                 CommandEntry("g / commits", "show recent commits", "g"),
             ),
         ),
@@ -1323,6 +1394,54 @@ def _command_palette_entries() -> list[PaletteCommand]:
                 )
             )
     return entries
+
+
+def _scope_home_entries() -> tuple[ScopeHomeEntry, ...]:
+    return (
+        ScopeHomeEntry("Worktree", "Review unstaged worktree changes", "worktree"),
+        ScopeHomeEntry("Staged", "Review staged/index changes", "staged"),
+        ScopeHomeEntry("All local changes", "Review staged and unstaged changes", "all"),
+        ScopeHomeEntry("Recent commits", "Choose a commit as the Review Scope", "commits"),
+        ScopeHomeEntry("Base ref", "Type : base REF to review changes against a base"),
+        ScopeHomeEntry("Explicit range", "Type : range OLD..NEW to review two refs"),
+    )
+
+
+def _select_scope_home_entry(
+    state: BrowserState,
+    args: argparse.Namespace,
+) -> str | None:
+    entries = _scope_home_entries()
+    if not entries:
+        return None
+    state.clamp_selection()
+    entry = entries[state.scope_selected]
+    if entry.action == "worktree":
+        _switch_review_scope(
+            state,
+            args,
+            ReviewScope(False, False, None, None, _args_untracked(args)),
+        )
+        return None
+    if entry.action == "staged":
+        _switch_review_scope(state, args, ReviewScope(True, False, None, None, False))
+        return None
+    if entry.action == "all":
+        _switch_review_scope(
+            state,
+            args,
+            ReviewScope(False, True, None, None, _args_untracked(args)),
+        )
+        return None
+    if entry.action == "commits":
+        state.commits = _load_recent_commits()
+        state.mode = "commits"
+        state.selected_commit = None
+        state.selected = 0
+        state.commit_scroll = 0
+        state.clamp_selection()
+        return None
+    return entry.description
 
 
 def _filtered_command_palette_entries(state: BrowserState) -> list[PaletteCommand]:
@@ -1412,7 +1531,39 @@ def _browse_command_palette_screen_lines(
     return lines[:max_lines]
 
 
+def _browse_scope_home_screen_lines(
+    state: BrowserState,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    entries = _scope_home_entries()
+    lines = [
+        f"{style.bold('Review scopes')} ({len(entries)} entries)",
+        "Enter: open scope   b: back to files   : base REF / : range OLD..NEW",
+    ]
+    if max_lines <= len(lines):
+        return lines[:max_lines]
+    row_capacity = max(1, max_lines - len(lines) - 1)
+    start = _ensure_window(0, state.scope_selected, len(entries), row_capacity)
+    end = min(len(entries), start + row_capacity)
+    label_width = max(len(entry.label) for entry in entries)
+    for index, entry in enumerate(entries[start:end], start):
+        marker = ">" if index == state.scope_selected else " "
+        command_hint = f"  [{entry.action}]" if entry.action else ""
+        lines.append(
+            f"{marker} {index + 1}  "
+            f"{entry.label.ljust(label_width)}  {entry.description}{command_hint}"
+        )
+    if len(entries) > row_capacity:
+        lines.append(style.dim(f"showing {start + 1}-{end}/{len(entries)}"))
+    else:
+        lines.append("")
+    return lines[:max_lines]
+
+
 def _scope_label(state: BrowserState, args: argparse.Namespace) -> str:
+    if state.mode == "scopes":
+        return "scope home"
     if state.mode == "commits":
         return "recent commits"
     if state.selected_commit is not None:
@@ -1432,7 +1583,7 @@ def _scope_label(state: BrowserState, args: argparse.Namespace) -> str:
 
 def _product_breadcrumb(state: BrowserState, args: argparse.Namespace) -> str:
     label = _scope_label(state, args)
-    if state.mode == "commits":
+    if state.mode in {"scopes", "commits"}:
         return label
     if state.mode == "commands":
         return f"{label} > Commands"

@@ -69,6 +69,7 @@ m             标记当前文件已看
 n / p         下一项 / 上一项
 PageUp/PageDown 或 u/d  分页
 Home/End       跳到顶部 / 底部
+scopes        打开 Review Scope 首页
 g             选择最近 commit
 w             回到工作区改动
 r             刷新改动
@@ -93,6 +94,7 @@ q             退出
 filter Second
 clear
 commands
+scopes
 m
 remaining
 allfiles

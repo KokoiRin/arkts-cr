@@ -156,7 +156,9 @@ This is the smallest change that makes the three product layers visible without 
 
 ### P0: Scope home
 
-Promote Review Scope into a clearer first-level page. It should expose worktree, staged, all local changes, recent commits, base/range entry points, and the current restored workspace.
+Status: implemented.
+
+Promote Review Scope into a clearer first-level page. Current implementation exposes worktree, staged, all local changes, recent commits, and base/range command hints through `scopes` / `scope`. Base/range remain parameterized command entries (`: base REF`, `: range OLD..NEW`) rather than inline forms.
 
 ### P1: Page stack names
 

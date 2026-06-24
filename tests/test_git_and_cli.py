@@ -945,6 +945,223 @@ class CliTests(unittest.TestCase):
 
         self.assertIn("Scope: commit abcdef12 > Files", output.getvalue())
 
+    def test_browse_screen_scope_home_shows_review_scope_entries(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)], mode="scopes")
+        output = StringIO()
+
+        with redirect_stdout(output):
+            _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("Scope: scope home", text)
+        self.assertNotIn("Scope: scope home > Files", text)
+        self.assertIn("Review scopes", text)
+        self.assertIn("Worktree", text)
+        self.assertIn("Staged", text)
+        self.assertIn("All local changes", text)
+        self.assertIn("Recent commits", text)
+        self.assertIn("Base ref", text)
+        self.assertIn(": base REF", text)
+        self.assertIn("Explicit range", text)
+        self.assertIn(": range OLD..NEW", text)
+
+    def test_scope_home_command_opens_scope_home(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+        frames: list[str] = []
+
+        def capture_draw(state, args, style, frame=None):
+            frames.append(state.mode)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[FileChange("src/Sample.ts", 1, 1)],
+                    ):
+                        with patch("cr.ui.browser._show_commits_when_empty"):
+                            with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                with patch(
+                                    "cr.ui.browser._read_browse_command",
+                                    side_effect=["scopes", "q"],
+                                ):
+                                    with patch(
+                                        "cr.ui.browser._draw_browse_screen",
+                                        side_effect=capture_draw,
+                                    ):
+                                        from cr.ui.browser import run_browser
+
+                                        result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        self.assertIn("scopes", frames)
+
+    def test_scope_home_enter_switches_to_staged_scope(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+        frames: list[tuple[str, bool, bool]] = []
+
+        def capture_draw(state, args, style, frame=None):
+            frames.append((state.mode, args.staged, args.all_changes))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[FileChange("src/Sample.ts", 1, 1)],
+                    ):
+                        with patch("cr.ui.browser._show_commits_when_empty"):
+                            with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                with patch(
+                                    "cr.ui.browser._read_browse_command",
+                                    side_effect=["scopes", "down", "enter", "q"],
+                                ):
+                                    with patch(
+                                        "cr.ui.browser._draw_browse_screen",
+                                        side_effect=capture_draw,
+                                    ):
+                                        from cr.ui.browser import run_browser
+
+                                        result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        self.assertIn(("list", True, False), frames)
+
+    def test_scope_home_enter_opens_recent_commits(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+        frames: list[str] = []
+
+        def capture_draw(state, args, style, frame=None):
+            frames.append(state.mode)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[FileChange("src/Sample.ts", 1, 1)],
+                    ):
+                        with patch("cr.ui.browser._show_commits_when_empty"):
+                            with patch(
+                                "cr.ui.browser._load_recent_commits",
+                                return_value=[
+                                    CommitSummary(
+                                        commit="abcdef1234567890",
+                                        parent="1234567890abcdef",
+                                        authored_at="2026-06-24",
+                                        subject="Example change",
+                                    )
+                                ],
+                            ):
+                                with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                    with patch(
+                                        "cr.ui.browser._read_browse_command",
+                                        side_effect=[
+                                            "scopes",
+                                            "down",
+                                            "down",
+                                            "down",
+                                            "enter",
+                                            "q",
+                                        ],
+                                    ):
+                                        with patch(
+                                            "cr.ui.browser._draw_browse_screen",
+                                            side_effect=capture_draw,
+                                        ):
+                                            from cr.ui.browser import run_browser
+
+                                            result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        self.assertIn("commits", frames)
+
+    def test_home_key_still_jumps_to_first_file_instead_of_opening_scope_home(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+        frames: list[tuple[str, int]] = []
+
+        def capture_draw(state, args, style, frame=None):
+            frames.append((state.mode, state.selected))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[
+                            FileChange("src/First.ts", 1, 0),
+                            FileChange("src/Second.ts", 1, 0),
+                        ],
+                    ):
+                        with patch("cr.ui.browser._show_commits_when_empty"):
+                            with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                with patch(
+                                    "cr.ui.browser._read_browse_command",
+                                    side_effect=["down", "home", "q"],
+                                ):
+                                    with patch(
+                                        "cr.ui.browser._draw_browse_screen",
+                                        side_effect=capture_draw,
+                                    ):
+                                        from cr.ui.browser import run_browser
+
+                                        result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        self.assertIn(("list", 1), frames)
+        self.assertEqual(frames[-1], ("list", 0))
+
     def test_browse_screen_places_build_panel_above_prompt(self):
         args = argparse_namespace(
             staged=False,
@@ -2191,6 +2408,29 @@ struct SamplePage {
             self.assertIn("+export const sample = 'committed'", session.stdout)
             self.assertIn("-export const sample = 'committed'", session.stdout)
             self.assertIn("+export const sample = 'working tree'", session.stdout)
+
+    def test_cli_browser_can_open_scope_home_in_line_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("export const sample = 'working tree'\n", encoding="utf-8")
+
+            session = self._cr_input(repo, "scopes\nq\n", "browse")
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Scope: scope home", session.stdout)
+            self.assertIn("Review scopes", session.stdout)
+            self.assertIn("Worktree", session.stdout)
+            self.assertIn("Staged", session.stdout)
+            self.assertIn("cr:scopes>", session.stdout)
 
     def test_cli_browser_back_from_commit_file_returns_to_commit_file_list(self):
         with tempfile.TemporaryDirectory() as tmp:

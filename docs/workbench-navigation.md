@@ -144,7 +144,7 @@ Browser Command Dispatch
 Browser Action Execution
   current implementation:
     BrowserCommandExecutor owns parsed action execution and returns BrowserActionResult loop control
-    browser.py still owns terminal rendering, prompt input, task panel rendering, selected-file action execution, and workspace-state file I/O
+    browser.py still owns prompt input flow, page-specific main content rendering, selected-file action execution, and workspace startup/exit orchestration
 ```
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
@@ -321,9 +321,9 @@ Status: implemented.
 
 Status: implemented.
 
-`copy prompt` copies prompt-ready Markdown for the current visible changed files through the existing copy action configuration. This is a browser-side entry point to the same handoff format as `cr review --prompt`, with matching review notes included for copied files.
+`copy prompt` copies prompt-ready Markdown for the current visible changed files through the existing copy action configuration. `save prompt [PATH]` writes the same Markdown to a file, defaulting to `.cr/handoff/review-prompt.md`.
 
-`copy prompt file` copies prompt-ready Markdown for only the selected visible changed file, including that file's review note when present. Both commands preserve the active page, selection, Review Scope, file filter, progress markers, review notes, and task state. Empty visible scopes report an empty state without launching a clipboard command.
+`copy prompt file` copies prompt-ready Markdown for only the selected visible changed file, including that file's review note when present. `save prompt file [PATH]` writes the same selected-file Markdown to a file, defaulting to `.cr/handoff/review-prompt-file.md`. All four commands preserve the active page, selection, Review Scope, file filter, progress markers, review notes, and task state. Empty visible scopes report an empty state without launching a clipboard command or writing a file.
 
 ### P0: Real page stack
 

@@ -38,6 +38,8 @@ class BrowserCommandAction:
     COPY_REVIEW_NOTES = "copy_review_notes"
     COPY_PROMPT = "copy_prompt"
     COPY_FILE_PROMPT = "copy_file_prompt"
+    SAVE_PROMPT = "save_prompt"
+    SAVE_FILE_PROMPT = "save_file_prompt"
     REVEAL_FILE = "reveal_file"
     SHOW_FILE_ACTION_DIAGNOSTICS = "show_file_action_diagnostics"
     SET_REVIEW_NOTE = "set_review_note"
@@ -140,6 +142,20 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_PROMPT)
     if command in {"copy prompt file", "copy file prompt"}:
         return BrowserCommand(BrowserCommandAction.COPY_FILE_PROMPT)
+    if command == "save prompt":
+        return BrowserCommand(BrowserCommandAction.SAVE_PROMPT)
+    if command.startswith("save prompt file "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_FILE_PROMPT,
+            command.removeprefix("save prompt file ").strip(),
+        )
+    if command in {"save prompt file", "save file prompt"}:
+        return BrowserCommand(BrowserCommandAction.SAVE_FILE_PROMPT)
+    if command.startswith("save prompt "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_PROMPT,
+            command.removeprefix("save prompt ").strip(),
+        )
     if command in {"reveal", "show in finder"}:
         return BrowserCommand(BrowserCommandAction.REVEAL_FILE)
     if command in {"file actions", "actions", "action sources"}:

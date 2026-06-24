@@ -42,6 +42,7 @@ from .command_catalog import CommandEntry, CommandGroup, PaletteCommand
 from . import file_actions
 from . import frame as frame_module
 from .frame import BrowserFrame, ScreenLayout
+from . import handoff as handoff_module
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
@@ -408,6 +409,24 @@ class BrowserCommandExecutor:
             message = _copy_prompt_handoff(state, args, selected_only=True)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_PROMPT:
+            message = _save_prompt_handoff(
+                state,
+                args,
+                parsed_command.value,
+                selected_only=False,
+            )
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_FILE_PROMPT:
+            message = _save_prompt_handoff(
+                state,
+                args,
+                parsed_command.value,
+                selected_only=True,
+            )
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.REVEAL_FILE:
             visible = state.visible_changes
             if visible:
@@ -593,8 +612,9 @@ class BrowserCommandExecutor:
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
-                    "copy anchor, copy notes, reveal, note, notes, tasks, build, stop, rerun, test, "
-                    "lint, staged, all, base, range, or q."
+                    "copy anchor, copy notes, copy prompt, save prompt, reveal, "
+                    "note, notes, tasks, build, stop, rerun, test, lint, staged, "
+                    "all, base, range, or q."
                 )
             )
             _show_browser_message(
@@ -903,11 +923,53 @@ def _copy_prompt_handoff(
     *,
     selected_only: bool,
 ) -> str:
-    visible = state.visible_changes
-    if not visible:
+    handoff = _prompt_handoff_text(state, args, selected_only=selected_only)
+    if handoff is None:
         if selected_only:
             return "No changed file to copy prompt."
         return "No changed files to copy prompt."
+    text, file_count = handoff
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    suffix = "file" if file_count == 1 else "files"
+    return f"Copied prompt for {file_count} {suffix}"
+
+
+def _save_prompt_handoff(
+    state: BrowserState,
+    args: argparse.Namespace,
+    requested_path: str = "",
+    *,
+    selected_only: bool,
+) -> str:
+    handoff = _prompt_handoff_text(state, args, selected_only=selected_only)
+    if handoff is None:
+        if selected_only:
+            return "No changed file to save prompt."
+        return "No changed files to save prompt."
+    text, file_count = handoff
+    result = handoff_module.save_prompt_text(
+        text,
+        git.repo_root(),
+        requested_path,
+        selected_only=selected_only,
+    )
+    if result.error:
+        return result.error
+    suffix = "file" if file_count == 1 else "files"
+    return f"Saved prompt for {file_count} {suffix} to {result.display_path}"
+
+
+def _prompt_handoff_text(
+    state: BrowserState,
+    args: argparse.Namespace,
+    *,
+    selected_only: bool,
+) -> tuple[str, int] | None:
+    visible = state.visible_changes
+    if not visible:
+        return None
     state.clamp_selection()
     changes = [visible[state.selected]] if selected_only else visible
     copied_paths = {change.path for change in changes}
@@ -930,12 +992,7 @@ def _copy_prompt_handoff(
             review_notes=review_notes,
         )
     )
-    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
-    if message:
-        return message
-    file_count = len(changes)
-    suffix = "file" if file_count == 1 else "files"
-    return f"Copied prompt for {file_count} {suffix}"
+    return text, len(changes)
 
 
 def _file_action_diagnostic_lines(args: argparse.Namespace) -> list[str]:
@@ -1351,7 +1408,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks help    note/notes/copy prompt/actions",
+        "  : command prompt    build/test/lint/tasks help    note/notes/copy/save prompt/actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",

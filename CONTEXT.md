@@ -46,6 +46,10 @@ workspace state.
 `cr.ui.file_actions` owns configured and platform fallback open/copy/reveal
 helpers, subprocess launches, and source diagnostics for browser file actions.
 It does not parse browser commands or choose the selected review file.
+`cr.ui.handoff` owns UI-side handoff file output: default save paths,
+repo-relative and absolute path resolution, UTF-8 writes, parent directory
+creation, and write-error messages. It does not render prompt Markdown or
+choose browser files.
 `cr.ui.frame` owns Browser Frame screen-layer behavior: terminal height and line
 fitting, content/task/prompt region layout, Task Panel line presentation, and
 Task Panel-only refresh output. It does not generate page-specific review
@@ -83,10 +87,11 @@ Product navigation terms:
 - `Review Notes`: lightweight per-file notes inside the current Review
   Workspace, surfaced by `note TEXT` / `note` / `notes` / `notes QUERY` /
   `copy notes` / `copy notes QUERY` and persisted with browse state.
-- `Prompt Handoff`: Markdown review context copied from the current browser
-  Review Scope or selected file through `copy prompt` / `copy prompt file`.
-  It reuses `cr.review` prompt rendering, including supplied review notes,
-  instead of defining browser-specific prompt text.
+- `Prompt Handoff`: Markdown review context copied or saved from the current
+  browser Review Scope or selected file through `copy prompt` /
+  `copy prompt file` / `save prompt` / `save prompt file`. It reuses
+  `cr.review` prompt rendering, including supplied review notes, instead of
+  defining browser-specific prompt text.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.
@@ -97,9 +102,10 @@ Product navigation terms:
   browser actions and returns loop control. It does not read prompt input or
   own browser session shutdown.
 - `File Actions`: selected-file workbench operations such as `open`,
-  `copy path`, `copy anchor`, `copy prompt file`, and `reveal`. They act within
-  the current Changed Files selection, support CLI/env command configuration,
-  and do not create a new review hierarchy level.
+  `copy path`, `copy anchor`, `copy prompt file`, `save prompt file`, and
+  `reveal`. They act within the current Changed Files selection, support
+  CLI/env command configuration where applicable, and do not create a new
+  review hierarchy level.
 - `File Action Diagnostics`: source explanations for `open`, `copy`, and
   `reveal`, surfaced by `file actions` and failure messages without executing
   diagnostics commands.

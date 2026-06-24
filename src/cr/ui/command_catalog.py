@@ -99,6 +99,12 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "copy selected file review prompt",
                     "copy prompt file",
                 ),
+                CommandEntry("save prompt", "save current review prompt", "save prompt"),
+                CommandEntry(
+                    "save prompt file",
+                    "save selected file review prompt",
+                    "save prompt file",
+                ),
                 CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
                 CommandEntry(
                     "file actions",

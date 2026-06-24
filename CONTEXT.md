@@ -56,15 +56,19 @@ mutating browser state.
 `cr.ui.command_catalog` owns the browser command surface: grouped command help,
 executable Command Palette entries, command filtering/ranking, and command
 surface row rendering. It does not parse typed commands or execute actions.
+`cr.ui.review_notes` owns Review Notes summary/search/copy behavior: ordered
+note summary lines, path/text filtering, empty-state text, and copy status
+messages. It does not edit notes, persist workspace state, parse commands, or
+place Browser Frame feedback.
 `cr.ui.browser.BrowserCommandExecutor` owns browser action execution for parsed
 commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
 workspace state.
 `cr.ui.selected_file_actions` owns selected-file action workflow: open selected
-file, copy path/anchor, reveal, stage/unstage selected files, set/clear
+file, copy path/anchor/diff, reveal, stage/unstage selected files, set/clear
 selected-file note, prompt handoff selection, and copy/save prompt handoff
-messages. It does not parse commands, place status messages in the Browser
-Frame, or own platform subprocess details.
+messages. It does not summarize/search/copy all review notes, parse commands,
+place status messages in the Browser Frame, or own platform subprocess details.
 `cr.ui.file_actions` owns configured and platform fallback open/copy/reveal
 helpers, subprocess launches, and source diagnostics for browser file actions.
 It does not parse browser commands or choose the selected review file.
@@ -141,7 +145,9 @@ Product navigation terms:
   workspace save/restore eligibility.
 - `Review Notes`: lightweight per-file notes inside the current Review
   Workspace, surfaced by `note TEXT` / `note` / `notes` / `notes QUERY` /
-  `copy notes` / `copy notes QUERY` and persisted with browse state.
+  `copy notes` / `copy notes QUERY` and persisted with browse state. Internally,
+  `cr.ui.review_notes` owns summary, filtering, and copy behavior while
+  `ReviewWorkspace` owns stored note data.
 - `Prompt Handoff`: Markdown review context copied or saved from the current
   browser Review Scope or selected file through `copy prompt` /
   `copy prompt file` / `save prompt` / `save prompt file`. It reuses
@@ -157,14 +163,19 @@ Product navigation terms:
 - `Command Catalog`: the internal module that owns grouped command help,
   executable Command Palette entries, filtering/ranking, and command surface
   row rendering. It does not parse command text or execute actions.
+- `Review Notes Module`: the internal module that owns ordered note summary
+  lines, path/text filtering, empty-state text, and note-copy status messages.
+  It receives changed-file and note data explicitly, and does not mutate
+  browser state.
 - `Browser Action Execution`: the internal interface that executes parsed
   browser actions and returns loop control. It does not read prompt input or
   own browser session shutdown.
 - `Selected File Actions`: the internal module that owns workflows acting on
   the current Changed Files selection, including open, copy path, copy anchor,
   copy diff snippet, reveal, stage/unstage, selected-file notes, and
-  selected/scope prompt handoff selection. Platform subprocess details stay in
-  File Actions; Git index mutations stay in `cr.vcs.git`.
+  selected/scope prompt handoff selection. All-note summary/search/copy behavior
+  stays in Review Notes Module; platform subprocess details stay in File
+  Actions; Git index mutations stay in `cr.vcs.git`.
 - `File Actions`: selected-file workbench operations such as `open`,
   `copy path`, `copy anchor`, `copy diff`, `copy prompt file`,
   `save prompt file`, and `reveal`. They act within the current Changed Files

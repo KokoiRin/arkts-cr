@@ -159,6 +159,7 @@ Browser Action Execution
   current implementation:
     BrowserCommandExecutor owns parsed action execution and returns BrowserActionResult loop control
     cr.ui.selected_file_actions owns selected-file action workflows
+    cr.ui.review_notes owns all-note summary/search/copy behavior
 
 Commit Picker
   current implementation:
@@ -281,7 +282,7 @@ Status: implemented.
 
 Status: implemented.
 
-`cr.ui.selected_file_actions` now owns selected-file workflows: open selected file, copy selected path, copy selected anchor, reveal selected file, set/clear selected-file note, prompt handoff selection, and copy/save prompt handoff messages. `BrowserCommandExecutor` keeps parsed action routing and Browser Frame status placement, while `cr.ui.file_actions`, `cr.ui.handoff`, and `cr.review.prompt` keep platform/process, file-write, and Markdown rendering responsibilities.
+`cr.ui.selected_file_actions` now owns selected-file workflows: open selected file, copy selected path, copy selected anchor, copy selected diff snippet, reveal selected file, set/clear selected-file note, prompt handoff selection, and copy/save prompt handoff messages. `BrowserCommandExecutor` keeps parsed action routing and Browser Frame status placement, while `cr.ui.file_actions`, `cr.ui.handoff`, and `cr.review.prompt` keep platform/process, file-write, and Markdown rendering responsibilities.
 
 ### P0: Command dispatch deepening
 
@@ -361,6 +362,8 @@ Status: implemented.
 
 `copy notes` / `notes copy` copies the full summary through the existing copy action configuration, while `copy notes QUERY` copies the same filtered summary that `notes QUERY` would show. Empty note sets or empty filtered matches report an empty state without launching a clipboard command.
 
+`cr.ui.review_notes` now owns Review Notes summary, filtering, empty-state, and copy status rules. `ReviewWorkspace` keeps the stored notes, while `BrowserCommandExecutor` only routes parsed note actions and places feedback.
+
 ### P0: Browser prompt handoff
 
 Status: implemented.
@@ -428,5 +431,5 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is still a large module that owns session orchestration, prompt-input interpretation, action routing, frame composition, and workspace startup/exit.
-- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules and path/source filtering, `Workspace Persistence` hides persisted workspace file I/O, `Browser Frame` hides screen-layer layout and Task Panel presentation, `Browser Input` hides terminal input protocol, `Page Content` hides product-page main content rendering plus Scope Home count display, Commit Picker summary/filter display, and source-badge/filter-context/summary display, `Selected File Actions` hides current-file workflows and local index-action gating, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, `cr.ui.file_actions` hides open/copy/reveal platform behavior, `cr.review.snippet` hides compact selected-file Markdown rendering, and `cr.vcs.git` hides Git index subprocess behavior plus local change source facts.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules and path/source filtering, `Workspace Persistence` hides persisted workspace file I/O, `Browser Frame` hides screen-layer layout and Task Panel presentation, `Browser Input` hides terminal input protocol, `Page Content` hides product-page main content rendering plus Scope Home count display, Commit Picker summary/filter display, and source-badge/filter-context/summary display, `Selected File Actions` hides current-file workflows and local index-action gating, `Review Notes Module` hides all-note summary/search/copy rules, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, `cr.ui.file_actions` hides open/copy/reveal platform behavior, `cr.review.snippet` hides compact selected-file Markdown rendering, and `cr.vcs.git` hides Git index subprocess behavior plus local change source facts.
 - The next product opportunity should come from concrete usage friction around richer review handoff workflows or broader IDE-like file operations.

@@ -67,6 +67,7 @@ from cr.review.snippet import render_file_diff_snippet
 from cr.ui import command_catalog
 from cr.ui import frame as frame_module
 from cr.ui import handoff as handoff_module
+from cr.ui import review_notes as review_notes_module
 from cr.ui import workspace_persistence
 from cr.ui.terminal import TerminalStyle
 from cr.vcs import git
@@ -1521,6 +1522,106 @@ class CliTests(unittest.TestCase):
             {"src/Sample.ts": "check lifecycle"},
         )
         self.assertEqual(state.file_line_cache, {})
+
+    def test_review_notes_module_orders_current_changes_before_extra_notes(self):
+        lines = review_notes_module.review_note_lines(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 1, 0),
+            ],
+            {
+                "docs/Old.md": "old note",
+                "src/Second.ts": "second note",
+                "src/First.ts": "first note",
+            },
+        )
+
+        self.assertEqual(
+            lines,
+            [
+                "Review notes:",
+                "1. src/First.ts: first note",
+                "2. src/Second.ts: second note",
+                "3. docs/Old.md: old note",
+            ],
+        )
+
+    def test_review_notes_module_filters_by_path_or_note_text(self):
+        lines = review_notes_module.review_note_lines(
+            [
+                FileChange("src/SampleView.ts", 1, 0),
+                FileChange("src/Other.ts", 1, 0),
+            ],
+            {
+                "src/SampleView.ts": "ask owner",
+                "src/Other.ts": "check lifecycle",
+            },
+            query="sample",
+        )
+
+        self.assertEqual(
+            lines,
+            [
+                'Review notes matching "sample":',
+                "1. src/SampleView.ts: ask owner",
+            ],
+        )
+
+    def test_review_notes_module_empty_states(self):
+        self.assertEqual(
+            review_notes_module.review_note_lines([FileChange("src/Sample.ts", 1, 0)], {}),
+            ["Review notes: none"],
+        )
+        self.assertEqual(
+            review_notes_module.review_note_lines(
+                [FileChange("src/Sample.ts", 1, 0)],
+                {"src/Sample.ts": "check lifecycle"},
+                query="owner",
+            ),
+            ['Review notes matching "owner": none'],
+        )
+
+    def test_review_notes_module_copies_filtered_lines(self):
+        copied: list[tuple[str, str | None]] = []
+
+        def copy_text(text, copy_cmd=None):
+            copied.append((text, copy_cmd))
+            return None
+
+        message = review_notes_module.copy_review_notes(
+            [FileChange("src/Sample.ts", 1, 0)],
+            {"src/Sample.ts": "check lifecycle"},
+            query="lifecycle",
+            copy_cmd="copy-tool",
+            copy_text=copy_text,
+        )
+
+        self.assertEqual(message, "Copied 1 matching review notes")
+        self.assertEqual(copied[0][1], "copy-tool")
+        self.assertIn('Review notes matching "lifecycle":', copied[0][0])
+
+    def test_review_notes_module_skips_copy_for_empty_or_unmatched_notes(self):
+        copied: list[str] = []
+
+        def copy_text(text, copy_cmd=None):
+            copied.append(text)
+            return None
+
+        no_notes = review_notes_module.copy_review_notes(
+            [FileChange("src/Sample.ts", 1, 0)],
+            {},
+            copy_text=copy_text,
+        )
+        no_matches = review_notes_module.copy_review_notes(
+            [FileChange("src/Sample.ts", 1, 0)],
+            {"src/Sample.ts": "check lifecycle"},
+            query="owner",
+            copy_text=copy_text,
+        )
+
+        self.assertEqual(no_notes, "No review notes to copy.")
+        self.assertEqual(no_matches, "No matching review notes to copy.")
+        self.assertEqual(copied, [])
 
     def test_browser_command_executor_shows_review_notes_without_navigation(self):
         from cr.ui.browser import parse_browser_command

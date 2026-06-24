@@ -1,9 +1,10 @@
 """Selected-file workflows for the interactive browser.
 
 This module owns action workflows that depend on the current changed-file
-selection: path/anchor copy, editor/reveal handoff, review notes, and prompt
-handoff selection. Platform subprocess details stay in `cr.ui.file_actions`;
-browser command execution decides where returned messages are displayed.
+selection: path/anchor/diff copy, editor/reveal handoff, selected-file notes,
+and prompt handoff selection. Platform subprocess details stay in
+`cr.ui.file_actions`; browser command execution decides where returned messages
+are displayed.
 """
 
 from __future__ import annotations

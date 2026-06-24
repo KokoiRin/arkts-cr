@@ -41,6 +41,7 @@ from . import handoff as handoff_module
 from . import input as input_module
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import page_content
+from . import review_notes as review_notes_module
 from . import selected_file_actions
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
@@ -901,37 +902,11 @@ def _set_selected_review_note(state: BrowserState, note: str) -> str:
 
 
 def _review_note_lines(state: BrowserState, query: str = "") -> list[str]:
-    notes = {path: text.strip() for path, text in state.review_notes.items() if text.strip()}
-    if not notes:
-        return ["Review notes: none"]
-
-    text_query = query.strip()
-    normalized_query = text_query.casefold()
-    filtered_notes = notes
-    if normalized_query:
-        filtered_notes = {
-            path: text
-            for path, text in notes.items()
-            if normalized_query in path.casefold() or normalized_query in text.casefold()
-        }
-        if not filtered_notes:
-            return [f'Review notes matching "{text_query}": none']
-
-    lines = [f'Review notes matching "{text_query}":' if text_query else "Review notes:"]
-    seen_paths: set[str] = set()
-    index = 1
-    for change in state.changes:
-        note = filtered_notes.get(change.path)
-        if note is None:
-            continue
-        lines.append(f"{index}. {shorten_path(change.path)}: {note}")
-        seen_paths.add(change.path)
-        index += 1
-
-    for path in sorted(path for path in filtered_notes if path not in seen_paths):
-        lines.append(f"{index}. {shorten_path(path)}: {filtered_notes[path]}")
-        index += 1
-    return lines
+    return review_notes_module.review_note_lines(
+        state.changes,
+        state.review_notes,
+        query,
+    )
 
 
 def _copy_review_notes(
@@ -939,22 +914,13 @@ def _copy_review_notes(
     args: argparse.Namespace,
     query: str = "",
 ) -> str:
-    text_query = query.strip()
-    lines = _review_note_lines(state, text_query)
-    note_count = len(lines) - 1
-    if note_count == 0:
-        if text_query:
-            return "No matching review notes to copy."
-        return "No review notes to copy."
-    message = file_actions.copy_text(
-        "\n".join(lines),
+    return review_notes_module.copy_review_notes(
+        state.changes,
+        state.review_notes,
+        query,
         getattr(args, "copy_cmd", None),
+        copy_text=file_actions.copy_text,
     )
-    if message:
-        return message
-    if text_query:
-        return f"Copied {note_count} matching review notes"
-    return f"Copied {note_count} review notes"
 
 
 def _copy_prompt_handoff(

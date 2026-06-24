@@ -145,6 +145,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, page, and filter query.
   - Treat `BrowserPage` as the canonical internal page vocabulary for Scope Home, Commit Picker, Changed Files, File Detail, and Command Palette.
   - Treat `BrowserNavigation` as the owner of page transition rules and small local state resets such as file scroll, command selection, scope selection, and commit picker selection resets.
+  - Treat `ReviewWorkspace` as the owner of active review scope, changed-file loading, filter/progress state, selected file, selected commit, previous scope, and workspace-state data mapping. Browser file I/O remains at the UI edge.
   - Keep `BrowserState.mode` only as a compatibility property over `BrowserState.page`, preserving older tests, line-mode assumptions, and persisted workspace `mode` values.
   - Treat argparse scope fields as the source of truth for the active review scope; browser commands update those fields and reload through the shared review selection path.
   - Treat `commands` mode as the command palette layer: raw-key users can filter/select executable commands and run them with Enter, while parameterized commands remain available through `:` input.

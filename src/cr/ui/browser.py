@@ -1,8 +1,8 @@
 """Interactive review browser for cr.
 
-This module owns the browse session state, terminal rendering, key command
-mapping, path filtering, and editor handoff. The CLI parser only delegates to
-``run_browser`` so interactive behavior stays local as it grows.
+This module owns browse orchestration, terminal rendering, key command mapping,
+background task display, and editor handoff. Review workspace state and page
+navigation rules live in deeper UI modules so the CLI parser can stay shallow.
 """
 
 from __future__ import annotations
@@ -29,8 +29,6 @@ from ..review.changes import (
     is_code_file,
     modified_names,
     parse_change_symbols,
-    selected_changes,
-    sort_changes,
 )
 from ..review.risk import risk_hints
 from ..review.tree import (
@@ -43,6 +41,14 @@ from ..source.purpose import describe_file
 from ..vcs import git
 from .navigation import BrowserNavigation, BrowserPage
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
+from .workspace import (
+    ReviewScope,
+    ReviewWorkspace,
+    capture_scope,
+    filter_changes_by_query,
+    load_workspace_changes,
+    restore_scope_from_state,
+)
 
 
 BROWSER_WORKSPACE_STATE_VERSION = 1
@@ -77,6 +83,49 @@ class BrowserState:
     command_selected: int = 0
     command_filter_text: str = ""
     status_message: str = ""
+    workspace: ReviewWorkspace | None = None
+
+    def __post_init__(self) -> None:
+        if self.workspace is None:
+            self.workspace = ReviewWorkspace(
+                changes=self.changes,
+                previous_scope=self.previous_scope,
+                selected_commit=self.selected_commit,
+                selected=self.selected,
+                list_scroll=self.list_scroll,
+                filter_text=self.filter_text,
+                seen_paths=self.seen_paths,
+                remaining_only=self.remaining_only,
+            )
+        self._sync_from_workspace()
+
+    def _sync_from_workspace(self) -> None:
+        workspace = self.workspace
+        if workspace is None:
+            return
+        self.changes = workspace.changes
+        self.previous_scope = workspace.previous_scope
+        self.selected_commit = workspace.selected_commit
+        self.selected = workspace.selected
+        self.list_scroll = workspace.list_scroll
+        self.filter_text = workspace.filter_text
+        self.seen_paths = workspace.seen_paths
+        self.remaining_only = workspace.remaining_only
+
+    def _sync_to_workspace(self) -> ReviewWorkspace:
+        workspace = self.workspace
+        if workspace is None:
+            workspace = ReviewWorkspace(changes=self.changes)
+            self.workspace = workspace
+        workspace.changes = self.changes
+        workspace.previous_scope = self.previous_scope
+        workspace.selected_commit = self.selected_commit
+        workspace.selected = self.selected
+        workspace.list_scroll = self.list_scroll
+        workspace.filter_text = self.filter_text
+        workspace.seen_paths = self.seen_paths
+        workspace.remaining_only = self.remaining_only
+        return workspace
 
     @property
     def mode(self) -> str:
@@ -88,10 +137,10 @@ class BrowserState:
 
     @property
     def visible_changes(self) -> list[git.FileChange]:
-        changes = filter_changes_by_query(self.changes, self.filter_text)
-        if self.remaining_only:
-            return [change for change in changes if change.path not in self.seen_paths]
-        return changes
+        workspace = self._sync_to_workspace()
+        visible = workspace.visible_changes
+        self._sync_from_workspace()
+        return visible
 
     def clamp_selection(self) -> None:
         if self.page == BrowserPage.COMMIT_PICKER:
@@ -125,10 +174,9 @@ class BrowserState:
         self.file_scroll = 0
 
     def set_filter(self, query: str) -> None:
-        self.filter_text = query.strip()
+        self._sync_to_workspace().set_filter(query)
+        self._sync_from_workspace()
         BrowserNavigation.show_changed_files(self)
-        self.selected = 0
-        self.list_scroll = 0
         self.clamp_selection()
 
     def clear_filter(self) -> None:
@@ -185,15 +233,6 @@ class _BrowseTreeNode:
     children: dict[str, "_BrowseTreeNode"] = field(default_factory=dict)
     change: git.FileChange | None = None
     change_index: int | None = None
-
-
-@dataclass(frozen=True)
-class ReviewScope:
-    staged: bool
-    all_changes: bool
-    base: str | None
-    ref_range: str | None
-    untracked: bool
 
 
 @dataclass(frozen=True)
@@ -715,16 +754,6 @@ def run_browser(args: argparse.Namespace) -> int:
                 needs_redraw = True
 
 
-def filter_changes_by_query(
-    changes: list[git.FileChange],
-    query: str,
-) -> list[git.FileChange]:
-    normalized = query.strip().casefold()
-    if not normalized:
-        return changes
-    return [change for change in changes if normalized in change.path.casefold()]
-
-
 def _should_restore_browser_workspace_state(args: argparse.Namespace) -> bool:
     return (
         not args.staged
@@ -794,25 +823,15 @@ def _browser_workspace_state_data(
     state: BrowserState,
     args: argparse.Namespace,
 ) -> dict[str, object]:
-    visible = state.visible_changes
-    selected_path = None
-    if visible and 0 <= state.selected < len(visible):
-        selected_path = visible[state.selected].path
+    mode = (
+        BrowserPage.FILE_DETAIL
+        if state.page == BrowserPage.FILE_DETAIL
+        else BrowserPage.CHANGED_FILES
+    )
+    data = state._sync_to_workspace().state_data(args, mode=mode)
     return {
         "version": BROWSER_WORKSPACE_STATE_VERSION,
-        "scope": {
-            "staged": bool(args.staged),
-            "all_changes": bool(args.all_changes),
-            "base": args.base,
-            "ref_range": args.ref_range,
-            "untracked": bool(args.untracked),
-        },
-        "filter_text": state.filter_text,
-        "selected_path": selected_path,
-        "selected_index": state.selected,
-        "mode": BrowserPage.FILE_DETAIL if state.page == BrowserPage.FILE_DETAIL else BrowserPage.CHANGED_FILES,
-        "seen_paths": sorted(state.seen_paths),
-        "remaining_only": state.remaining_only,
+        **data,
     }
 
 
@@ -837,13 +856,8 @@ def _restore_browser_workspace_state(
     args: argparse.Namespace,
     workspace_state: dict[str, object],
 ) -> None:
-    _restore_browser_workspace_scope(args, workspace_state)
-    filter_text = workspace_state.get("filter_text")
-    state.filter_text = filter_text if isinstance(filter_text, str) else ""
-    state.seen_paths = _string_set(workspace_state.get("seen_paths"))
-    state.remaining_only = workspace_state.get("remaining_only") is True
-    _restore_browser_workspace_selection(state, workspace_state)
-    mode = workspace_state.get("mode")
+    mode = state._sync_to_workspace().restore_state(args, workspace_state)
+    state._sync_from_workspace()
     if mode == BrowserPage.FILE_DETAIL and state.visible_changes:
         BrowserNavigation.open_file_detail(state)
     else:
@@ -858,49 +872,11 @@ def _restore_browser_workspace_scope(
     args: argparse.Namespace,
     workspace_state: dict[str, object],
 ) -> None:
-    scope = workspace_state.get("scope")
-    if not isinstance(scope, dict):
-        return
-    args.staged = bool(scope.get("staged"))
-    args.all_changes = bool(scope.get("all_changes"))
-    args.base = _optional_string(scope.get("base"))
-    args.ref_range = _optional_string(scope.get("ref_range"))
-    args.untracked = bool(scope.get("untracked"))
-
-
-def _restore_browser_workspace_selection(
-    state: BrowserState,
-    workspace_state: dict[str, object],
-) -> None:
-    visible = state.visible_changes
-    if not visible:
-        state.selected = 0
-        return
-    selected_path = workspace_state.get("selected_path")
-    if isinstance(selected_path, str):
-        for index, change in enumerate(visible):
-            if change.path == selected_path:
-                state.selected = index
-                return
-    selected_index = workspace_state.get("selected_index")
-    if isinstance(selected_index, int):
-        state.selected = max(0, min(selected_index, len(visible) - 1))
-    else:
-        state.selected = 0
-
-
-def _optional_string(value: object) -> str | None:
-    return value if isinstance(value, str) else None
-
-
-def _string_set(value: object) -> set[str]:
-    if not isinstance(value, list):
-        return set()
-    return {item for item in value if isinstance(item, str)}
+    restore_scope_from_state(args, workspace_state)
 
 
 def _load_browse_changes(args: argparse.Namespace) -> list[git.FileChange]:
-    return sort_changes(selected_changes(args), args.sort)
+    return load_workspace_changes(args)
 
 
 def _load_recent_commits() -> list[git.CommitSummary]:
@@ -923,20 +899,10 @@ def _select_commit(state: BrowserState, args: argparse.Namespace) -> str | None:
         return "No recent commits."
     state.clamp_selection()
     commit = state.commits[state.selected]
-    if state.previous_scope is None:
-        state.previous_scope = _capture_scope(args)
-    state.selected_commit = commit
-    args.ref_range = git.commit_ref_range(commit)
-    args.base = None
-    args.staged = False
-    args.all_changes = False
-    args.untracked = False
-    state.filter_text = ""
-    state.changes = _load_browse_changes(args)
+    state._sync_to_workspace().select_commit(args, commit, loader=_load_browse_changes)
+    state._sync_from_workspace()
     state.clear_render_cache()
     BrowserNavigation.show_changed_files(state)
-    state.selected = 0
-    state.list_scroll = 0
     state.clamp_selection()
     return None
 
@@ -946,51 +912,26 @@ def _switch_review_scope(
     args: argparse.Namespace,
     scope: ReviewScope,
 ) -> None:
-    args.staged = scope.staged
-    args.all_changes = scope.all_changes
-    args.base = scope.base
-    args.ref_range = scope.ref_range
-    args.untracked = scope.untracked
-    state.selected_commit = None
-    state.previous_scope = None
-    state.filter_text = ""
-    state.changes = _load_browse_changes(args)
+    state._sync_to_workspace().switch_scope(args, scope, loader=_load_browse_changes)
+    state._sync_from_workspace()
     state.clear_render_cache()
     BrowserNavigation.show_changed_files(state)
-    state.selected = 0
-    state.list_scroll = 0
     state.commit_scroll = 0
     _show_commits_when_empty(state, args)
     state.clamp_selection()
 
 
 def _capture_scope(args: argparse.Namespace) -> ReviewScope:
-    return ReviewScope(
-        staged=args.staged,
-        all_changes=args.all_changes,
-        base=args.base,
-        ref_range=args.ref_range,
-        untracked=args.untracked,
-    )
+    return capture_scope(args)
 
 
 def _restore_previous_scope(state: BrowserState, args: argparse.Namespace) -> None:
-    scope = state.previous_scope
-    if scope is None:
+    if state.previous_scope is None:
         return
-    args.staged = scope.staged
-    args.all_changes = scope.all_changes
-    args.base = scope.base
-    args.ref_range = scope.ref_range
-    args.untracked = scope.untracked
-    state.selected_commit = None
-    state.previous_scope = None
-    state.filter_text = ""
-    state.changes = _load_browse_changes(args)
+    state._sync_to_workspace().restore_previous_scope(args, loader=_load_browse_changes)
+    state._sync_from_workspace()
     state.clear_render_cache()
     BrowserNavigation.show_changed_files(state)
-    state.selected = 0
-    state.list_scroll = 0
     _show_commits_when_empty(state, args)
     state.clamp_selection()
 

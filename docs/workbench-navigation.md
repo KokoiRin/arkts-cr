@@ -130,11 +130,17 @@ Browser Navigation
   current implementation:
     BrowserNavigation owns page transitions and local reset rules
     it does not load Git data, switch scopes, render output, or keep a page stack
+
+Review Workspace
+  current implementation:
+    ReviewWorkspace owns active scope, changed files, filter/progress state, selected file, selected commit, previous scope, and workspace-state data mapping
+    browser.py still owns terminal rendering, command dispatch, task lifecycle, editor handoff, and workspace-state file I/O
 ```
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit without adding a true page stack. `BrowserNavigation` owns the current hierarchy-aware transitions such as back-to-files, open-file-detail, show-scope-home, show-command-palette, and show-commit-picker.
+Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress state, selected file state, and workspace-state data mapping.
 
 ## Implementation Rules
 
@@ -195,6 +201,12 @@ Status: implemented.
 
 `BrowserNavigation` now owns page transition intent and local reset rules. The browser main loop calls navigation actions rather than scattering raw `state.page = ...` assignments. This keeps current behavior stable while giving later page-stack or ReviewWorkspace work a clearer place to attach.
 
+### P0: ReviewWorkspace deepening
+
+Status: implemented.
+
+`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns terminal rendering, command dispatch, background tasks, editor handoff, and file I/O for `.git/cr/browse-state.json`.
+
 ## Architecture Check Cadence
 
 Use the architecture skill periodically, especially before changes that touch `src/cr/ui/browser.py`, `src/cr/review/changes.py`, or workspace persistence.
@@ -204,6 +216,6 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
-- `BrowserNavigation` now hides page transition rules, but `src/cr/ui/browser.py` still owns command dispatch, rendering, scope loading, task lifecycle, and editor handoff.
-- The next deepening opportunity is a `ReviewWorkspace` module whose interface hides review-scope loading and current changed-file state from the render loop.
+- `BrowserNavigation` hides page transition rules and `ReviewWorkspace` hides active review workspace rules, but `src/cr/ui/browser.py` still owns command dispatch, rendering, task lifecycle, editor handoff, and persistence file I/O.
+- The next deepening opportunity is command dispatch: route command strings to product actions without keeping every action branch inside `run_browser`.
 - A real page stack is still not implemented. Add it only when back/forward history needs behavior beyond the current product hierarchy.

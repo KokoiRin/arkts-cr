@@ -1,0 +1,225 @@
+"""Review workspace state for the interactive browser.
+
+This module owns active Review Scope data, changed files, review filtering,
+progress markers, and selected-file state. It does not render terminal output,
+handle keys, manage background tasks, or open editors.
+"""
+
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass, field
+from typing import Callable, Optional
+
+from ..review.changes import selected_changes, sort_changes
+from ..vcs import git
+
+
+@dataclass(frozen=True)
+class ReviewScope:
+    staged: bool
+    all_changes: bool
+    base: Optional[str]
+    ref_range: Optional[str]
+    untracked: bool
+
+
+ChangedFileLoader = Callable[[argparse.Namespace], list[git.FileChange]]
+
+
+def load_workspace_changes(args: argparse.Namespace) -> list[git.FileChange]:
+    return sort_changes(selected_changes(args), args.sort)
+
+
+def apply_scope_to_args(args: argparse.Namespace, scope: ReviewScope) -> None:
+    args.staged = scope.staged
+    args.all_changes = scope.all_changes
+    args.base = scope.base
+    args.ref_range = scope.ref_range
+    args.untracked = scope.untracked
+
+
+def capture_scope(args: argparse.Namespace) -> ReviewScope:
+    return ReviewScope(
+        staged=args.staged,
+        all_changes=args.all_changes,
+        base=args.base,
+        ref_range=args.ref_range,
+        untracked=args.untracked,
+    )
+
+
+@dataclass
+class ReviewWorkspace:
+    changes: list[git.FileChange]
+    previous_scope: Optional[ReviewScope] = None
+    selected_commit: Optional[git.CommitSummary] = None
+    selected: int = 0
+    list_scroll: int = 0
+    filter_text: str = ""
+    seen_paths: set[str] = field(default_factory=set)
+    remaining_only: bool = False
+
+    @classmethod
+    def load(
+        cls,
+        args: argparse.Namespace,
+        *,
+        loader: ChangedFileLoader = load_workspace_changes,
+    ) -> "ReviewWorkspace":
+        return cls(changes=loader(args))
+
+    @property
+    def visible_changes(self) -> list[git.FileChange]:
+        changes = filter_changes_by_query(self.changes, self.filter_text)
+        if self.remaining_only:
+            return [change for change in changes if change.path not in self.seen_paths]
+        return changes
+
+    def set_filter(self, query: str) -> None:
+        self.filter_text = query.strip()
+        self.selected = 0
+        self.list_scroll = 0
+        self.clamp_selection()
+
+    def clear_filter(self) -> None:
+        self.set_filter("")
+
+    def clamp_selection(self) -> None:
+        total = len(self.visible_changes)
+        if total == 0:
+            self.selected = 0
+            return
+        self.selected = max(0, min(self.selected, total - 1))
+
+    def switch_scope(
+        self,
+        args: argparse.Namespace,
+        scope: ReviewScope,
+        *,
+        loader: ChangedFileLoader = load_workspace_changes,
+    ) -> None:
+        apply_scope_to_args(args, scope)
+        self.selected_commit = None
+        self.previous_scope = None
+        self.filter_text = ""
+        self.changes = loader(args)
+        self.selected = 0
+        self.list_scroll = 0
+        self.clamp_selection()
+
+    def select_commit(
+        self,
+        args: argparse.Namespace,
+        commit: git.CommitSummary,
+        *,
+        loader: ChangedFileLoader = load_workspace_changes,
+    ) -> None:
+        if self.previous_scope is None:
+            self.previous_scope = capture_scope(args)
+        self.selected_commit = commit
+        args.ref_range = git.commit_ref_range(commit)
+        args.base = None
+        args.staged = False
+        args.all_changes = False
+        args.untracked = False
+        self.filter_text = ""
+        self.changes = loader(args)
+        self.selected = 0
+        self.list_scroll = 0
+        self.clamp_selection()
+
+    def restore_previous_scope(
+        self,
+        args: argparse.Namespace,
+        *,
+        loader: ChangedFileLoader = load_workspace_changes,
+    ) -> None:
+        if self.previous_scope is None:
+            return
+        self.switch_scope(args, self.previous_scope, loader=loader)
+
+    def state_data(self, args: argparse.Namespace, *, mode: str) -> dict[str, object]:
+        visible = self.visible_changes
+        selected_path = None
+        if visible and 0 <= self.selected < len(visible):
+            selected_path = visible[self.selected].path
+        return {
+            "scope": {
+                "staged": bool(args.staged),
+                "all_changes": bool(args.all_changes),
+                "base": args.base,
+                "ref_range": args.ref_range,
+                "untracked": bool(args.untracked),
+            },
+            "filter_text": self.filter_text,
+            "selected_path": selected_path,
+            "selected_index": self.selected,
+            "mode": mode,
+            "seen_paths": sorted(self.seen_paths),
+            "remaining_only": self.remaining_only,
+        }
+
+    def restore_state(
+        self,
+        args: argparse.Namespace,
+        workspace_state: dict[str, object],
+    ) -> object:
+        restore_scope_from_state(args, workspace_state)
+        filter_text = workspace_state.get("filter_text")
+        self.filter_text = filter_text if isinstance(filter_text, str) else ""
+        self.seen_paths = string_set(workspace_state.get("seen_paths"))
+        self.remaining_only = workspace_state.get("remaining_only") is True
+        self._restore_selection(workspace_state)
+        return workspace_state.get("mode")
+
+    def _restore_selection(self, workspace_state: dict[str, object]) -> None:
+        visible = self.visible_changes
+        if not visible:
+            self.selected = 0
+            return
+        selected_path = workspace_state.get("selected_path")
+        if isinstance(selected_path, str):
+            for index, change in enumerate(visible):
+                if change.path == selected_path:
+                    self.selected = index
+                    return
+        selected_index = workspace_state.get("selected_index")
+        if isinstance(selected_index, int):
+            self.selected = max(0, min(selected_index, len(visible) - 1))
+        else:
+            self.selected = 0
+
+
+def filter_changes_by_query(
+    changes: list[git.FileChange],
+    query: str,
+) -> list[git.FileChange]:
+    normalized = query.strip().casefold()
+    if not normalized:
+        return changes
+    return [change for change in changes if normalized in change.path.casefold()]
+
+
+def restore_scope_from_state(
+    args: argparse.Namespace,
+    workspace_state: dict[str, object],
+) -> None:
+    scope = workspace_state.get("scope")
+    if not isinstance(scope, dict):
+        return
+    args.staged = bool(scope.get("staged"))
+    args.all_changes = bool(scope.get("all_changes"))
+    args.base = optional_string(scope.get("base"))
+    args.ref_range = optional_string(scope.get("ref_range"))
+    args.untracked = bool(scope.get("untracked"))
+
+
+def optional_string(value: object) -> Optional[str]:
+    return value if isinstance(value, str) else None
+
+
+def string_set(value: object) -> set[str]:
+    if not isinstance(value, list):
+        return set()
+    return {item for item in value if isinstance(item, str)}

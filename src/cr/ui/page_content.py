@@ -454,6 +454,7 @@ def browse_commit_lines(
     style: TerminalStyle,
     selected: int | None = None,
     scope_label_text: str = "",
+    filter_text: str = "",
 ) -> list[str]:
     if not commits:
         return (
@@ -465,14 +466,26 @@ def browse_commit_lines(
             if scope_label_text
             else ["No recent commits.", ""]
         )
+    visible_commits = filter_commits_by_query(commits, filter_text)
+    if not visible_commits:
+        return [
+            f"Scope: {scope_label_text}" if scope_label_text else "",
+            f"No recent commits match filter: {filter_text} ({len(commits)} total).",
+            "Press c to clear the filter.",
+            "",
+        ]
     lines = [
         f"Scope: {scope_label_text}" if scope_label_text else "",
         f"{style.bold('Recent commits')} ({len(commits)} shown)",
         "Choose a commit to review its files. Press w to return to worktree.",
     ]
     lines = [line for line in lines if line]
-    index_width = len(str(len(commits)))
-    for index, commit in enumerate(commits, start=1):
+    if filter_text:
+        lines.append(
+            f"Filter: {filter_text} ({len(visible_commits)}/{len(commits)} matches, c to clear)"
+        )
+    index_width = len(str(len(visible_commits)))
+    for index, commit in enumerate(visible_commits, start=1):
         marker = ">" if selected == index - 1 else " "
         short_hash = commit.commit[:8]
         summary = commit_change_summary(commit, style)
@@ -485,24 +498,62 @@ def browse_commit_lines(
     return lines
 
 
+def filter_commits_by_query(
+    commits: list[git.CommitSummary],
+    query: str,
+) -> list[git.CommitSummary]:
+    normalized = query.strip().casefold()
+    if not normalized:
+        return commits
+    return [
+        commit
+        for commit in commits
+        if normalized in commit_filter_text(commit).casefold()
+    ]
+
+
+def commit_filter_text(commit: git.CommitSummary) -> str:
+    return (
+        f"{commit.commit} {commit.authored_at} {commit.subject} "
+        f"{commit.files} files +{commit.added} -{commit.deleted}"
+    )
+
+
 def browse_commit_screen_lines(
     state: Any,
     style: TerminalStyle,
     max_lines: int,
 ) -> list[str]:
     commits = state.commits
+    visible_commits = getattr(state, "visible_commits", commits)
+    filter_text = getattr(state, "commit_filter_text", "")
     if not commits:
         return ["No recent commits.", ""]
+    if not visible_commits:
+        return [
+            f"No recent commits match filter: {filter_text} ({len(commits)} total).",
+            "Press c to clear the filter.",
+            "",
+        ][:max_lines]
     lines = [
         f"{style.bold('Recent commits')} ({len(commits)} shown)",
         "Enter: review commit   b: back here   w: worktree   PgUp/PgDn: page",
     ]
+    if filter_text:
+        lines.append(
+            f"Filter: {filter_text} ({len(visible_commits)}/{len(commits)} matches, c to clear)"
+        )
     row_capacity = max(1, max_lines - len(lines) - 1)
-    start = ensure_window(state.commit_scroll, state.selected, len(commits), row_capacity)
+    start = ensure_window(
+        state.commit_scroll,
+        state.selected,
+        len(visible_commits),
+        row_capacity,
+    )
     state.commit_scroll = start
-    end = min(len(commits), start + row_capacity)
-    index_width = len(str(len(commits)))
-    for index, commit in enumerate(commits[start:end], start=start + 1):
+    end = min(len(visible_commits), start + row_capacity)
+    index_width = len(str(len(visible_commits)))
+    for index, commit in enumerate(visible_commits[start:end], start=start + 1):
         marker = ">" if state.selected == index - 1 else " "
         short_hash = commit.commit[:8]
         summary = commit_change_summary(commit, style)
@@ -511,8 +562,8 @@ def browse_commit_screen_lines(
             f"{style.dim(short_hash)}  {commit.authored_at}  "
             f"{summary}  {commit.subject}"
         )
-    if len(commits) > row_capacity:
-        lines.append(style.dim(f"showing {start + 1}-{end}/{len(commits)}"))
+    if len(visible_commits) > row_capacity:
+        lines.append(style.dim(f"showing {start + 1}-{end}/{len(visible_commits)}"))
     else:
         lines.append("")
     return lines[:max_lines]

@@ -4299,6 +4299,212 @@ class CliTests(unittest.TestCase):
         self.assertIn("2 files, +10 -3", "\n".join(lines))
         self.assertIn("Example change", "\n".join(lines))
 
+    def test_commit_picker_filter_shows_matches_and_count(self):
+        state = BrowserState(
+            [],
+            commits=[
+                CommitSummary(
+                    commit="abcdef1234567890",
+                    parent="1234567890abcdef",
+                    authored_at="2026-06-24",
+                    subject="Feature login",
+                    files=2,
+                    added=10,
+                    deleted=3,
+                ),
+                CommitSummary(
+                    commit="1111111122222222",
+                    parent="abcdef1234567890",
+                    authored_at="2026-06-25",
+                    subject="Docs only",
+                    files=1,
+                    added=1,
+                    deleted=0,
+                ),
+            ],
+            page=BrowserPage.COMMIT_PICKER,
+            commit_filter_text="login",
+        )
+
+        lines = page_content.browse_commit_screen_lines(
+            state,
+            TerminalStyle(),
+            max_lines=10,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn('Filter: login (1/2 matches, c to clear)', text)
+        self.assertIn("Feature login", text)
+        self.assertNotIn("Docs only", text)
+
+    def test_commit_picker_filter_empty_state(self):
+        state = BrowserState(
+            [],
+            commits=[
+                CommitSummary(
+                    commit="abcdef1234567890",
+                    parent="1234567890abcdef",
+                    authored_at="2026-06-24",
+                    subject="Feature login",
+                ),
+            ],
+            page=BrowserPage.COMMIT_PICKER,
+            commit_filter_text="missing",
+        )
+
+        lines = page_content.browse_commit_screen_lines(
+            state,
+            TerminalStyle(),
+            max_lines=10,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("No recent commits match filter: missing (1 total).", text)
+        self.assertIn("Press c to clear the filter.", text)
+
+    def test_commit_picker_filter_commands_are_isolated_from_file_filter(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [],
+            commits=[
+                CommitSummary(
+                    commit="abcdef1234567890",
+                    parent="1234567890abcdef",
+                    authored_at="2026-06-24",
+                    subject="Feature login",
+                )
+            ],
+            page=BrowserPage.COMMIT_PICKER,
+            filter_text="src/",
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+
+        set_result = executor.execute(parse_browser_command("/login"))
+        clear_result = executor.execute(parse_browser_command("c"))
+
+        self.assertTrue(set_result.handled)
+        self.assertTrue(set_result.needs_redraw)
+        self.assertTrue(clear_result.handled)
+        self.assertEqual(state.page, BrowserPage.COMMIT_PICKER)
+        self.assertEqual(state.filter_text, "src/")
+        self.assertEqual(state.commit_filter_text, "")
+
+    def test_commit_picker_number_selects_filtered_commit(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+            code=False,
+        )
+        state = BrowserState(
+            [],
+            commits=[
+                CommitSummary(
+                    commit="1111111111111111",
+                    parent="0000000000000000",
+                    authored_at="2026-06-24",
+                    subject="Docs only",
+                ),
+                CommitSummary(
+                    commit="abcdef1234567890",
+                    parent="1234567890abcdef",
+                    authored_at="2026-06-25",
+                    subject="Feature login",
+                ),
+            ],
+            page=BrowserPage.COMMIT_PICKER,
+            commit_filter_text="login",
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+
+        with patch(
+            "cr.ui.browser._load_browse_changes",
+            return_value=[FileChange("src/Login.ts", 1, 0)],
+        ):
+            result = executor.execute(parse_browser_command("1"))
+
+        self.assertTrue(result.handled)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.selected_commit.subject, "Feature login")
+        self.assertEqual(args.ref_range, "1234567890abcdef..abcdef1234567890")
+
+    def test_commit_picker_filter_prompt_does_not_change_file_filter(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+        frames: list[tuple[str, str, str]] = []
+
+        def capture_draw(state, args, style, frame=None):
+            frames.append((state.mode, state.filter_text, state.commit_filter_text))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[FileChange("src/Sample.ts", 1, 1)],
+                    ):
+                        with patch(
+                            "cr.ui.browser._load_recent_commits",
+                            return_value=[
+                                CommitSummary(
+                                    commit="abcdef1234567890",
+                                    parent="1234567890abcdef",
+                                    authored_at="2026-06-25",
+                                    subject="Feature login",
+                                )
+                            ],
+                        ):
+                            with patch("cr.ui.browser._show_commits_when_empty"):
+                                with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                    with patch(
+                                        "cr.ui.browser._read_browse_command",
+                                        side_effect=["g", "filter_prompt", "q"],
+                                    ):
+                                        with patch(
+                                            "cr.ui.browser._read_filter_query",
+                                            return_value="login",
+                                        ):
+                                            with patch(
+                                                "cr.ui.browser._draw_browse_screen",
+                                                side_effect=capture_draw,
+                                            ):
+                                                from cr.ui.browser import run_browser
+
+                                                result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        self.assertIn((BrowserPage.COMMIT_PICKER, "", "login"), frames)
+
     def test_browse_screen_selected_commit_files_show_product_breadcrumb(self):
         args = argparse_namespace(
             staged=False,
@@ -6383,6 +6589,42 @@ struct SamplePage {
             self.assertIn("+export const sample = 'committed'", session.stdout)
             self.assertIn("-export const sample = 'committed'", session.stdout)
             self.assertIn("+export const sample = 'working tree'", session.stdout)
+
+    def test_cli_browser_filters_recent_commits_in_line_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("export const sample = 'docs'\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "docs update")
+
+            sample.write_text("export const sample = 'login'\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "login flow")
+
+            sample.write_text("export const sample = 'worktree'\n", encoding="utf-8")
+
+            session = self._cr_input(
+                repo,
+                "g\n/login\n1\n1\nq\n",
+                "browse",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Filter: login (1/", session.stdout)
+            self.assertIn("Scope: commit", session.stdout)
+            self.assertIn("login flow", session.stdout)
+            self.assertIn("+export const sample = 'login'", session.stdout)
 
     def test_cli_browser_can_open_scope_home_in_line_mode(self):
         with tempfile.TemporaryDirectory() as tmp:

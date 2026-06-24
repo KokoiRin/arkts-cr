@@ -108,6 +108,10 @@ Product navigation terms:
   totals shown in Recent commits rows. `cr.vcs.git` owns the facts; Page
   Content owns row display; selecting a commit still enters the same
   `commit <sha>` Review Scope.
+- `Commit Picker Filter`: temporary filtering inside Recent commits, matching
+  loaded commits by hash, date, subject, or displayed change summary. It is
+  browser-local UI state, not Review Workspace state, and `c` clears it without
+  touching the Changed Files path filter.
 - `Change Source Badges`: lightweight local Git source labels shown in Changed
   Files rows, such as `staged`, `unstaged`, and `mixed`. `cr.vcs.git` owns the
   facts; `Page Content` owns row display.

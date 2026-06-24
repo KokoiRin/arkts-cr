@@ -184,6 +184,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat source summaries as display-only metadata derived from the currently rendered Changed Files list, not as workspace state.
   - Treat Scope Home counts as temporary overview data sampled on Scope Home entry/refresh, not persisted workspace state and not per-frame render work.
   - Treat Commit Picker change summaries as Git facts rendered by Page Content, not as another browser state source or a new Review Scope.
+  - Treat Commit Picker filters as browser-local UI state over loaded commits, isolated from Changed Files path/source filters and Command Palette filters.
   - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.
   - Treat raw-key navigation as command events, not text output; normal key reads must not emit an extra newline.
   - Preserve non-TTY line mode for tests, pipes, and terminals where raw-key mode is unavailable.

@@ -78,6 +78,7 @@ class BrowserState:
     scope_selected: int = 0
     command_selected: int = 0
     command_filter_text: str = ""
+    commit_filter_text: str = ""
     status_message: str = ""
     scope_counts: dict[str, int] = field(default_factory=dict)
     workspace: ReviewWorkspace | None = None
@@ -147,9 +148,16 @@ class BrowserState:
         self._sync_from_workspace()
         return visible
 
+    @property
+    def visible_commits(self) -> list[git.CommitSummary]:
+        return page_content.filter_commits_by_query(
+            self.commits,
+            self.commit_filter_text,
+        )
+
     def clamp_selection(self) -> None:
         if self.page == BrowserPage.COMMIT_PICKER:
-            total = len(self.commits)
+            total = len(self.visible_commits)
         elif self.page == BrowserPage.SCOPE_HOME:
             total = len(_scope_home_entries())
         elif self.page == BrowserPage.COMMAND_PALETTE:
@@ -196,6 +204,15 @@ class BrowserState:
     def clear_command_filter(self) -> None:
         self.set_command_filter("")
 
+    def set_commit_filter(self, query: str) -> None:
+        self.commit_filter_text = query.strip()
+        self.selected = 0
+        self.commit_scroll = 0
+        self.clamp_selection()
+
+    def clear_commit_filter(self) -> None:
+        self.set_commit_filter("")
+
 
 BrowseTreeRow = page_content.BrowseTreeRow
 ScopeHomeEntry = page_content.ScopeHomeEntry
@@ -240,11 +257,16 @@ class BrowserCommandExecutor:
         raw_keys = self.raw_keys
         action = parsed_command.action
         if action == BrowserCommandAction.SET_FILE_FILTER:
-            state.set_filter(parsed_command.value)
+            if state.page == BrowserPage.COMMIT_PICKER:
+                state.set_commit_filter(parsed_command.value)
+            else:
+                state.set_filter(parsed_command.value)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.CLEAR_FILTER:
             if state.page == BrowserPage.COMMAND_PALETTE:
                 state.clear_command_filter()
+            elif state.page == BrowserPage.COMMIT_PICKER:
+                state.clear_commit_filter()
             else:
                 state.clear_filter()
             return BrowserActionResult(needs_redraw=True)
@@ -664,7 +686,8 @@ class BrowserCommandExecutor:
             _show_browser_message(state, f"Choose 1-{total}.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if state.page == BrowserPage.COMMIT_PICKER:
-            if 1 <= choice <= len(state.commits):
+            visible_commits = state.visible_commits
+            if 1 <= choice <= len(visible_commits):
                 state.selected = choice - 1
                 message = _select_commit(state, self.args)
                 if message:
@@ -672,7 +695,7 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=True)
             _show_browser_message(
                 state,
-                f"Choose 1-{len(state.commits)}.",
+                f"Choose 1-{len(visible_commits)}.",
                 raw_keys,
                 frame,
             )
@@ -721,6 +744,7 @@ def run_browser(args: argparse.Namespace) -> int:
                         style,
                         selected=None,
                         scope_label=_scope_label(state, args),
+                        filter_text=state.commit_filter_text,
                     )
                 )
             elif state.page == BrowserPage.COMMAND_PALETTE:
@@ -814,6 +838,8 @@ def run_browser(args: argparse.Namespace) -> int:
             if query != input_module.INTERRUPT:
                 if state.page == BrowserPage.COMMAND_PALETTE:
                     state.set_command_filter(query)
+                elif state.page == BrowserPage.COMMIT_PICKER:
+                    state.set_commit_filter(query)
                 else:
                     state.set_filter(query)
                 needs_redraw = True
@@ -1167,10 +1193,11 @@ def _show_commits_when_empty(state: BrowserState, args: argparse.Namespace) -> N
 
 
 def _select_commit(state: BrowserState, args: argparse.Namespace) -> str | None:
-    if not state.commits:
+    visible_commits = state.visible_commits
+    if not visible_commits:
         return "No recent commits."
     state.clamp_selection()
-    commit = state.commits[state.selected]
+    commit = visible_commits[state.selected]
     state._sync_to_workspace().select_commit(args, commit, loader=_load_browse_changes)
     state._sync_from_workspace()
     state.clear_render_cache()
@@ -1213,7 +1240,7 @@ def _restore_previous_scope(state: BrowserState, args: argparse.Namespace) -> No
 
 def _move_selection(state: BrowserState, delta: int) -> None:
     if state.page == BrowserPage.COMMIT_PICKER:
-        total = len(state.commits)
+        total = len(state.visible_commits)
     elif state.page == BrowserPage.SCOPE_HOME:
         total = len(_scope_home_entries())
     elif state.page == BrowserPage.COMMAND_PALETTE:
@@ -1687,12 +1714,14 @@ def _browse_commit_lines(
     style: TerminalStyle,
     selected: int | None = None,
     scope_label: str = "",
+    filter_text: str = "",
 ) -> list[str]:
     return page_content.browse_commit_lines(
         commits,
         style,
         selected=selected,
         scope_label_text=scope_label,
+        filter_text=filter_text,
     )
 
 

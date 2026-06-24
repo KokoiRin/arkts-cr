@@ -161,7 +161,7 @@ build
 : rerun    重跑编译
 ```
 
-build 面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`。后台 build 会放进独立进程组，`: stop` / `: cancel` 会尽量收口整个 build 进程组，减少残留子进程继续刷日志。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
+build 面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`。后台 build 会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个 build 进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
 
 ```bash
 cr --build-cmd './remote buildEntry --app douyin'

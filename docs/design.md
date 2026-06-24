@@ -59,6 +59,7 @@ Implement a terminal-first code review workbench named `cr`.
   - Lets users stop a running build with `stop` / `cancel` and rerun the configured build with `rerun` / `rebuild`.
   - Distinguishes build task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
   - Runs interactive background builds in an isolated process group and stops the group on `stop` / `cancel`, falling back to parent-process termination if group cleanup fails.
+  - Escalates stopped builds to force-kill after a short grace period when the process group does not exit.
   - Provides an in-session command list via `commands`, `cmds`, or `help commands`; raw command prompt empty input or `?` opens the same list.
   - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return one visible navigation layer, `r` to refresh, and `q` to quit.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.

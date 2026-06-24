@@ -18,6 +18,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 import termios
 import tty
 
@@ -40,6 +41,9 @@ from ..review.tree import (
 from ..source.purpose import describe_file
 from ..vcs import git
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
+
+
+BUILD_STOP_KILL_GRACE_SECONDS = 2.0
 
 
 @dataclass
@@ -135,6 +139,8 @@ class BuildState:
     start_error: str | None = None
     process_group_id: int | None = None
     stop_requested: bool = False
+    stop_requested_at: float | None = None
+    stop_escalated: bool = False
 
     @property
     def running(self) -> bool:
@@ -1569,6 +1575,7 @@ def _stop_build(state: BrowserState) -> None:
         return
     state.build.stop_requested = True
     state.build.lines.append("Stopping build...")
+    state.build.stop_requested_at = time.monotonic()
     if state.build.process_group_id is not None and hasattr(os, "killpg"):
         try:
             os.killpg(state.build.process_group_id, signal.SIGTERM)
@@ -1644,6 +1651,32 @@ def _poll_build(build: BuildState | None) -> None:
         build.lines.append(message)
         if build.process.stdout is not None:
             build.process.stdout.close()
+    else:
+        _maybe_escalate_build_stop(build)
+
+
+def _maybe_escalate_build_stop(build: BuildState) -> None:
+    if (
+        not build.stop_requested
+        or build.stop_requested_at is None
+        or build.stop_escalated
+    ):
+        return
+    if time.monotonic() - build.stop_requested_at < BUILD_STOP_KILL_GRACE_SECONDS:
+        return
+    build.stop_escalated = True
+    if build.process_group_id is not None and hasattr(os, "killpg"):
+        build.lines.append("Build did not stop; force killing process group.")
+        try:
+            os.killpg(build.process_group_id, signal.SIGKILL)
+            return
+        except OSError as exc:
+            build.lines.append(f"Build process group force kill failed: {exc}")
+    build.lines.append("Build did not stop; force killing build process.")
+    try:
+        build.process.kill()
+    except OSError as exc:
+        build.lines.append(f"Build force kill failed: {exc}")
 
 
 def _drain_build_output(build: BuildState) -> None:

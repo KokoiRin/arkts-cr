@@ -238,6 +238,140 @@ class CliTests(unittest.TestCase):
                 if state.build is not None and state.build.running:
                     state.build.process.kill()
 
+    def test_poll_escalates_stopped_build_to_process_group_kill(self):
+        class RunningProcess:
+            stdout = None
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                raise AssertionError("process.kill should not be used with a process group")
+
+        build = BuildState(
+            ["fake-build"],
+            RunningProcess(),
+            process_group_id=1234,
+            stop_requested=True,
+            stop_requested_at=0.0,
+        )
+
+        with patch("cr.ui.browser.time.monotonic", return_value=10.0):
+            with patch("cr.ui.browser.os.killpg") as killpg:
+                _poll_build(build)
+
+        killpg.assert_called_once_with(1234, signal.SIGKILL)
+        self.assertTrue(build.stop_escalated)
+        self.assertIn("Build did not stop; force killing process group.", build.lines)
+
+    def test_poll_does_not_escalate_stopped_build_within_grace_period(self):
+        class RunningProcess:
+            stdout = None
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                raise AssertionError("process.kill should not run inside grace period")
+
+        build = BuildState(
+            ["fake-build"],
+            RunningProcess(),
+            process_group_id=1234,
+            stop_requested=True,
+            stop_requested_at=9.0,
+        )
+
+        with patch("cr.ui.browser.time.monotonic", return_value=10.0):
+            with patch("cr.ui.browser.os.killpg") as killpg:
+                _poll_build(build)
+
+        killpg.assert_not_called()
+        self.assertFalse(build.stop_escalated)
+        self.assertEqual(build.lines, [])
+
+    def test_poll_escalates_stopped_build_only_once(self):
+        class RunningProcess:
+            stdout = None
+
+            def poll(self):
+                return None
+
+        build = BuildState(
+            ["fake-build"],
+            RunningProcess(),
+            process_group_id=1234,
+            stop_requested=True,
+            stop_requested_at=0.0,
+        )
+
+        with patch("cr.ui.browser.time.monotonic", return_value=10.0):
+            with patch("cr.ui.browser.os.killpg") as killpg:
+                _poll_build(build)
+                _poll_build(build)
+
+        killpg.assert_called_once_with(1234, signal.SIGKILL)
+        self.assertEqual(
+            build.lines.count("Build did not stop; force killing process group."),
+            1,
+        )
+
+    def test_poll_escalates_stopped_build_without_process_group_to_process_kill(self):
+        class RunningProcess:
+            stdout = None
+
+            def __init__(self):
+                self.kill_count = 0
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                self.kill_count += 1
+
+        process = RunningProcess()
+        build = BuildState(
+            ["fake-build"],
+            process,
+            process_group_id=None,
+            stop_requested=True,
+            stop_requested_at=0.0,
+        )
+
+        with patch("cr.ui.browser.time.monotonic", return_value=10.0):
+            with patch("cr.ui.browser.os.killpg") as killpg:
+                _poll_build(build)
+
+        killpg.assert_not_called()
+        self.assertEqual(process.kill_count, 1)
+        self.assertTrue(build.stop_escalated)
+        self.assertIn("Build did not stop; force killing build process.", build.lines)
+
+    def test_build_stop_records_stop_request_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            command = f"{sys.executable} -c \"import time; time.sleep(10)\""
+            args = argparse_namespace(build_cmd=command)
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                _start_build(state, args)
+                self.assertIsNotNone(state.build)
+                before_stop = time.monotonic()
+                _stop_build(state)
+                after_stop = time.monotonic()
+
+            try:
+                self.assertGreaterEqual(state.build.stop_requested_at, before_stop)
+                self.assertLessEqual(state.build.stop_requested_at, after_stop)
+                self.assertFalse(state.build.stop_escalated)
+            finally:
+                if state.build is not None and state.build.running:
+                    state.build.process.kill()
+                    state.build.process.wait(timeout=1)
+                if state.build.process.stdout is not None:
+                    state.build.process.stdout.close()
+
     def test_build_stop_marks_stopped_not_failed(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)

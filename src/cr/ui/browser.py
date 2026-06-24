@@ -1495,12 +1495,33 @@ def _filtered_command_palette_entries(state: BrowserState) -> list[PaletteComman
     if not query:
         return entries
 
-    def haystack(entry: PaletteCommand) -> str:
-        return " ".join(
-            [entry.group, entry.label, entry.command, entry.description]
-        ).casefold()
+    matches: list[tuple[int, int, PaletteCommand]] = []
+    for index, entry in enumerate(entries):
+        score = _command_palette_match_score(entry, query)
+        if score is not None:
+            matches.append((score, index, entry))
+    return [entry for _, _, entry in sorted(matches, key=lambda item: (item[0], item[1]))]
 
-    return [entry for entry in entries if query in haystack(entry)]
+
+def _command_palette_match_score(
+    entry: PaletteCommand,
+    query: str,
+) -> int | None:
+    command = entry.command.casefold()
+    label = entry.label.casefold()
+    group = entry.group.casefold()
+    description = entry.description.casefold()
+    if query in {command, label}:
+        return 0
+    if command.startswith(query) or label.startswith(query):
+        return 1
+    if query in command or query in label:
+        return 2
+    if query in group:
+        return 3
+    if query in description:
+        return 4
+    return None
 
 
 def _selected_palette_command(state: BrowserState) -> PaletteCommand | None:
@@ -1542,12 +1563,16 @@ def _browse_command_palette_screen_lines(
     max_lines: int,
 ) -> list[str]:
     entries = _filtered_command_palette_entries(state)
+    total_entries = len(_command_palette_entries())
     lines = [
         style.bold("Command palette"),
         "/: filter commands   c: clear filter   Enter: run selected command   b/←: back",
     ]
     if state.command_filter_text:
-        lines.append(f"Filter: {state.command_filter_text}")
+        lines.append(
+            f"Filter: {state.command_filter_text} "
+            f"({len(entries)}/{total_entries} matches)"
+        )
     lines.append("")
     if not entries:
         message = "No matching commands." if state.command_filter_text else "No executable commands."

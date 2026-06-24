@@ -68,7 +68,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Shows project task preset help with `tasks help`, including `.cr/tasks.json`, supported build/test/lint string commands, precedence, and a compact JSON example.
   - Runs interactive background tasks in an isolated process group and stops the group on `stop` / `cancel`, falling back to parent-process termination if group cleanup fails.
   - Escalates stopped tasks to force-kill after a short grace period when the process group does not exit.
-  - Provides an in-session command palette via `commands`, `cmds`, or `help commands`; raw command prompt empty input or `?` opens the same palette, and `/` filters executable commands inside the palette.
+  - Provides an in-session command palette via `commands`, `cmds`, or `help commands`; raw command prompt empty input or `?` opens the same palette, and `/` filters executable commands inside the palette with match counts and ranked results.
   - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return through in-session page history, `forward` to move forward after back, `r` to refresh, and `q` to quit.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
@@ -154,7 +154,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat `cr.ui.file_actions` as the owner of copy/reveal command templates, environment fallbacks, platform fallbacks, source diagnostics, and subprocess execution. `browser.py` passes selected-file data and configured command strings only. Open/editor handoff remains in `browser.py` until a broader editor-action extraction is justified.
   - Keep `BrowserState.mode` only as a compatibility property over `BrowserState.page`, preserving older tests, line-mode assumptions, and persisted workspace `mode` values.
   - Treat argparse scope fields as the source of truth for the active review scope; browser commands update those fields and reload through the shared review selection path.
-  - Treat `commands` mode as the command palette layer: raw-key users can filter/select executable commands and run them with Enter, while parameterized commands remain available through `:` input.
+  - Treat `commands` mode as the command palette layer: raw-key users can filter/select executable commands and run them with Enter, while parameterized commands remain available through `:` input. Filtered results should rank command/label matches before group and description-only matches while preserving catalog order for ties.
   - Treat browser screen layout as one module-owned concept: content height, background task height, task panel start row, and prompt row are calculated together.
   - Treat raw-key rendering as one browser frame, not independent stdout writes: full redraw records the current layout and task-panel snapshot; partial task-panel refreshes are allowed only while that frame remains valid.
   - Treat browser page ownership as four explicit layers: context/status, main content, background task panel, and input prompt. Raw-key feedback belongs in the context/status layer, never as ad hoc stdout below the prompt.
@@ -213,7 +213,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
 - Unit tests cover product navigation breadcrumbs for Changed Files, File Detail, recent commits, selected commit scopes, and status messages.
 - Unit tests cover Scope Home rendering, executable scope selection, recent commit handoff, line-mode compatibility, and preserving Home key behavior.
 - Unit tests cover executable command palette entries, command selection, palette rendering, and Enter execution without accidentally opening files.
-- Unit tests cover command palette filtering, empty results, file-filter isolation, clear behavior, and filtered command execution.
+- Unit tests cover command palette filtering, ranked results, match counts, empty results, file-filter isolation, clear behavior, and filtered command execution.
 - Unit tests cover task history rendering, completed-task single recording, rerun history retention, test/lint task command breadth, and workspace-state exclusion.
 - Unit tests cover review workflow behavior through the CLI while review command implementation lives under `cr.review`.
 - Unit tests cover interactive browser behavior while shared review-scope facts live under `cr.review.changes`.

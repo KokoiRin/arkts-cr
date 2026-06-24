@@ -238,6 +238,12 @@ Status: implemented.
 
 `BrowserCommandExecutor` now owns parsed action execution for browser commands. The run loop resolves temporary prompts and palette handoff, parses the final command, then asks the executor for `BrowserActionResult` so exit intent and redraw requests are explicit.
 
+### P0: Command palette organization
+
+Status: implemented.
+
+Command palette filtering now shows match counts and ranks stronger command/label matches ahead of group and description-only matches. Unfiltered palette order remains the stable catalog order.
+
 ### P0: Task runtime extraction
 
 Status: implemented.
@@ -302,4 +308,4 @@ Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
 - `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `BrowserCommandExecutor` hides action execution, and `cr.ui.tasks` hides task runtime behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, editor handoff helpers, prompt input, and persistence file I/O.
-- The next product opportunity should come from concrete usage friction around command palette organization, richer review-note workflows, or deeper editor-action extraction.
+- The next product opportunity should come from concrete usage friction around richer review-note workflows, deeper editor-action extraction, or command catalog extraction.

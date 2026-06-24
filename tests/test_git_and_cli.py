@@ -27,6 +27,7 @@ from cr.ui.browser import (
     _task_panel_lines,
     _task_status,
     _browse_command_lines,
+    _browse_command_palette_screen_lines,
     _command_palette_entries,
     _filtered_command_palette_entries,
     _browse_file_lines,
@@ -3021,6 +3022,30 @@ class CliTests(unittest.TestCase):
             [entry.command for entry in _filtered_command_palette_entries(reopen_state)],
         )
 
+    def test_command_palette_filter_ranks_command_matches_before_description_matches(self):
+        unfiltered = [
+            entry.command
+            for entry in _filtered_command_palette_entries(
+                BrowserState([], page="commands")
+            )
+        ]
+        scope_filtered = [
+            entry.command
+            for entry in _filtered_command_palette_entries(
+                BrowserState([], page="commands", command_filter_text="scope")
+            )
+        ]
+        file_filtered = [
+            entry.command
+            for entry in _filtered_command_palette_entries(
+                BrowserState([], page="commands", command_filter_text="file")
+            )
+        ]
+
+        self.assertLess(unfiltered.index("forward"), unfiltered.index("scopes"))
+        self.assertLess(scope_filtered.index("scopes"), scope_filtered.index("staged"))
+        self.assertLess(file_filtered.index("file actions"), file_filtered.index("open"))
+
     def test_commands_mode_selection_does_not_change_selected_file(self):
         state = BrowserState(
             [
@@ -3078,9 +3103,24 @@ class CliTests(unittest.TestCase):
             _draw_browse_screen(state, args, TerminalStyle(False))
 
         text = output.getvalue()
-        self.assertIn("Filter: zz-missing", text)
+        total = len(_command_palette_entries())
+        self.assertIn(f"Filter: zz-missing (0/{total} matches)", text)
         self.assertIn("No matching commands.", text)
         self.assertNotIn("run configured repo build", text)
+
+    def test_command_palette_screen_shows_filter_match_count(self):
+        state = BrowserState([], page="commands", command_filter_text="build")
+        lines = _browse_command_palette_screen_lines(
+            state,
+            TerminalStyle(False),
+            max_lines=20,
+        )
+        text = "\n".join(lines)
+        total = len(_command_palette_entries())
+        matches = len(_filtered_command_palette_entries(state))
+
+        self.assertIn(f"Filter: build ({matches}/{total} matches)", text)
+        self.assertGreater(matches, 0)
 
     def test_command_palette_enter_executes_selected_command_not_file_open(self):
         args = argparse_namespace(

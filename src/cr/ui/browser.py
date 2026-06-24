@@ -11,6 +11,7 @@ import argparse
 from dataclasses import dataclass, field
 import os
 from pathlib import Path
+import signal
 import platform
 import select
 import shlex
@@ -132,6 +133,7 @@ class BuildState:
     partial: str = ""
     returncode: int | None = None
     start_error: str | None = None
+    process_group_id: int | None = None
     stop_requested: bool = False
 
     @property
@@ -1536,6 +1538,7 @@ def _start_build(state: BrowserState, args: argparse.Namespace) -> None:
             cwd=repo,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            start_new_session=True,
         )
     except OSError as exc:
         state.build = _failed_build_state(command, f"Build failed to start: {exc}")
@@ -1546,6 +1549,7 @@ def _start_build(state: BrowserState, args: argparse.Namespace) -> None:
         command=command,
         process=process,
         lines=[f"started in {repo}"],
+        process_group_id=process.pid,
     )
 
 
@@ -1565,6 +1569,12 @@ def _stop_build(state: BrowserState) -> None:
         return
     state.build.stop_requested = True
     state.build.lines.append("Stopping build...")
+    if state.build.process_group_id is not None and hasattr(os, "killpg"):
+        try:
+            os.killpg(state.build.process_group_id, signal.SIGTERM)
+            return
+        except OSError as exc:
+            state.build.lines.append(f"Build process group stop failed: {exc}")
     try:
         state.build.process.terminate()
     except OSError as exc:

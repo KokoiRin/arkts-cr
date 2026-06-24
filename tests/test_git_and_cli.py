@@ -1,5 +1,6 @@
 import os
 import json
+import signal
 from pathlib import Path
 import subprocess
 import sys
@@ -126,6 +127,116 @@ class CliTests(unittest.TestCase):
             self.assertIn("Build succeeded.", text)
             self.assertIn("compile line 1", text)
             self.assertIn("compile line 2", text)
+
+    def test_build_start_records_process_group_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            command = f"{sys.executable} -c \"import time; time.sleep(10)\""
+            args = argparse_namespace(build_cmd=command)
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                _start_build(state, args)
+
+            self.assertIsNotNone(state.build)
+            try:
+                self.assertEqual(
+                    state.build.process_group_id,
+                    state.build.process.pid,
+                )
+            finally:
+                if state.build.running:
+                    state.build.process.terminate()
+                    state.build.process.wait(timeout=1)
+                if state.build.process.stdout is not None:
+                    state.build.process.stdout.close()
+
+    def test_build_stop_terminates_child_processes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            script = repo / "build.py"
+            child_pid_file = repo / "child.pid"
+            script.write_text(
+                "from pathlib import Path\n"
+                "import subprocess\n"
+                "import sys\n"
+                "import time\n"
+                "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+                "Path('child.pid').write_text(str(child.pid))\n"
+                "time.sleep(30)\n",
+                encoding="utf-8",
+            )
+            args = argparse_namespace(build_cmd=f"{sys.executable} {script}")
+            state = BrowserState([])
+            child_pid: int | None = None
+
+            def pid_is_running(pid: int) -> bool:
+                try:
+                    os.kill(pid, 0)
+                except OSError:
+                    return False
+                return True
+
+            try:
+                with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                    _start_build(state, args)
+                    self.assertIsNotNone(state.build)
+                    for _ in range(100):
+                        if child_pid_file.exists():
+                            child_pid = int(child_pid_file.read_text(encoding="utf-8"))
+                            break
+                        time.sleep(0.01)
+                    self.assertIsNotNone(child_pid)
+                    self.assertTrue(pid_is_running(child_pid))
+
+                    _stop_build(state)
+                    for _ in range(100):
+                        _poll_build(state.build)
+                        if state.build.returncode is not None and not pid_is_running(child_pid):
+                            break
+                        time.sleep(0.01)
+
+                self.assertFalse(pid_is_running(child_pid))
+            finally:
+                if child_pid is not None and pid_is_running(child_pid):
+                    os.kill(child_pid, signal.SIGKILL)
+                if state.build is not None and state.build.running:
+                    state.build.process.terminate()
+                    state.build.process.wait(timeout=1)
+
+    def test_build_stop_falls_back_when_process_group_stop_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            command = f"{sys.executable} -c \"import time; time.sleep(10)\""
+            args = argparse_namespace(build_cmd=command)
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                _start_build(state, args)
+                self.assertIsNotNone(state.build)
+                with patch(
+                    "cr.ui.browser.os.killpg",
+                    side_effect=OSError("pg gone"),
+                ):
+                    _stop_build(state)
+                for _ in range(100):
+                    _poll_build(state.build)
+                    if state.build.returncode is not None:
+                        break
+                    time.sleep(0.01)
+
+            try:
+                self.assertIsNotNone(state.build.returncode)
+                self.assertEqual(_build_status(state.build), "stopped")
+                self.assertTrue(
+                    any(
+                        "Build process group stop failed: pg gone" in line
+                        for line in state.build.lines
+                    )
+                )
+            finally:
+                if state.build is not None and state.build.running:
+                    state.build.process.kill()
 
     def test_build_stop_marks_stopped_not_failed(self):
         with tempfile.TemporaryDirectory() as tmp:

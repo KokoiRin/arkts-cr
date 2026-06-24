@@ -140,6 +140,8 @@ Implement a terminal-first code review workbench named `cr`.
   - Keep command discovery as a read-only `commands` mode until real usage justifies searchable or executable command palette behavior.
   - Treat browser screen layout as one module-owned concept: content height, background task height, task panel start row, and prompt row are calculated together.
   - Keep build task lifecycle in `BuildState` until a second real background task exists; do not introduce a generic task manager prematurely.
+  - Treat in-session review progress as browser workspace state: seen paths and remaining-only view belong in `BrowserState` and persist with `.git/cr/browse-state.json`.
+  - Keep progress commands simple and reversible: `m`/`seen` marks the current file, `todo`/`unseen` clears it, `remaining` filters to unreviewed files, and `allfiles` returns to the full changed-file list.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
   - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.
   - Treat raw-key navigation as command events, not text output; normal key reads must not emit an extra newline.
@@ -179,5 +181,6 @@ Implement a terminal-first code review workbench named `cr`.
 - Unit tests cover old/new line-numbered hunk rendering.
 - Unit tests cover the packaged `cr` console script entry point.
 - Unit tests cover interactive browser filtering, fixed-screen redraw rendering, and non-TTY filtered selection.
+- Unit tests cover browse progress markers, remaining-only filtering, unmarking, persistence, and seen/todo rendering.
 - Unit tests cover review workflow behavior through the CLI while review command implementation lives under `cr.review`.
 - Unit tests cover interactive browser behavior while shared review-scope facts live under `cr.review.changes`.

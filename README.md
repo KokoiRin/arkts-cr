@@ -63,6 +63,7 @@ Enter / →     打开当前文件的 review 视图
 /             按路径过滤文件
 :             输入命令
 c             清除过滤
+m             标记当前文件已看
 n / p         下一项 / 上一项
 PageUp/PageDown 或 u/d  分页
 Home/End       跳到顶部 / 底部
@@ -90,6 +91,10 @@ q             退出
 filter Second
 clear
 commands
+m
+remaining
+allfiles
+todo
 g
 1
 q
@@ -125,6 +130,17 @@ cr --context 0
 工作区没有未提交改动，或者当前改动已经暂存时，直接运行 `cr` 会显示最近的 commit 列表。也可以在文件列表里按 `g`，手动切到最近 commit 列表；选中某个 commit 后会进入这个 commit 的 changed-file list。
 查看 commit 后，按 `b` 会逐层返回：文件 diff -> 该 commit 的 changed-file list -> 最近 commit 列表；按 `w` 会回到原来的工作区改动范围。
 
+标记 review 进度：
+
+```text
+m / seen / done        把当前文件标记为已看
+todo / unseen / unmark 取消已看标记
+remaining              只显示还没看的文件
+allfiles / show all    回到全部改动文件
+```
+
+文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`。
+
 切换 review scope：
 
 ```text
@@ -137,7 +153,7 @@ cr --context 0
 
 界面会显示 `Scope: ...`，这样你能一直知道当前是在看 worktree、staged、all、base、range、recent commits 还是某个 commit。
 
-默认 `cr browse` 会在退出时把当前 scope、filter、选中文件和 list/file 层级保存到 `.git/cr/browse-state.json`；下次直接运行 `cr` 会恢复这个 review workspace。显式传入 `--staged`、`--all`、`--base`、`--range`、`--untracked` 或路径参数时，本次命令优先，不会被历史状态覆盖。
+默认 `cr browse` 会在退出时把当前 scope、filter、选中文件、list/file 层级和 review 进度保存到 `.git/cr/browse-state.json`；下次直接运行 `cr` 会恢复这个 review workspace。显式传入 `--staged`、`--all`、`--base`、`--range`、`--untracked` 或路径参数时，本次命令优先，不会被历史状态覆盖。
 
 打开编辑器：
 

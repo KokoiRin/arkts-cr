@@ -63,10 +63,15 @@ class BrowserState:
     file_scroll: int = 0
     mode: str = "list"
     filter_text: str = ""
+    seen_paths: set[str] = field(default_factory=set)
+    remaining_only: bool = False
 
     @property
     def visible_changes(self) -> list[git.FileChange]:
-        return filter_changes_by_query(self.changes, self.filter_text)
+        changes = filter_changes_by_query(self.changes, self.filter_text)
+        if self.remaining_only:
+            return [change for change in changes if change.path not in self.seen_paths]
+        return changes
 
     def clamp_selection(self) -> None:
         total = len(self.commits) if self.mode == "commits" else len(self.visible_changes)
@@ -208,6 +213,11 @@ def run_browser(args: argparse.Namespace) -> int:
                         total_changes=len(state.changes),
                         filter_text=state.filter_text,
                         scope_label=_scope_label(state, args),
+                        seen_paths=state.seen_paths,
+                        seen_count=sum(
+                            1 for change in state.changes if change.path in state.seen_paths
+                        ),
+                        remaining_only=state.remaining_only,
                     )
                 )
             elif visible:
@@ -220,6 +230,7 @@ def run_browser(args: argparse.Namespace) -> int:
                         args,
                         style,
                         _scope_label(state, args),
+                        visible[state.selected].path in state.seen_paths,
                     )
                 )
             else:
@@ -269,6 +280,30 @@ def run_browser(args: argparse.Namespace) -> int:
             continue
         if command in {"c", "clear"}:
             state.clear_filter()
+            needs_redraw = True
+            continue
+        if command in {"m", "seen", "done"}:
+            _mark_selected_seen(state)
+            needs_redraw = True
+            continue
+        if command in {"todo", "unseen", "unmark"}:
+            _unmark_selected_seen(state)
+            needs_redraw = True
+            continue
+        if command == "remaining":
+            state.remaining_only = True
+            state.mode = "list"
+            state.selected = 0
+            state.list_scroll = 0
+            state.clamp_selection()
+            needs_redraw = True
+            continue
+        if command in {"allfiles", "show all"}:
+            state.remaining_only = False
+            state.mode = "list"
+            state.selected = 0
+            state.list_scroll = 0
+            state.clamp_selection()
             needs_redraw = True
             continue
         if command in {"q", "quit", "exit"}:
@@ -507,7 +542,8 @@ def run_browser(args: argparse.Namespace) -> int:
         if command:
             print(
                 "Unknown command. Use arrows, Enter, /, c, a number, "
-                "o, n, p, b, g, r, h, build, stop, rerun, staged, all, base, range, or q."
+                "o, n, p, b, g, r, h, m, remaining, build, stop, rerun, "
+                "staged, all, base, range, or q."
             )
 
 
@@ -530,6 +566,24 @@ def _should_restore_browser_workspace_state(args: argparse.Namespace) -> bool:
         and not args.untracked
         and not args.paths
     )
+
+
+def _mark_selected_seen(state: BrowserState) -> None:
+    visible = state.visible_changes
+    if not visible:
+        return
+    state.clamp_selection()
+    state.seen_paths.add(visible[state.selected].path)
+    state.clamp_selection()
+
+
+def _unmark_selected_seen(state: BrowserState) -> None:
+    visible = state.visible_changes
+    if not visible:
+        return
+    state.clamp_selection()
+    state.seen_paths.discard(visible[state.selected].path)
+    state.clamp_selection()
 
 
 def _browser_workspace_state_path(repo: Path) -> Path:
@@ -589,6 +643,8 @@ def _browser_workspace_state_data(
         "selected_path": selected_path,
         "selected_index": state.selected,
         "mode": "file" if state.mode == "file" else "list",
+        "seen_paths": sorted(state.seen_paths),
+        "remaining_only": state.remaining_only,
     }
 
 
@@ -616,6 +672,8 @@ def _restore_browser_workspace_state(
     _restore_browser_workspace_scope(args, workspace_state)
     filter_text = workspace_state.get("filter_text")
     state.filter_text = filter_text if isinstance(filter_text, str) else ""
+    state.seen_paths = _string_set(workspace_state.get("seen_paths"))
+    state.remaining_only = workspace_state.get("remaining_only") is True
     _restore_browser_workspace_selection(state, workspace_state)
     mode = workspace_state.get("mode")
     state.mode = "file" if mode == "file" and state.visible_changes else "list"
@@ -662,6 +720,12 @@ def _restore_browser_workspace_selection(
 
 def _optional_string(value: object) -> str | None:
     return value if isinstance(value, str) else None
+
+
+def _string_set(value: object) -> set[str]:
+    if not isinstance(value, list):
+        return set()
+    return {item for item in value if isinstance(item, str)}
 
 
 def _load_browse_changes(args: argparse.Namespace) -> list[git.FileChange]:
@@ -1007,7 +1071,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
     return [
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back to list",
-        "  /: filter files     c: clear filter      o: open in editor",
+        "  /: filter files     c: clear filter      m: seen      remaining: todo",
         "  : command prompt    build/stop/rerun: repo build task",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/previous        g: commits    w: worktree    r: refresh    q: quit",
@@ -1049,6 +1113,10 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
             (
                 CommandEntry("/QUERY / filter QUERY", "filter changed files by path"),
                 CommandEntry("clear", "clear active file filter"),
+                CommandEntry("m / seen / done", "mark selected file as seen"),
+                CommandEntry("todo / unseen / unmark", "mark selected file as todo"),
+                CommandEntry("remaining", "show files not marked seen"),
+                CommandEntry("allfiles / show all", "show all changed files"),
                 CommandEntry("open", "open selected file in editor"),
                 CommandEntry("refresh", "reload current review scope"),
             ),
@@ -1127,7 +1195,11 @@ def _browse_list_lines(
     total_changes: int | None = None,
     filter_text: str = "",
     scope_label: str = "",
+    seen_paths: set[str] | None = None,
+    seen_count: int | None = None,
+    remaining_only: bool = False,
 ) -> list[str]:
+    seen_paths = seen_paths or set()
     total_changes = len(changes) if total_changes is None else total_changes
     if not changes:
         return _empty_browse_lines(args, filter_text, total_changes=total_changes)
@@ -1144,6 +1216,11 @@ def _browse_list_lines(
         lines.append(
             f"Filter: {filter_text} ({len(changes)}/{total_changes} matches, c to clear)"
         )
+    if total_changes:
+        if seen_count is None:
+            seen_count = sum(1 for change in changes if change.path in seen_paths)
+        suffix = " remaining only" if remaining_only else ""
+        lines.append(f"Progress: {seen_count}/{total_changes} seen{suffix}")
     rows = _browse_tree_rows(changes)
     label_width = max(len(row.label) for row in rows)
     index_width = len(str(len(changes)))
@@ -1155,6 +1232,7 @@ def _browse_list_lines(
                 index_width,
                 label_width,
                 style,
+                seen_paths,
             )
         )
     lines.append("")
@@ -1176,11 +1254,16 @@ def _browse_list_screen_lines(
         )[:max_lines]
     total_added = sum(change.added or 0 for change in changes)
     total_deleted = sum(change.deleted or 0 for change in changes)
-    lines = [
+    header = (
         f"{style.bold('Changed files')} "
         f"({len(changes)} files, {style.added('+' + str(total_added))} "
         f"{style.deleted('-' + str(total_deleted))})"
-    ]
+    )
+    if state.changes:
+        seen_count = sum(1 for change in state.changes if change.path in state.seen_paths)
+        suffix = " remaining only" if state.remaining_only else ""
+        header = f"{header}  Progress: {seen_count}/{len(state.changes)} seen{suffix}"
+    lines = [header]
     if state.filter_text:
         lines.append(
             f"Filter: {state.filter_text} "
@@ -1205,6 +1288,7 @@ def _browse_list_screen_lines(
                 index_width,
                 label_width,
                 style,
+                state.seen_paths,
             )
         )
     if len(rows) > row_capacity:
@@ -1271,11 +1355,13 @@ def _format_browse_tree_row(
     index_width: int,
     label_width: int,
     style: TerminalStyle,
+    seen_paths: set[str] | None = None,
 ) -> str:
     if row.change is None or row.change_index is None:
         return f"  {' ' * index_width}  {_style_tree_directory(row.label, style)}"
 
     marker = ">" if selected == row.change_index else " "
+    progress = "[x]" if row.change.path in (seen_paths or set()) else "[ ]"
     status = " modified" if row.change.status == "modified" else ""
     styled_label = _style_tree_file(
         row.label,
@@ -1283,7 +1369,7 @@ def _format_browse_tree_row(
         style,
     )
     return (
-        f"{marker} {str(row.change_index + 1).rjust(index_width)}  "
+        f"{marker} {str(row.change_index + 1).rjust(index_width)} {progress} "
         f"{styled_label}  "
         f"{style_change_summary(row.change, style)}"
         f"{status}"
@@ -1454,6 +1540,7 @@ def _browse_file_lines(
     args: argparse.Namespace,
     style: TerminalStyle,
     scope_label: str = "",
+    seen: bool = False,
 ) -> list[str]:
     first_line = git.first_changed_line(
         change.path,
@@ -1468,7 +1555,8 @@ def _browse_file_lines(
         f"{style.bold(f'File {index + 1}/{total}')}  "
         f"{style.path(shorten_path(change.path), _link_target(change.path, first_line, args))}"
         f"{style.dim(anchor)}  "
-        f"{style.bold(format_change_summary(change))}"
+        f"{style.bold(format_change_summary(change))}  "
+        f"{style.dim('seen' if seen else 'todo')}"
     ]
     lines = [line for line in lines if line]
     risks = risk_hints(change.path)
@@ -1527,7 +1615,8 @@ def _cached_file_lines(
     args: argparse.Namespace,
     style: TerminalStyle,
 ) -> list[str]:
-    key = _file_cache_key(change, index, total, args)
+    seen = change.path in state.seen_paths
+    key = _file_cache_key(change, index, total, args, seen)
     if key not in state.file_line_cache:
         state.file_line_cache[key] = _browse_file_lines(
             change,
@@ -1536,6 +1625,7 @@ def _cached_file_lines(
             args,
             style,
             _scope_label(state, args),
+            seen,
         )
     return state.file_line_cache[key]
 
@@ -1545,10 +1635,12 @@ def _file_cache_key(
     index: int,
     total: int,
     args: argparse.Namespace,
+    seen: bool = False,
 ) -> str:
     return "\x1f".join(
         [
             change.path,
+            "seen" if seen else "todo",
             str(index),
             str(total),
             str(args.context),

@@ -18,6 +18,7 @@ from cr.ui.browser import (
     _build_panel_lines,
     _build_status,
     _browse_command_lines,
+    _browse_file_lines,
     _browse_file_screen_lines,
     _browser_workspace_state_path,
     _save_browser_workspace_state,
@@ -687,6 +688,22 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.selected, 0)
         self.assertEqual(state.mode, "list")
 
+    def test_browser_remaining_only_filters_seen_paths(self):
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 2, 1),
+                FileChange("src/Third.ts", 3, 0),
+            ],
+            seen_paths={"src/First.ts", "src/Third.ts"},
+            remaining_only=True,
+        )
+
+        self.assertEqual(
+            [change.path for change in state.visible_changes],
+            ["src/Second.ts"],
+        )
+
     def test_switch_review_scope_resets_view_state_but_keeps_build_panel(self):
         args = argparse_namespace(
             staged=False,
@@ -818,6 +835,41 @@ class CliTests(unittest.TestCase):
         self.assertIn("line 11", lower)
         self.assertIn("showing 11-14/20", lower[-1])
 
+    def test_browse_file_lines_show_seen_or_todo_status(self):
+        args = argparse_namespace(
+            context=0,
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        change = FileChange("src/Sample.ts", 1, 1)
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=1):
+            with patch("cr.ui.browser.risk_hints", return_value=[]):
+                with patch("cr.ui.browser.is_code_file", return_value=False):
+                    with patch("cr.ui.browser.change_hunk_lines", return_value=[]):
+                        todo_lines = _browse_file_lines(
+                            change,
+                            0,
+                            1,
+                            args,
+                            TerminalStyle(False),
+                            seen=False,
+                        )
+                        seen_lines = _browse_file_lines(
+                            change,
+                            0,
+                            1,
+                            args,
+                            TerminalStyle(False),
+                            seen=True,
+                        )
+
+        self.assertIn("todo", todo_lines[0])
+        self.assertIn("seen", seen_lines[0])
+
     def test_browser_workspace_state_saves_under_git_dir(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -852,6 +904,44 @@ class CliTests(unittest.TestCase):
             self.assertEqual(data["selected_path"], "src/Second.ts")
             self.assertEqual(data["selected_index"], 0)
             self.assertEqual(data["mode"], "file")
+
+    def test_browser_workspace_state_saves_and_restores_progress_markers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / ".git").mkdir()
+            state = BrowserState(
+                [
+                    FileChange("src/First.ts", 1, 0),
+                    FileChange("src/Second.ts", 2, 1),
+                ],
+                seen_paths={"src/First.ts"},
+                remaining_only=True,
+            )
+            args = argparse_namespace(
+                staged=False,
+                all_changes=False,
+                base=None,
+                ref_range=None,
+                untracked=False,
+                paths=[],
+            )
+
+            _save_browser_workspace_state(state, args, repo)
+            workspace_state = _load_browser_workspace_state(repo)
+            restored = BrowserState(
+                [
+                    FileChange("src/First.ts", 1, 0),
+                    FileChange("src/Second.ts", 2, 1),
+                ]
+            )
+            _restore_browser_workspace_state(restored, args, workspace_state)
+
+            self.assertEqual(restored.seen_paths, {"src/First.ts"})
+            self.assertTrue(restored.remaining_only)
+            self.assertEqual(
+                [change.path for change in restored.visible_changes],
+                ["src/Second.ts"],
+            )
 
     def test_browser_workspace_state_restores_scope_filter_and_selected_path(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1527,6 +1617,72 @@ struct SamplePage {
             self.assertIn("First.ts", session.stdout)
             self.assertNotIn("Second.ts", session.stdout)
             self.assertNotIn("Filter: Second", session.stdout)
+
+    def test_cli_browser_can_mark_seen_and_show_remaining_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "First.ts"
+            second = repo / "src" / "Second.ts"
+            first.parent.mkdir(parents=True)
+            first.write_text("export const first = 'old'\n", encoding="utf-8")
+            second.write_text("export const second = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+            first.write_text("export const first = 'new'\n", encoding="utf-8")
+            second.write_text("export const second = 'new'\n", encoding="utf-8")
+
+            session = self._cr_input(
+                repo,
+                "m\nremaining\nq\n",
+                "browse",
+                "--sort",
+                "path",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Progress: 1/2 seen", session.stdout)
+            self.assertIn("remaining only", session.stdout)
+            self.assertIn("[x]", session.stdout)
+            self.assertIn("First.ts", session.stdout)
+            self.assertIn("[ ]", session.stdout)
+            self.assertIn("Second.ts", session.stdout)
+
+    def test_cli_browser_can_unmark_seen_and_return_to_all_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "First.ts"
+            second = repo / "src" / "Second.ts"
+            first.parent.mkdir(parents=True)
+            first.write_text("export const first = 'old'\n", encoding="utf-8")
+            second.write_text("export const second = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+            first.write_text("export const first = 'new'\n", encoding="utf-8")
+            second.write_text("export const second = 'new'\n", encoding="utf-8")
+
+            session = self._cr_input(
+                repo,
+                "m\nremaining\nallfiles\ntodo\nq\n",
+                "browse",
+                "--sort",
+                "path",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Progress: 1/2 seen remaining only", session.stdout)
+            self.assertIn("Progress: 0/2 seen", session.stdout)
+            self.assertIn("First.ts", session.stdout)
+            self.assertIn("Second.ts", session.stdout)
 
     def test_cli_interactive_browser_can_open_current_file(self):
         with tempfile.TemporaryDirectory() as tmp:

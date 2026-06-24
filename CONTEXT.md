@@ -62,9 +62,9 @@ messages. It does not edit notes, persist workspace state, parse commands, or
 place Browser Frame feedback.
 `cr.ui.file_detail_navigation` owns rendered File Detail hunk navigation:
 detecting hunk header rows, choosing next/previous target scroll positions,
-resolving the active hunk's new-file line, and returning hunk navigation status
-messages. It does not render file content, parse commands, mutate browser
-state, or read Git diff data.
+resolving the active hunk's new-file line, extracting the active rendered hunk
+block, and returning hunk navigation status messages. It does not render file
+content, parse commands, mutate browser state, or read Git diff data.
 `cr.ui.browser.BrowserCommandExecutor` owns browser action execution for parsed
 commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
@@ -165,8 +165,9 @@ Product navigation terms:
   and metadata, and is not the full AI prompt handoff format.
 - `File Detail Hunk Navigation`: within File Detail, `next hunk` / `]` and
   `prev hunk` / `[` move the file scroll between rendered diff hunk headers,
-  while `open hunk` opens the active hunk's new-file line in the editor. This
-  is local navigation inside the current selected file, not a new product
+  while `open hunk` opens the active hunk's new-file line in the editor and
+  `copy hunk` copies the active rendered hunk block as compact review context.
+  This is local navigation inside the current selected file, not a new product
   hierarchy layer.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
@@ -188,10 +189,10 @@ Product navigation terms:
   stays in Review Notes Module; platform subprocess details stay in File
   Actions; Git index mutations stay in `cr.vcs.git`.
 - `File Actions`: selected-file workbench operations such as `open`,
-  `copy path`, `copy anchor`, `copy diff`, `save diff`, `copy prompt file`,
-  `save prompt file`, and `reveal`. They act within the current Changed Files
-  selection, support CLI/env command configuration where applicable, and do not
-  create a new review hierarchy level.
+  `copy path`, `copy anchor`, `copy diff`, `copy hunk`, `save diff`,
+  `copy prompt file`, `save prompt file`, and `reveal`. They act within the
+  current Changed Files selection, support CLI/env command configuration where
+  applicable, and do not create a new review hierarchy level.
 - `Index Actions`: selected-file workbench operations such as `stage` and
   `unstage`. They mutate the local Git index only for mutable local review
   scopes, then refresh Changed Files without creating a new product layer.

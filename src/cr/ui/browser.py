@@ -429,6 +429,10 @@ class BrowserCommandExecutor:
             message = selected_file_actions.copy_selected_diff_snippet(state, args)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_HUNK:
+            message = _copy_current_hunk(state, args, style)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_DIFF:
             message = selected_file_actions.save_selected_diff_snippet(
                 state,
@@ -683,8 +687,8 @@ class BrowserCommandExecutor:
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
-                    "copy anchor, copy diff, save diff, next hunk, prev hunk, "
-                    "open hunk, copy notes, copy prompt, save prompt, reveal, "
+                    "copy anchor, copy diff, copy hunk, save diff, next hunk, "
+                    "prev hunk, open hunk, copy notes, copy prompt, save prompt, reveal, "
                     "stage, unstage, note, notes, tasks, build, stop, rerun, test, lint, "
                     "source staged, staged, all, base, range, or q."
                 )
@@ -1321,6 +1325,52 @@ def _open_current_hunk(
     if message:
         return message
     return f"Opened hunk {shorten_path(change.path)}:{line}"
+
+
+def _copy_current_hunk(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to copy hunk."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to copy hunk."
+    state.clamp_selection()
+    change = visible[state.selected]
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    hunk = file_detail_navigation.active_hunk(lines, state.file_scroll)
+    if hunk is None:
+        return "No diff hunks in current file."
+    text = _render_hunk_copy_text(change.path, hunk)
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return f"Copied hunk {hunk.index}/{hunk.total} for {shorten_path(change.path)}:{hunk.new_line}"
+
+
+def _render_hunk_copy_text(path: str, hunk: file_detail_navigation.ActiveHunk) -> str:
+    return "\n".join(
+        [
+            f"# Hunk Diff: {path}",
+            "",
+            f"- anchor: {path}:{hunk.new_line}",
+            f"- hunk: {hunk.index}/{hunk.total}",
+            "",
+            "```text",
+            *hunk.lines,
+            "```",
+            "",
+        ]
+    )
 
 
 def _max_file_scroll(

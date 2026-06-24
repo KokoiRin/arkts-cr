@@ -175,6 +175,48 @@ class CliTests(unittest.TestCase):
         self.assertEqual(second, 31)
         self.assertIsNone(none)
 
+    def test_file_detail_navigation_extracts_active_hunk_lines(self):
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  purpose: sample",
+            "  @@ -1,3 +4,4 @@",
+            "     1    4 | context",
+            "       \033[32m5 | +first\033[0m",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        first = file_detail_navigation.active_hunk(lines, 0)
+        second = file_detail_navigation.active_hunk(lines, 5)
+        none = file_detail_navigation.active_hunk(["File 1/1"], 0)
+
+        self.assertIsNotNone(first)
+        self.assertEqual(first.new_line, 4)
+        self.assertEqual(first.index, 1)
+        self.assertEqual(first.total, 2)
+        self.assertEqual(
+            first.lines,
+            [
+                "@@ -1,3 +4,4 @@",
+                "   1    4 | context",
+                "     5 | +first",
+            ],
+        )
+        self.assertIsNotNone(second)
+        self.assertEqual(second.new_line, 31)
+        self.assertEqual(second.index, 2)
+        self.assertEqual(second.total, 2)
+        self.assertEqual(
+            second.lines,
+            [
+                "@@ -20,2 +31,3 @@",
+                "  20   31 | context",
+                "        32 | +second",
+            ],
+        )
+        self.assertIsNone(none)
+
     def test_handoff_module_saves_repo_relative_and_absolute_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -498,6 +540,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Review scope", text)
         self.assertIn("copy prompt file", text)
         self.assertIn("open hunk", text)
+        self.assertIn("copy hunk", text)
         self.assertIn("save diff", text)
         self.assertIn("next hunk", text)
         self.assertIn("prev hunk", text)
@@ -517,6 +560,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
         self.assertIn("open hunk", commands)
+        self.assertIn("copy hunk", commands)
         self.assertIn("save diff", commands)
         self.assertIn("next hunk", commands)
         self.assertIn("prev hunk", commands)
@@ -727,6 +771,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy diff").action,
             BrowserCommandAction.COPY_DIFF,
+        )
+        self.assertEqual(
+            parse_browser_command("copy hunk").action,
+            BrowserCommandAction.COPY_HUNK,
         )
         self.assertEqual(
             parse_browser_command("open hunk").action,
@@ -1522,6 +1570,144 @@ class CliTests(unittest.TestCase):
         open_path.assert_not_called()
         self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
         self.assertIn("Open a file detail to open hunk.", state.status_message)
+
+    def test_browser_command_executor_copies_current_hunk_in_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=3,
+            review_notes={"src/Sample.ts": "keep note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1 +3 @@",
+            "  +first",
+            "  context",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch(
+                "cr.ui.browser.file_actions.copy_text",
+                return_value=None,
+            ) as copy_text:
+                result = executor.execute(
+                    parse_browser_command("copy hunk", raw_keys=True)
+                )
+
+        copied = copy_text.call_args.args[0]
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertIn("# Hunk Diff: src/Sample.ts", copied)
+        self.assertIn("- anchor: src/Sample.ts:31", copied)
+        self.assertIn("- hunk: 2/2", copied)
+        self.assertIn("```text", copied)
+        self.assertIn("@@ -20,2 +31,3 @@", copied)
+        self.assertIn("  20   31 | context", copied)
+        self.assertIn("        32 | +second", copied)
+        self.assertNotIn("+first", copied)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(state.review_notes["src/Sample.ts"], "keep note")
+        self.assertIsNotNone(state.task)
+        self.assertIn("Copied hunk 2/2 for src/Sample.ts:31", state.status_message)
+
+    def test_browser_command_executor_reports_copy_hunk_outside_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd=None)
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+            result = executor.execute(parse_browser_command("copy hunk", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertIn("Open a file detail to copy hunk.", state.status_message)
+
+    def test_browser_command_executor_reports_copy_hunk_without_hunks(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd=None)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=["File 1/1"]):
+            with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+                result = executor.execute(
+                    parse_browser_command("copy hunk", raw_keys=True)
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertIn("No diff hunks in current file.", state.status_message)
+
+    def test_browser_command_executor_surfaces_copy_hunk_failure(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch(
+            "cr.ui.browser._cached_file_lines",
+            return_value=["File 1/1", "  @@ -1 +9 @@", "        9 | +new"],
+        ):
+            with patch(
+                "cr.ui.browser.file_actions.copy_text",
+                return_value="Copy failed (cli copy-tool): missing copy",
+            ):
+                result = executor.execute(
+                    parse_browser_command("copy hunk", raw_keys=True)
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("Copy failed (cli copy-tool): missing copy", state.status_message)
 
     def test_browser_command_executor_reports_open_hunk_without_hunks(self):
         from cr.ui.browser import parse_browser_command
@@ -6295,6 +6481,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt", text)
         self.assertIn("copy prompt file", text)
         self.assertIn("open hunk", text)
+        self.assertIn("copy hunk", text)
         self.assertIn("save diff", text)
         self.assertIn("next hunk", text)
         self.assertIn("prev hunk", text)
@@ -6320,6 +6507,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt file", commands)
         self.assertIn("copy diff", commands)
         self.assertIn("open hunk", commands)
+        self.assertIn("copy hunk", commands)
         self.assertIn("save diff", commands)
         self.assertIn("next hunk", commands)
         self.assertIn("prev hunk", commands)

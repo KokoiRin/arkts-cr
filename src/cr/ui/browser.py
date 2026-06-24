@@ -39,6 +39,7 @@ from ..review.tree import (
 from ..source.purpose import describe_file
 from ..vcs import git
 from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
+from . import file_actions
 from .navigation import BrowserNavigation, BrowserPage
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
@@ -394,6 +395,46 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to open.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_PATH:
+            visible = state.visible_changes
+            if visible:
+                state.clamp_selection()
+                path = visible[state.selected].path
+                message = file_actions.copy_text(path) or f"Copied {shorten_path(path)}"
+                _show_browser_message(state, message, raw_keys, frame)
+                return BrowserActionResult(needs_redraw=raw_keys)
+            _show_browser_message(state, "No changed file to copy.", raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_ANCHOR:
+            visible = state.visible_changes
+            if visible:
+                state.clamp_selection()
+                path = visible[state.selected].path
+                line = git.first_changed_line(
+                    path,
+                    staged=args.staged,
+                    all_changes=args.all_changes,
+                    base=args.base,
+                    ref_range=args.ref_range,
+                )
+                anchor = f"{path}:{line}" if line else path
+                display = f"{shorten_path(path)}:{line}" if line else shorten_path(path)
+                message = file_actions.copy_text(anchor) or f"Copied {display}"
+                _show_browser_message(state, message, raw_keys, frame)
+                return BrowserActionResult(needs_redraw=raw_keys)
+            _show_browser_message(state, "No changed file to copy.", raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.REVEAL_FILE:
+            visible = state.visible_changes
+            if visible:
+                state.clamp_selection()
+                path = visible[state.selected].path
+                repo_file = git.repo_path(path)
+                message = file_actions.reveal_path(repo_file) or f"Revealed {shorten_path(path)}"
+                _show_browser_message(state, message, raw_keys, frame)
+                return BrowserActionResult(needs_redraw=raw_keys)
+            _show_browser_message(state, "No changed file to reveal.", raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.RUN_BUILD:
             if raw_keys:
                 _start_task(state, args, "build")
@@ -528,8 +569,9 @@ class BrowserCommandExecutor:
                 if raw_keys
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
-                    "o, n, p, b, g, r, h, m, remaining, build, stop, rerun, "
-                    "test, lint, staged, all, base, range, or q."
+                    "o, n, p, b, g, r, h, m, remaining, copy path, "
+                    "copy anchor, reveal, build, stop, rerun, test, lint, "
+                    "staged, all, base, range, or q."
                 )
             )
             _show_browser_message(
@@ -1225,7 +1267,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back to list",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/stop/rerun: repo tasks",
+        "  : command prompt    build/test/lint: tasks    copy path/anchor/reveal: file actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1274,6 +1316,9 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("remaining", "show files not marked seen", "remaining"),
                 CommandEntry("allfiles / show all", "show all changed files", "allfiles"),
                 CommandEntry("open", "open selected file in editor", "open"),
+                CommandEntry("copy path", "copy selected file path", "copy path"),
+                CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
+                CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
                 CommandEntry("refresh", "reload current review scope", "refresh"),
             ),
         ),

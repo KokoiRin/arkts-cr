@@ -194,6 +194,18 @@ class CliTests(unittest.TestCase):
             parse_browser_command("compile").action,
             BrowserCommandAction.RUN_BUILD,
         )
+        self.assertEqual(
+            parse_browser_command("copy path").action,
+            BrowserCommandAction.COPY_PATH,
+        )
+        self.assertEqual(
+            parse_browser_command("copy anchor").action,
+            BrowserCommandAction.COPY_ANCHOR,
+        )
+        self.assertEqual(
+            parse_browser_command("reveal").action,
+            BrowserCommandAction.REVEAL_FILE,
+        )
 
         base = parse_browser_command("base main")
         self.assertEqual(base.action, BrowserCommandAction.SWITCH_BASE)
@@ -278,6 +290,140 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertFalse(result.needs_redraw)
         self.assertIn("Unknown command.", output.getvalue())
+
+    def test_browser_command_executor_copies_selected_path(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text", return_value=None) as copy:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy path"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        copy.assert_called_once_with("src/Sample.ts")
+        self.assertIn("Copied src/Sample.ts", output.getvalue())
+
+    def test_browser_command_executor_copies_selected_anchor(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(
+            staged=True,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+        )
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=12) as first_line:
+            with patch("cr.ui.browser.file_actions.copy_text", return_value=None) as copy:
+                with redirect_stdout(output):
+                    result = executor.execute(parse_browser_command("copy anchor"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        first_line.assert_called_once_with(
+            "src/Sample.ts",
+            staged=True,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+        )
+        copy.assert_called_once_with("src/Sample.ts:12")
+        self.assertIn("Copied src/Sample.ts:12", output.getvalue())
+
+    def test_browser_command_executor_anchor_falls_back_to_path_without_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+        )
+        state = BrowserState([FileChange("asset.bin", None, None)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=None):
+            with patch("cr.ui.browser.file_actions.copy_text", return_value=None) as copy:
+                with redirect_stdout(StringIO()):
+                    result = executor.execute(parse_browser_command("copy anchor"))
+
+        self.assertTrue(result.handled)
+        copy.assert_called_once_with("asset.bin")
+
+    def test_browser_command_executor_reveals_selected_file(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+        repo_file = Path("/tmp/repo/src/Sample.ts")
+
+        with patch("cr.ui.browser.git.repo_path", return_value=repo_file):
+            with patch("cr.ui.browser.file_actions.reveal_path", return_value=None) as reveal:
+                with redirect_stdout(output):
+                    result = executor.execute(parse_browser_command("reveal"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        reveal.assert_called_once_with(repo_file)
+        self.assertIn("Revealed src/Sample.ts", output.getvalue())
+
+    def test_browser_file_actions_report_when_no_changed_file_is_available(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy:
+            with patch("cr.ui.browser.file_actions.reveal_path") as reveal:
+                with redirect_stdout(output):
+                    copy_result = executor.execute(parse_browser_command("copy path"))
+                    reveal_result = executor.execute(parse_browser_command("reveal"))
+
+        self.assertTrue(copy_result.handled)
+        self.assertTrue(reveal_result.handled)
+        copy.assert_not_called()
+        reveal.assert_not_called()
+        self.assertIn("No changed file to copy.", output.getvalue())
+        self.assertIn("No changed file to reveal.", output.getvalue())
 
     def test_browser_main_loop_delegates_action_execution(self):
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
@@ -489,6 +635,33 @@ class CliTests(unittest.TestCase):
                 command = _open_command(Path("/tmp/Sample.ts"), 7)
 
         self.assertEqual(command, ["open", "/tmp/Sample.ts"])
+
+    def test_file_action_helpers_discover_macos_clipboard_and_reveal_commands(self):
+        from cr.ui.file_actions import clipboard_command, reveal_command
+
+        def fake_which(name):
+            if name in {"pbcopy", "open"}:
+                return f"/usr/bin/{name}"
+            return None
+
+        with patch("cr.ui.file_actions.platform.system", return_value="Darwin"):
+            with patch("cr.ui.file_actions.shutil.which", side_effect=fake_which):
+                self.assertEqual(clipboard_command(), ["pbcopy"])
+                self.assertEqual(
+                    reveal_command(Path("/tmp/Sample.ts")),
+                    ["open", "-R", "/tmp/Sample.ts"],
+                )
+
+    def test_file_action_helpers_report_missing_platform_commands(self):
+        from cr.ui.file_actions import copy_text, reveal_path
+
+        with patch("cr.ui.file_actions.clipboard_command", return_value=None):
+            self.assertEqual(copy_text("src/Sample.ts"), "No clipboard command found.")
+        with patch("cr.ui.file_actions.reveal_command", return_value=None):
+            self.assertEqual(
+                reveal_path(Path("/tmp/Sample.ts")),
+                "No file browser command found.",
+            )
 
     def test_build_command_detects_douyin_harmony_repo(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2266,6 +2439,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("build", commands)
         self.assertIn("test", commands)
         self.assertIn("lint", commands)
+        self.assertIn("copy path", commands)
+        self.assertIn("copy anchor", commands)
+        self.assertIn("reveal", commands)
         self.assertIn("staged", commands)
         self.assertIn("remaining", commands)
         self.assertNotIn("b", commands)

@@ -165,6 +165,15 @@ allfiles / show all    回到全部改动文件
 cr --open-cmd 'code -g {fileline}'
 ```
 
+常用文件动作：
+
+```text
+: open         打开当前文件到首个改动行
+: copy path    复制当前文件相对路径
+: copy anchor  复制当前文件 path:line review anchor
+: reveal       在系统文件管理器里定位当前文件
+```
+
 运行仓库任务：
 
 ```text

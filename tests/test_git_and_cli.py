@@ -88,7 +88,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("└─ src", text)
         self.assertIn("└─ Sample.ts", text)
 
-    def test_browse_tree_dims_guides_and_uses_white_file_names(self):
+    def test_browse_tree_highlights_guides_and_uses_plain_white_file_names(self):
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -102,13 +102,14 @@ class CliTests(unittest.TestCase):
         with patch("cr.ui.browser.git.first_changed_line", return_value=3):
             with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/pages/Sample.ts")):
                 with redirect_stdout(output):
-                    _draw_browse_screen(state, args, TerminalStyle(True))
+                    _draw_browse_screen(state, args, TerminalStyle(True, True))
 
         text = output.getvalue()
-        self.assertIn("\033[2m└─ src/pages\033[0m", text)
-        self.assertIn("\033[2m   └─ \033[0m", text)
+        self.assertIn("\033[36m└─ src/pages\033[0m", text)
+        self.assertIn("\033[36m   └─ \033[0m", text)
         self.assertIn("\033[37mSample.ts", text)
         self.assertNotIn("\033[36mSample.ts", text)
+        self.assertNotIn("\033]8;;", text)
 
     def test_browse_filter_matches_paths_and_clamps_selection(self):
         changes = [
@@ -560,8 +561,8 @@ struct SamplePage {
                 "vscode",
             )
             self.assertEqual(vscode_browse.returncode, 0, vscode_browse.stderr)
-            self.assertIn("\033]8;;vscode://file/", vscode_browse.stdout)
-            self.assertIn(":1", vscode_browse.stdout)
+            self.assertNotIn("\033]8;;", vscode_browse.stdout)
+            self.assertIn("Sample.ts", vscode_browse.stdout)
 
     def test_cli_review_accepts_configurable_hunk_context(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -495,7 +495,6 @@ def _browse_list_lines(
                 selected,
                 index_width,
                 label_width,
-                args,
                 style,
             )
         )
@@ -546,9 +545,7 @@ def _browse_list_screen_lines(
                 state.selected,
                 index_width,
                 label_width,
-                args,
                 style,
-                state,
             )
         )
     if len(rows) > row_capacity:
@@ -614,30 +611,16 @@ def _format_browse_tree_row(
     selected: int | None,
     index_width: int,
     label_width: int,
-    args: argparse.Namespace,
     style: TerminalStyle,
-    state: BrowserState | None = None,
 ) -> str:
     if row.change is None or row.change_index is None:
         return f"  {' ' * index_width}  {_style_tree_directory(row.label, style)}"
 
     marker = ">" if selected == row.change_index else " "
-    first_line = (
-        _cached_first_changed_line(state, row.change, args)
-        if state is not None
-        else git.first_changed_line(
-            row.change.path,
-            staged=args.staged,
-            all_changes=args.all_changes,
-            base=args.base,
-            ref_range=args.ref_range,
-        )
-    )
     status = " modified" if row.change.status == "modified" else ""
     styled_label = _style_tree_file(
         row.label,
         label_width,
-        _link_target(row.change.path, first_line, args),
         style,
     )
     return (
@@ -649,19 +632,17 @@ def _format_browse_tree_row(
 
 
 def _style_tree_directory(label: str, style: TerminalStyle) -> str:
-    return style.dim(label)
+    return style.path(label)
 
 
 def _style_tree_file(
     label: str,
     width: int,
-    target: str | None,
     style: TerminalStyle,
 ) -> str:
     guide, filename = _split_tree_label(label)
     padding = " " * max(0, width - len(label))
-    rendered = f"{style.dim(guide)}{style.file_path(filename + padding)}"
-    return style.link(rendered, target)
+    return f"{style.path(guide)}{style.file_path(filename + padding)}"
 
 
 def _split_tree_label(label: str) -> tuple[str, str]:

@@ -57,6 +57,7 @@ from cr.ui.browser import (
     ReviewScope,
 )
 from cr.review.changes import format_counts
+from cr.ui import command_catalog
 from cr.ui.terminal import TerminalStyle
 from cr.vcs.git import CommitSummary, FileChange
 
@@ -75,6 +76,49 @@ def argparse_namespace(**kwargs):
 
 
 class CliTests(unittest.TestCase):
+    def test_command_catalog_module_groups_command_help_lines(self):
+        groups = command_catalog.command_catalog()
+        lines = command_catalog.command_list_lines(TerminalStyle(False), max_lines=80)
+        text = "\n".join(lines)
+
+        self.assertEqual([group.title for group in groups][0], "Navigation")
+        self.assertIn("Commands", text)
+        self.assertIn("Review scope", text)
+        self.assertIn("copy prompt file", text)
+
+    def test_command_catalog_module_filters_executable_palette_entries(self):
+        commands = [entry.command for entry in command_catalog.command_palette_entries()]
+        scope_filtered = [
+            entry.command
+            for entry in command_catalog.filtered_command_palette_entries("scope")
+        ]
+        file_filtered = [
+            entry.command
+            for entry in command_catalog.filtered_command_palette_entries("file")
+        ]
+
+        self.assertIn("copy prompt", commands)
+        self.assertIn("copy prompt file", commands)
+        self.assertNotIn("base REF", commands)
+        self.assertNotIn("copy notes QUERY", commands)
+        self.assertLess(scope_filtered.index("scopes"), scope_filtered.index("staged"))
+        self.assertLess(file_filtered.index("file actions"), file_filtered.index("open"))
+
+    def test_command_catalog_module_renders_palette_screen_with_scroll(self):
+        screen = command_catalog.command_palette_screen_lines(
+            query="build",
+            selected=0,
+            scroll=0,
+            style=TerminalStyle(False),
+            max_lines=20,
+        )
+        text = "\n".join(screen.lines)
+
+        self.assertEqual(screen.scroll, 0)
+        self.assertIn("Command palette", text)
+        self.assertIn("Filter: build", text)
+        self.assertIn("> ", text)
+
     def test_browser_page_model_names_current_pages(self):
         self.assertEqual(BrowserPage.SCOPE_HOME, "scopes")
         self.assertEqual(BrowserPage.COMMIT_PICKER, "commits")

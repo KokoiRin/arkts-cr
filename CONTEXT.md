@@ -31,6 +31,9 @@ state, and browser workspace-state data interpretation.
 key aliases, parameterized commands, numeric selections, and unknown input into
 stable product actions without executing those actions, rendering output, or
 mutating browser state.
+`cr.ui.command_catalog` owns the browser command surface: grouped command help,
+executable Command Palette entries, command filtering/ranking, and command
+surface row rendering. It does not parse typed commands or execute actions.
 `cr.ui.browser.BrowserCommandExecutor` owns browser action execution for parsed
 commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
@@ -74,6 +77,9 @@ Product navigation terms:
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.
+- `Command Catalog`: the internal module that owns grouped command help,
+  executable Command Palette entries, filtering/ranking, and command surface
+  row rendering. It does not parse command text or execute actions.
 - `Browser Action Execution`: the internal interface that executes parsed
   browser actions and returns loop control. It does not read prompt input or
   own browser session shutdown.

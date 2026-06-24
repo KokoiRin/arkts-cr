@@ -40,6 +40,8 @@ from ..review.tree import (
 from ..source.purpose import describe_file
 from ..vcs import git
 from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
+from . import command_catalog as command_catalog_module
+from .command_catalog import CommandEntry, CommandGroup, PaletteCommand
 from . import file_actions
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import tasks as task_runtime
@@ -202,31 +204,10 @@ class BrowseTreeRow:
 
 
 @dataclass(frozen=True)
-class CommandEntry:
-    command: str
-    description: str
-    action: str | None = None
-
-
-@dataclass(frozen=True)
-class CommandGroup:
-    title: str
-    entries: tuple[CommandEntry, ...]
-
-
-@dataclass(frozen=True)
 class ScopeHomeEntry:
     label: str
     description: str
     action: str | None = None
-
-
-@dataclass(frozen=True)
-class PaletteCommand:
-    group: str
-    label: str
-    command: str
-    description: str
 
 
 @dataclass
@@ -1477,91 +1458,11 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
 
 
 def _command_catalog() -> tuple[CommandGroup, ...]:
-    return (
-        CommandGroup(
-            "Navigation",
-            (
-                CommandEntry("Enter / 1..N", "open selected file or choose by number"),
-                CommandEntry("b / back", "return through page history"),
-                CommandEntry("forward", "return to the page left by back", "forward"),
-                CommandEntry("n / p", "next or previous file"),
-                CommandEntry("scopes / scope", "show Review Scope home", BrowserPage.SCOPE_HOME),
-                CommandEntry("g / commits", "show recent commits", "g"),
-            ),
-        ),
-        CommandGroup(
-            "Review scope",
-            (
-                CommandEntry("worktree", "review unstaged worktree changes", "worktree"),
-                CommandEntry("staged", "review staged/index changes", "staged"),
-                CommandEntry("all", "review staged and unstaged local changes", "all"),
-                CommandEntry("base REF", "review changes against a base ref"),
-                CommandEntry("range OLD..NEW", "review an explicit ref range"),
-            ),
-        ),
-        CommandGroup(
-            "Tasks",
-            (
-                CommandEntry("build", "run configured repo build", "build"),
-                CommandEntry("test / tests", "run configured repo tests", "test"),
-                CommandEntry("lint", "run configured repo lint", "lint"),
-                CommandEntry("tasks", "show task command sources", "tasks"),
-                CommandEntry("tasks help", "show .cr/tasks.json format", "tasks help"),
-                CommandEntry("stop / cancel", "stop running task", "stop"),
-                CommandEntry("rerun / rebuild", "run recent task again", "rerun"),
-            ),
-        ),
-        CommandGroup(
-            "Files",
-            (
-                CommandEntry("/QUERY / filter QUERY", "filter changed files by path"),
-                CommandEntry("clear", "clear active file filter", "clear"),
-                CommandEntry("m / seen / done", "mark selected file as seen", "m"),
-                CommandEntry("todo / unseen / unmark", "mark selected file as todo", "todo"),
-                CommandEntry("remaining", "show files not marked seen", "remaining"),
-                CommandEntry("allfiles / show all", "show all changed files", "allfiles"),
-                CommandEntry("open", "open selected file in editor", "open"),
-                CommandEntry("copy path", "copy selected file path", "copy path"),
-                CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
-                CommandEntry("copy notes", "copy review notes summary", "copy notes"),
-                CommandEntry("copy notes QUERY", "copy filtered review notes summary"),
-                CommandEntry("copy prompt", "copy current review prompt", "copy prompt"),
-                CommandEntry("copy prompt file", "copy selected file review prompt", "copy prompt file"),
-                CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
-                CommandEntry("file actions", "show open/copy/reveal command sources", "file actions"),
-                CommandEntry("note TEXT", "set selected file review note"),
-                CommandEntry("note", "clear selected file review note"),
-                CommandEntry("notes", "show all review notes", "notes"),
-                CommandEntry("notes QUERY", "filter review notes by path or note text"),
-                CommandEntry("refresh", "reload current review scope", "refresh"),
-            ),
-        ),
-        CommandGroup(
-            "Session",
-            (
-                CommandEntry(BrowserPage.COMMAND_PALETTE, "show this command list", BrowserPage.COMMAND_PALETTE),
-                CommandEntry("help", "show compact key help", "help"),
-                CommandEntry("quit", "exit browser", "quit"),
-            ),
-        ),
-    )
+    return command_catalog_module.command_catalog()
 
 
 def _command_palette_entries() -> list[PaletteCommand]:
-    entries: list[PaletteCommand] = []
-    for group in _command_catalog():
-        for entry in group.entries:
-            if entry.action is None:
-                continue
-            entries.append(
-                PaletteCommand(
-                    group=group.title,
-                    label=entry.command,
-                    command=entry.action,
-                    description=entry.description,
-                )
-            )
-    return entries
+    return command_catalog_module.command_palette_entries()
 
 
 def _scope_home_entries() -> tuple[ScopeHomeEntry, ...]:
@@ -1610,71 +1511,21 @@ def _select_scope_home_entry(
 
 
 def _filtered_command_palette_entries(state: BrowserState) -> list[PaletteCommand]:
-    query = state.command_filter_text.strip().casefold()
-    entries = _command_palette_entries()
-    if not query:
-        return entries
-
-    matches: list[tuple[int, int, PaletteCommand]] = []
-    for index, entry in enumerate(entries):
-        score = _command_palette_match_score(entry, query)
-        if score is not None:
-            matches.append((score, index, entry))
-    return [entry for _, _, entry in sorted(matches, key=lambda item: (item[0], item[1]))]
-
-
-def _command_palette_match_score(
-    entry: PaletteCommand,
-    query: str,
-) -> int | None:
-    command = entry.command.casefold()
-    label = entry.label.casefold()
-    group = entry.group.casefold()
-    description = entry.description.casefold()
-    if query in {command, label}:
-        return 0
-    if command.startswith(query) or label.startswith(query):
-        return 1
-    if query in command or query in label:
-        return 2
-    if query in group:
-        return 3
-    if query in description:
-        return 4
-    return None
+    return command_catalog_module.filtered_command_palette_entries(
+        state.command_filter_text
+    )
 
 
 def _selected_palette_command(state: BrowserState) -> PaletteCommand | None:
-    entries = _filtered_command_palette_entries(state)
-    if not entries:
-        return None
     state.clamp_selection()
-    return entries[state.command_selected]
+    return command_catalog_module.selected_palette_command(
+        state.command_filter_text,
+        state.command_selected,
+    )
 
 
 def _browse_command_lines(style: TerminalStyle, max_lines: int) -> list[str]:
-    lines = [
-        style.bold("Commands"),
-        "Use : then type a command. b/back returns to the file list.",
-        "",
-    ]
-    command_width = max(
-        len(entry.command)
-        for group in _command_catalog()
-        for entry in group.entries
-    )
-    for group in _command_catalog():
-        lines.append(style.bold(group.title))
-        for entry in group.entries:
-            lines.append(
-                f"  {entry.command.ljust(command_width)}  {entry.description}"
-            )
-        lines.append("")
-    if len(lines) <= max_lines:
-        return lines
-    clipped = lines[: max(1, max_lines - 1)]
-    clipped.append(style.dim(f"showing 1-{len(clipped)}/{len(lines)}"))
-    return clipped
+    return command_catalog_module.command_list_lines(style, max_lines)
 
 
 def _browse_command_palette_screen_lines(
@@ -1682,43 +1533,16 @@ def _browse_command_palette_screen_lines(
     style: TerminalStyle,
     max_lines: int,
 ) -> list[str]:
-    entries = _filtered_command_palette_entries(state)
-    total_entries = len(_command_palette_entries())
-    lines = [
-        style.bold("Command palette"),
-        "/: filter commands   c: clear filter   Enter: run selected command   b/←: back",
-    ]
-    if state.command_filter_text:
-        lines.append(
-            f"Filter: {state.command_filter_text} "
-            f"({len(entries)}/{total_entries} matches)"
-        )
-    lines.append("")
-    if not entries:
-        message = "No matching commands." if state.command_filter_text else "No executable commands."
-        return [*lines, message][:max_lines]
     state.clamp_selection()
-    command_width = max(len(entry.label) for entry in entries)
-    row_capacity = max(1, max_lines - len(lines) - 1)
-    start = _ensure_window(
-        state.command_scroll,
+    screen = command_catalog_module.command_palette_screen_lines(
+        state.command_filter_text,
         state.command_selected,
-        len(entries),
-        row_capacity,
+        state.command_scroll,
+        style,
+        max_lines,
     )
-    state.command_scroll = start
-    end = min(len(entries), start + row_capacity)
-    for index, entry in enumerate(entries[start:end], start):
-        marker = ">" if index == state.command_selected else " "
-        lines.append(
-            f"{marker} {entry.group.ljust(12)} "
-            f"{entry.label.ljust(command_width)}  {entry.description}"
-        )
-    if len(entries) > row_capacity:
-        lines.append(style.dim(f"showing {start + 1}-{end}/{len(entries)}"))
-    else:
-        lines.append("")
-    return lines[:max_lines]
+    state.command_scroll = screen.scroll
+    return screen.lines
 
 
 def _browse_scope_home_screen_lines(

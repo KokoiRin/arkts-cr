@@ -152,6 +152,7 @@ Page naming is now explicit without adding a true navigation stack or changing u
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
 Browser command dispatch is now explicit without changing user-visible commands. `BrowserCommandAction` and `parse_browser_command` map raw key aliases, line-mode commands, parameterized commands, and numeric selections to product actions before `browser.py` executes them.
+Command catalog ownership is now explicit without changing user-visible commands. `cr.ui.command_catalog` owns grouped command help, executable palette entries, filtering/ranking, and command surface row rendering, while `browser.py` keeps command filter/selection/scroll state and frame placement.
 Browser action execution is now explicit without changing user-visible behavior. `BrowserCommandExecutor` executes parsed actions and returns `BrowserActionResult`, while `run_browser` keeps prompt input, sentinels, workspace save-on-exit, and redraw scheduling.
 Task runtime is now explicit without changing Task Panel behavior. `cr.ui.tasks` owns command resolution, process lifecycle, output capture, stop/rerun, foreground execution, and history records; `browser.py` keeps terminal layout and panel rendering.
 Task presets are now explicit as project-local defaults. `cr.ui.tasks` reads `.cr/tasks.json` for build/test/lint defaults after CLI arguments and environment variables, and before DouyinHarmony's build fallback.
@@ -244,6 +245,12 @@ Status: implemented.
 
 Command palette filtering now shows match counts and ranks stronger command/label matches ahead of group and description-only matches. Unfiltered palette order remains the stable catalog order.
 
+### P0: Command catalog extraction
+
+Status: implemented.
+
+`cr.ui.command_catalog` now owns command catalog groups, executable command palette entries, command filtering/ranking, command list lines, and command palette screen lines. `browser.py` keeps mutable command palette state such as filter text, selection, scroll position, and frame placement, but no longer owns catalog data or ranking rules.
+
 ### P0: Task runtime extraction
 
 Status: implemented.
@@ -321,5 +328,5 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and persistence file I/O.
-- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, and `cr.ui.file_actions` hides open/copy/reveal platform behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, prompt input, and persistence file I/O.
-- The next product opportunity should come from concrete usage friction around richer review-note workflows, command catalog extraction, or deeper persistence/rendering extraction.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, and `cr.ui.file_actions` hides open/copy/reveal platform behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, prompt input, and persistence file I/O.
+- The next product opportunity should come from concrete usage friction around richer review handoff workflows or deeper persistence/rendering extraction.

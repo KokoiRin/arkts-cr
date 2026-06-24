@@ -143,6 +143,8 @@ The next implementation work should make this mapping more explicit without doin
 
 ### P0: Product navigation breadcrumbs
 
+Status: implemented.
+
 Render an explicit hierarchy line such as:
 
 ```text
@@ -150,7 +152,7 @@ Scope: worktree > Files
 Scope: commit 71ee79d > Files > src/cr/ui/browser.py
 ```
 
-This is the smallest change that makes the three product layers visible without rewriting state.
+This is the smallest change that makes the three product layers visible without rewriting state. Current implementation renders `Scope: <scope> > Files` for Changed Files, `Scope: <scope> > Files > <path>` for File Detail, and keeps `Scope: recent commits` as the commit picker / scope-selection surface.
 
 ### P0: Scope home
 
@@ -177,9 +179,10 @@ After the navigation model is visible, add more task actions such as test/lint. 
 
 Use the architecture skill periodically, especially before changes that touch `src/cr/ui/browser.py`, `src/cr/review/changes.py`, or workspace persistence.
 
+Keep the product navigation terms language-neutral. `Review Scope`, `Changed Files`, `File Detail`, `Command Palette`, `Task Panel`, and `Browser Frame` should remain stable even if the implementation later moves away from Python. Internal Python strings such as `mode="list"` or `mode="file"` are implementation details, not long-term product interfaces.
+
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, build lifecycle, and editor handoff.
 - The next deepening opportunity is likely a `BrowserNavigation` or `ReviewWorkspace` module whose interface hides scope/list/file transitions from the render loop.
 - Do not extract it until the product hierarchy above has at least one more concrete UI feature, otherwise the seam will have only one adapter and may become shallow indirection.
-

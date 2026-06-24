@@ -47,7 +47,7 @@ from cr.ui.browser import (
 )
 from cr.review.changes import format_counts
 from cr.ui.terminal import TerminalStyle
-from cr.vcs.git import FileChange
+from cr.vcs.git import CommitSummary, FileChange
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -862,10 +862,88 @@ class CliTests(unittest.TestCase):
 
         text = output.getvalue()
         self.assertTrue(text.startswith("\033[2J\033[H"))
-        self.assertIn("Scope: worktree", text)
+        self.assertIn("Scope: worktree > Files", text)
         self.assertIn("> 1", text)
         self.assertIn("└─ src", text)
         self.assertIn("└─ Sample.ts", text)
+
+    def test_browse_screen_file_detail_shows_product_breadcrumb(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+            context=2,
+        )
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)], mode="file")
+        output = StringIO()
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+            with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                with patch(
+                    "cr.ui.browser.change_hunk_lines",
+                    return_value=["changes:", "  3 + added"],
+                ):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        self.assertIn("Scope: worktree > Files > src/Sample.ts", output.getvalue())
+
+    def test_browse_screen_recent_commits_stays_scope_picker(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        state = BrowserState(
+            [],
+            commits=[
+                CommitSummary(
+                    commit="abcdef1234567890",
+                    parent="1234567890abcdef",
+                    authored_at="2026-06-24",
+                    subject="Example change",
+                )
+            ],
+            mode="commits",
+        )
+        output = StringIO()
+
+        with redirect_stdout(output):
+            _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("Scope: recent commits", text)
+        self.assertNotIn("Scope: recent commits > Files", text)
+
+    def test_browse_screen_selected_commit_files_show_product_breadcrumb(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range="abcdef1^..abcdef1",
+            link_scheme="file",
+        )
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            selected_commit=CommitSummary(
+                commit="abcdef1234567890",
+                parent="1234567890abcdef",
+                authored_at="2026-06-24",
+                subject="Example change",
+            ),
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+            with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                with redirect_stdout(output):
+                    _draw_browse_screen(state, args, TerminalStyle(False))
+
+        self.assertIn("Scope: commit abcdef12 > Files", output.getvalue())
 
     def test_browse_screen_places_build_panel_above_prompt(self):
         args = argparse_namespace(
@@ -915,7 +993,10 @@ class CliTests(unittest.TestCase):
                 with redirect_stdout(output):
                     _draw_browse_screen(state, args, TerminalStyle(False))
 
-        self.assertIn("Scope: worktree  |  Opened src/Sample.ts:3", output.getvalue())
+        self.assertIn(
+            "Scope: worktree > Files  |  Opened src/Sample.ts:3",
+            output.getvalue(),
+        )
 
     def test_raw_key_open_feedback_stays_inside_browser_frame(self):
         args = argparse_namespace(

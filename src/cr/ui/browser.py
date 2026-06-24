@@ -1430,6 +1430,19 @@ def _scope_label(state: BrowserState, args: argparse.Namespace) -> str:
     return "worktree"
 
 
+def _product_breadcrumb(state: BrowserState, args: argparse.Namespace) -> str:
+    label = _scope_label(state, args)
+    if state.mode == "commits":
+        return label
+    if state.mode == "commands":
+        return f"{label} > Commands"
+    if state.mode == "file":
+        visible = state.visible_changes
+        if visible and 0 <= state.selected < len(visible):
+            return f"{label} > Files > {visible[state.selected].path}"
+    return f"{label} > Files"
+
+
 def _args_untracked(args: argparse.Namespace) -> bool:
     return bool(getattr(args, "untracked", False))
 
@@ -1439,7 +1452,7 @@ def _scope_context_line(
     args: argparse.Namespace,
     style: TerminalStyle,
 ) -> str:
-    line = f"Scope: {_scope_label(state, args)}"
+    line = f"Scope: {_product_breadcrumb(state, args)}"
     if state.status_message:
         line = f"{line}  |  {state.status_message}"
     return style.dim(_fit_terminal_line(line))
@@ -1888,7 +1901,8 @@ def _cached_file_lines(
     style: TerminalStyle,
 ) -> list[str]:
     seen = change.path in state.seen_paths
-    key = _file_cache_key(change, index, total, args, seen)
+    scope_label = _product_breadcrumb(state, args)
+    key = _file_cache_key(change, index, total, args, seen, scope_label)
     if key not in state.file_line_cache:
         state.file_line_cache[key] = _browse_file_lines(
             change,
@@ -1896,7 +1910,7 @@ def _cached_file_lines(
             total,
             args,
             style,
-            _scope_label(state, args),
+            scope_label,
             seen,
         )
     return state.file_line_cache[key]
@@ -1908,10 +1922,12 @@ def _file_cache_key(
     total: int,
     args: argparse.Namespace,
     seen: bool = False,
+    scope_label: str = "",
 ) -> str:
     return "\x1f".join(
         [
             change.path,
+            scope_label,
             "seen" if seen else "todo",
             str(index),
             str(total),

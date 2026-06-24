@@ -51,6 +51,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Opens the interactive review browser by default when running `cr` without a subcommand.
   - Treats leading options such as `cr --code` or `cr --context 0` as `cr browse --code` and `cr browse --context 0`.
   - Follows the product hierarchy documented in `docs/workbench-navigation.md`: Review Scope, Changed Files, and File Detail.
+  - Renders product breadcrumbs in the context/status layer, such as `Scope: worktree > Files` and `Scope: commit abc12345 > Files > src/Foo.ets`.
   - Shows a changed-file list first, then a focused per-file diff view.
   - Uses stable screen regions in interactive TTYs so navigation and background tasks do not append repeated output.
   - Renders four page layers: context/status, main content, background task panel, and input prompt.
@@ -193,6 +194,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
 - Unit tests cover browse progress markers, remaining-only filtering, unmarking, persistence, and seen/todo rendering.
 - Unit tests cover browser frame state, safe build-panel partial refresh, stale-layout refusal, and line-input frame restoration.
 - Unit tests cover browser layer ownership: raw-key operation feedback stays inside the context/status layer, and dirty frames reject task-panel partial refreshes.
+- Unit tests cover product navigation breadcrumbs for Changed Files, File Detail, recent commits, selected commit scopes, and status messages.
 - Unit tests cover executable command palette entries, command selection, palette rendering, and Enter execution without accidentally opening files.
 - Unit tests cover command palette filtering, empty results, file-filter isolation, clear behavior, and filtered command execution.
 - Unit tests cover task history rendering, completed-build single recording, rerun history retention, and workspace-state exclusion.

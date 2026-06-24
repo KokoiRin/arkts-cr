@@ -45,6 +45,7 @@ Implement a lightweight terminal-first code reading tool named `cr`.
   - For other changed files, prints stats and compact diff hunks.
 - `cr browse`
   - Opens the interactive review browser by default when running `cr` without a subcommand.
+  - Treats leading options such as `cr --code` or `cr --context 0` as `cr browse --code` and `cr browse --context 0`.
   - Shows a changed-file list first, then a focused per-file diff view.
   - Uses a fixed redraw area in interactive TTYs so navigation does not append repeated output.
   - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return, `r` to refresh, and `q` to quit.
@@ -63,10 +64,11 @@ Implement a lightweight terminal-first code reading tool named `cr`.
 - Package taxonomy:
   - `cr.vcs` owns Git subprocess adapters, diff scopes, file status, untracked files, and repository paths.
   - `cr.source` owns lightweight source outline parsing and file-purpose hints.
-  - `cr.review` owns review data assembly and review renderers: hunks, tree, summary, risk, and prompt handoff.
+  - `cr.review` owns review command workflow, reusable review-scope facts, review data assembly, and review renderers: hunks, tree, summary, risk, and prompt handoff.
   - `cr.ui` owns terminal styling, clickable links, and interactive browser behavior.
   - `cr.cli` should remain a shallow command parser and dispatcher; new behavior should usually enter through one of the deeper packages first.
 - CLI: `argparse` subcommands.
+  - Default to `browse` when no subcommand is provided, including the shorthand form where the first CLI argument is an option.
   - Packaging:
     - Expose `cr` from `setup.py` as a console script pointing at `cr.cli:main`.
     - Avoid `pyproject.toml` for now because older pip versions try to download isolated build dependencies before editable installs.
@@ -100,6 +102,8 @@ Implement a lightweight terminal-first code reading tool named `cr`.
   - Build one compact hint from file extension, path keywords, and top-level symbols.
   - Prefer conservative labels over semantic guesses.
 - Review:
+  - Keep `src/cr/cli.py` as the command parser and delegate `cr review` execution to `src/cr/review/workflow.py`.
+  - Keep reusable review-scope facts in `src/cr/review/changes.py`: selected changes, other-side counts, first changed lines, anchors, link targets, annotations, risk hints, hunk lines, and per-file headers.
   - Reuse the same stats, changed-line, and outline functions as the individual commands.
   - Build structured review data before rendering alternate output formats.
   - Render a compact summary table with stable per-view indexes before tree/detail output.
@@ -154,3 +158,4 @@ Implement a lightweight terminal-first code reading tool named `cr`.
 - Unit tests cover old/new line-numbered hunk rendering.
 - Unit tests cover the packaged `cr` console script entry point.
 - Unit tests cover interactive browser filtering, fixed-screen redraw rendering, and non-TTY filtered selection.
+- Unit tests cover review workflow behavior through the CLI while review command implementation lives under `cr.review`.

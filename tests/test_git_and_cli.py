@@ -15,7 +15,7 @@ from cr.ui.browser import (
     _open_command,
     filter_changes_by_query,
 )
-from cr.cli import _format_counts
+from cr.review.changes import format_counts
 from cr.ui.terminal import TerminalStyle
 from cr.vcs.git import FileChange
 
@@ -35,7 +35,7 @@ def argparse_namespace(**kwargs):
 
 class CliTests(unittest.TestCase):
     def test_format_counts_handles_binary_stats(self):
-        self.assertEqual(_format_counts(FileChange("asset.bin", None, None)), "+? -?")
+        self.assertEqual(format_counts(FileChange("asset.bin", None, None)), "+? -?")
 
     def test_open_command_uses_configured_template(self):
         command = _open_command(
@@ -245,6 +245,25 @@ struct SamplePage {
             self.assertIn("j/k", session.stdout)
             self.assertIn("Sample.ets", session.stdout)
             self.assertIn("cr:list>", session.stdout)
+
+    def test_cli_defaults_to_browser_when_options_are_passed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("export const sample = 'new'\n", encoding="utf-8")
+
+            session = self._cr_input(repo, "q\n", "--context", "0", "--sort", "path")
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Interactive review", session.stdout)
+            self.assertIn("Sample.ts", session.stdout)
 
     def test_cli_interactive_browser_opens_file_and_navigates(self):
         with tempfile.TemporaryDirectory() as tmp:

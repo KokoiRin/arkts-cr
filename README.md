@@ -1,247 +1,168 @@
 # cr
 
-`cr` is a small command line helper for reviewing local Git changes without opening a full IDE. It is aimed at human review after AI coding.
+`cr` 是一个轻量的命令行代码 review 工具，用来快速查看本地 Git 改动。它适合 AI 写完代码后，人再做一次扫描、定位和确认。
 
-The first version is intentionally simple: Python standard library only, regex-based ArkTS / ETS / TS outline parsing, and terminal-friendly text output.
+日常使用时不用记很多命令：进入有改动的 Git 仓库，直接运行：
 
-## Install
+```bash
+cr
+```
 
-Requires Python 3.9 or newer.
+这会打开交互式 review browser。后续大部分操作都在里面完成。
 
-From this repository:
+## 安装
+
+需要 Python 3.9 或更新版本。
+
+在本仓库里执行：
 
 ```bash
 python3 -m pip install --user -e .
 cr --help
 ```
 
-If `cr` is installed but the shell still says `command not found`, add Python's user script directory to your current shell:
+如果安装后 shell 里提示 `cr: command not found`，把 Python 用户脚本目录加到当前 shell：
 
 ```bash
 export PATH="$(python3 -m site --user-base)/bin:$PATH"
-cr --help
 ```
 
-You can also run it without installing:
+也可以不安装，直接从源码运行：
 
 ```bash
-PYTHONPATH=src python3 -m cr --help
+PYTHONPATH=src python3 -m cr
 ```
 
-## Commands
+## 日常用法
 
-### `cr` / `cr browse`
-
-Opens an interactive review browser. This is the default entry point when you run `cr` without a subcommand.
-
-```text
-$ cr
-Interactive review
-  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back to list
-  /: filter files     c: clear filter      o: open in editor
-  n/p: next/previous  r: refresh           q: quit
-
-Changed files (2 files, +7 -4)
-  1  README.md           +2 -1  modified
-> 2  src/pages/Home.ets  +5 -3  modified
-
-cr:list> Enter
-File 2/2  src/pages/Home.ets:11  +5 -3
-  changes:
-  @@ -9,5 +9,5 @@ struct HomePage {
-    12      | -    Text(this.title)
-         12 | +    Text(this.title + ' updated')
-
-cr:file> o
-Opened src/pages/Home.ets:11
-```
-
-The browser mirrors the common source-control flow in editors: a changed-file list first, then a focused diff view for one file, with quick next/previous navigation. In an interactive terminal, `cr` redraws a single full-screen review area instead of appending repeated output. Use arrow keys or `j/k` to move and Enter to open the selected file. Press `/` to filter the changed-file list by path, and press `c` to clear the active filter. In non-interactive line mode, use `/query`, `filter query`, or `clear`. Use `r` after editing files to refresh the change list; the active filter is preserved and selection is clamped to the refreshed list. Press `o` to open the current file in an editor. In terminals that support OSC-8 links, file paths are clickable; some terminals only open `https` links, so `o` is the reliable local-file fallback. It supports the same scope filters as `diff`, plus `--context`, `--sort`, `--untracked`, `--color`, `--links`, `--link-scheme`, and `--open-cmd`:
+在有本地改动的 Git 仓库里运行：
 
 ```bash
-cr browse --code
-cr browse --sort risk
-cr browse --context 0
-cr browse --untracked
-cr browse --links always
-cr browse --links always --link-scheme vscode
-cr browse --open-cmd 'code -g {fileline}'
+cr
 ```
 
-### `cr diff`
+界面会先显示 changed-file list，选中文件后进入单文件 diff 视图。
 
-Shows changed files, added/deleted lines, and likely modified symbols for `.ets` and `.ts` files.
+常用按键：
 
 ```text
-$ cr diff
-Git diff stat:
- src/pages/Home.ets | 8 +++++---
-
-Changed file tree:
-  └─ src
-     └─ pages
-        └─ Home.ets +5 -3 modified: build, aboutToAppear
+↑/↓ 或 j/k    移动选择
+Enter / →     打开当前文件的 review 视图
+← / b         回到文件列表
+/             按路径过滤文件
+c             清除过滤
+n / p         下一项 / 上一项
+r             刷新改动
+o             用编辑器打开当前文件
+q             退出
 ```
 
-Use filters when a working tree is noisy:
+如果终端不支持真实 TUI，`cr` 会退回行模式。行模式里可以输入：
+
+```text
+/Second
+filter Second
+clear
+1
+q
+```
+
+## 常见场景
+
+只看代码文件：
 
 ```bash
-cr diff --code
-cr diff --code src/pages
-cr diff --untracked --code
-cr diff --color always
+cr --code
 ```
 
-Review staged/index changes explicitly:
+按风险或改动量排序：
 
 ```bash
-cr diff --staged
-cr diff --staged --code
-cr diff --all --code
-cr diff --base main --code
-cr diff --range main..feature --code
+cr --sort risk
+cr --sort churn
 ```
 
-By default, `cr diff` includes unstaged tracked changes and does not scan untracked files, because untracked discovery can be slow in large working trees. Add `--untracked` when you want new files too. `--staged` stays index-only. If both staged and unstaged tracked changes exist, `cr` prints a short note so you do not miss the other side. Use `--all` when you want one combined local-change view, `--base REF` to compare the current tree or HEAD against a branch or commit such as `main`, or `--range OLD..NEW` to compare two refs without checking out `NEW`. Terminal color defaults to `--color auto`; use `--color always` or `--color never` to force it. Clickable file links default to `--links auto`; use `--links always` or `--links never` to force them. `--link-scheme vscode` emits `vscode://file/...:line` links for terminals that can open VS Code URLs.
-
-### `cr outline <file>`
-
-Prints a rough file structure.
-
-```text
-$ cr outline src/pages/Home.ets
-purpose: ArkTS page/component HomePage with methods aboutToAppear, build
-src/pages/Home.ets
-└─ class HomePage (line 3)
-   ├─ method aboutToAppear (line 7)
-   └─ method build (line 11)
-```
-
-### `cr review`
-
-Combines diff and outline for code review.
-
-```text
-$ cr review
-Review changes:
-Summary:
-  2 files, +7 -4
-  path                change  status    anchor                 risk  focus
-  README.md           +2 -1   modified  README.md:4            -     -
-  src/pages/Home.ets  +5 -3   modified  src/pages/Home.ets:11  -     build
-
-Changed file tree:
-  ├─ README.md +2 -1 line 4
-  └─ src
-     └─ pages
-        └─ Home.ets +5 -3 modified: build line 11
-
-src/pages/Home.ets +5 -3 @ src/pages/Home.ets:11
-  purpose: ArkTS page/component HomePage with methods aboutToAppear, build
-  changes:
-  @@ -9,5 +9,5 @@ struct HomePage {
-    11   11 |   build() {
-    12      | -    Text(this.title)
-         12 | +    Text(this.title + ' updated')
-    13   13 |   }
-  modified: build
-  outline:
-  └─ class HomePage (line 3)
-     ├─ method aboutToAppear (line 7)
-     └─ method build * (line 11)
-
-README.md +2 -1
-```
-
-`review` starts with a compact summary table, then a repository-level file map, then expands each file with a short purpose hint and compact diff hunks. Code files also include their outline and modified symbols. Deep paths are shortened around the changed files' common directory so large monorepos stay readable. The `anchor` column and detail header point to the first changed line for quick terminal navigation. Hunk rows include old/new line numbers so changes are easy to quote in chat. The `risk` column flags lockfiles, config files, and generated files for extra human attention.
-
-Deleted files are marked directly in the file tree and details:
-
-```text
-src/utils/helper.ts +0 -3 deleted
-  changes:
-  @@ -1,3 +0,0 @@
-  -export function helper(): string {
-  -  return 'a'
-  -}
-```
-
-`review` supports the same filters as `diff`:
+包含未跟踪文件：
 
 ```bash
-cr review --code
-cr review src/pages
-cr review --code src/pages
-cr review --staged --code
-cr review --all --code
-cr review --base main --code
-cr review --range main..feature --code
+cr --untracked
 ```
 
-For large changes, control output depth:
+调小 diff 上下文：
+
+```bash
+cr --context 0
+```
+
+打开编辑器：
+
+```bash
+cr --open-cmd 'code -g {fileline}'
+```
+
+这些参数都作用在默认的 `cr browse` 上。一般先直接 `cr`，只有工作区很大或很乱时再加参数。
+
+## 其他命令
+
+`cr` 默认等价于 `cr browse`。下面这些命令主要用于脚本、复制到聊天里，或者不想进入交互界面时使用。
+
+快速摘要：
 
 ```bash
 cr review --summary
-cr review --no-hunks
-cr review --context 5
-cr review --sort risk
-cr review --sort churn
-cr review --summary --sort risk
-cr review --sort risk --pick 2
-cr review --summary --seen src/app.ts
-cr review --summary --seen src/app.ts --remaining
-cr review --summary --code src/pages
-cr review --untracked --code
-cr review --color always
 ```
 
-Hunk context defaults to 2 lines; use `--context 0` for only changed lines or a larger value when surrounding code matters. For big reviews, `--sort risk` puts lockfiles, config, and generated files first, while `--sort churn` puts the largest changed files first. The default `--sort git` keeps Git's order. Summary rows include an `idx` column; use `--pick N` with the same filters and sort to expand only that file. Use `--seen PATH` to mark files you have already reviewed, and add `--remaining` to hide them.
+输出完整 review 文本：
 
-Emit machine-readable JSON for scripts or AI prompts:
+```bash
+cr review
+```
+
+输出 JSON：
 
 ```bash
 cr review --json
-cr review --json --summary --code
-cr review --json --context 0
-cr review --json --sort risk
 ```
 
-JSON output includes `other_changes` counts for staged/unstaged changes outside the current view, plus per-file `anchor`, `first_changed_line`, and `risk_hints` fields. With `--untracked`, untracked text files are reported as `status: "untracked"` with their contents shown as added lines unless the file is binary, non-UTF-8, or over 200 KB; those cases get a short omitted-content note instead.
-
-Emit a compact Markdown package when you want to paste a review into chat or an AI reviewer:
+生成适合粘贴给 AI / 聊天的 Markdown：
 
 ```bash
 cr review --prompt
-cr review --prompt --sort risk --context 0
-cr review --prompt --sort risk --pick 2
-cr review --prompt --seen src/app.ts --remaining
-cr review --prompt --code src/pages
 ```
 
-## Test
+只看 Git diff 树：
+
+```bash
+cr diff
+```
+
+查看单个文件的大致结构：
+
+```bash
+cr outline src/pages/Home.ets
+```
+
+## 架构
+
+根 package `cr` 尽量保持很薄，主要负责 CLI 解析和分发。具体行为放在四个 package 里：
+
+- `cr.vcs`：Git diff/status adapter。
+- `cr.source`：轻量源码 outline 和文件用途提示。
+- `cr.review`：review workflow、changed-file facts、hunks/tree/summary/prompt/risk 等渲染。
+- `cr.ui`：终端样式、可点击链接和交互式 browser。
+
+新增功能前先看 `CONTEXT.md` 和 `docs/design.md`，优先把行为放进对应的 deep module，再让 CLI 调用。
+
+## 测试
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests
 ```
 
-Basic manual checks:
+基础手工检查：
 
 ```bash
-# Run diff/review from a Git repository that has local tracked changes.
-PYTHONPATH=src python3 -m cr diff
+PYTHONPATH=src python3 -m cr
+PYTHONPATH=src python3 -m cr review --summary
 PYTHONPATH=src python3 -m cr outline tests/fixtures/Sample.ets
-PYTHONPATH=src python3 -m cr review
-PYTHONPATH=src python3 -m cr review --untracked
 ```
-
-## Architecture
-
-The root `cr` package stays intentionally small. Behavior lives in four module
-groups:
-
-- `cr.vcs`: Git diff/status adapters.
-- `cr.source`: lightweight source outline and purpose hints.
-- `cr.review`: review data assembly and renderers.
-- `cr.ui`: terminal styling and interactive browser behavior.
-
-See `CONTEXT.md` and `docs/design.md` before adding new modules.

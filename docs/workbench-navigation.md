@@ -154,6 +154,7 @@ Browser action execution is now explicit without changing user-visible behavior.
 Task runtime is now explicit without changing Task Panel behavior. `cr.ui.tasks` owns command resolution, process lifecycle, output capture, stop/rerun, foreground execution, and history records; `browser.py` keeps terminal layout and panel rendering.
 Task presets are now explicit as project-local defaults. `cr.ui.tasks` reads `.cr/tasks.json` for build/test/lint defaults after CLI arguments and environment variables, and before DouyinHarmony's build fallback.
 File actions are now explicit Changed Files operations. `copy path`, `copy anchor`, and `reveal` use browser command dispatch and action execution, while `cr.ui.file_actions` hides clipboard and file-browser subprocess details.
+File action configuration is now explicit. `--copy-cmd` / `CR_COPY_CMD` and `--reveal-cmd` / `CR_REVEAL_CMD` customize selected-file copy/reveal actions while preserving platform fallbacks.
 Task diagnostics are now explicit Task Runtime output. `tasks` shows build/test/lint command sources without starting a background process, and `cr.ui.tasks` owns malformed preset reporting.
 
 ## Implementation Rules
@@ -251,6 +252,12 @@ Status: implemented.
 
 `copy path`, `copy anchor`, and `reveal` now operate on the selected changed file through the browser command parser, command palette, and action executor. `open` remains the editor handoff to the first changed line.
 
+### P0: File action configuration
+
+Status: implemented.
+
+`--copy-cmd` / `CR_COPY_CMD` and `--reveal-cmd` / `CR_REVEAL_CMD` now customize copy/reveal selected-file actions. `cr.ui.file_actions` owns template expansion, environment lookup, platform fallback, and subprocess behavior.
+
 ### P0: Task preset diagnostics
 
 Status: implemented.
@@ -273,4 +280,4 @@ Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
 - `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `BrowserCommandExecutor` hides action execution, and `cr.ui.tasks` hides task runtime behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, editor handoff helpers, prompt input, and persistence file I/O.
-- The next product opportunity is file action configuration if real usage shows the built-in copy/reveal fallbacks are not enough.
+- The next product opportunity is task preset schema help if `.cr/tasks.json` grows beyond build/test/lint strings.

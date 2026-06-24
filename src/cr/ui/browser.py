@@ -402,7 +402,10 @@ class BrowserCommandExecutor:
             if visible:
                 state.clamp_selection()
                 path = visible[state.selected].path
-                message = file_actions.copy_text(path) or f"Copied {shorten_path(path)}"
+                message = (
+                    file_actions.copy_text(path, getattr(args, "copy_cmd", None))
+                    or f"Copied {shorten_path(path)}"
+                )
                 _show_browser_message(state, message, raw_keys, frame)
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to copy.", raw_keys, frame)
@@ -421,7 +424,10 @@ class BrowserCommandExecutor:
                 )
                 anchor = f"{path}:{line}" if line else path
                 display = f"{shorten_path(path)}:{line}" if line else shorten_path(path)
-                message = file_actions.copy_text(anchor) or f"Copied {display}"
+                message = (
+                    file_actions.copy_text(anchor, getattr(args, "copy_cmd", None))
+                    or f"Copied {display}"
+                )
                 _show_browser_message(state, message, raw_keys, frame)
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to copy.", raw_keys, frame)
@@ -432,7 +438,10 @@ class BrowserCommandExecutor:
                 state.clamp_selection()
                 path = visible[state.selected].path
                 repo_file = git.repo_path(path)
-                message = file_actions.reveal_path(repo_file) or f"Revealed {shorten_path(path)}"
+                message = (
+                    file_actions.reveal_path(repo_file, getattr(args, "reveal_cmd", None))
+                    or f"Revealed {shorten_path(path)}"
+                )
                 _show_browser_message(state, message, raw_keys, frame)
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to reveal.", raw_keys, frame)

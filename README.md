@@ -166,6 +166,14 @@ allfiles / show all    回到全部改动文件
 cr --open-cmd 'code -g {fileline}'
 ```
 
+文件动作也可以配置：
+
+```bash
+cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
+```
+
+`copy path` / `copy anchor` 会把复制文本传给 copy 命令的 stdin，也支持 `{text}` 占位。`reveal` 支持 `{file}` 和 `{dir}` 占位。对应环境变量是 `CR_COPY_CMD` 和 `CR_REVEAL_CMD`。
+
 常用文件动作：
 
 ```text

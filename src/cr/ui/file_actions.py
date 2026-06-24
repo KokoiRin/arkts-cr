@@ -8,7 +8,9 @@ that action into a small platform command and reports launch failures.
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import platform
+import shlex
 import shutil
 import subprocess
 
@@ -27,8 +29,8 @@ def clipboard_command() -> list[str] | None:
     return None
 
 
-def copy_text(text: str) -> str | None:
-    command = clipboard_command()
+def copy_text(text: str, configured: str | None = None) -> str | None:
+    command = configured_copy_command(text, configured)
     if command is None:
         return "No clipboard command found."
     try:
@@ -36,6 +38,16 @@ def copy_text(text: str) -> str | None:
     except (OSError, subprocess.CalledProcessError) as exc:
         return f"Copy failed: {exc}"
     return None
+
+
+def configured_copy_command(
+    text: str,
+    configured: str | None = None,
+) -> list[str] | None:
+    template = configured or os.environ.get("CR_COPY_CMD")
+    if template:
+        return _format_template(template, {"text": text})
+    return clipboard_command()
 
 
 def reveal_command(path: Path) -> list[str] | None:
@@ -49,8 +61,8 @@ def reveal_command(path: Path) -> list[str] | None:
     return None
 
 
-def reveal_path(path: Path) -> str | None:
-    command = reveal_command(path)
+def reveal_path(path: Path, configured: str | None = None) -> str | None:
+    command = configured_reveal_command(path, configured)
     if command is None:
         return "No file browser command found."
     try:
@@ -58,3 +70,23 @@ def reveal_path(path: Path) -> str | None:
     except OSError as exc:
         return f"Reveal failed: {exc}"
     return None
+
+
+def configured_reveal_command(
+    path: Path,
+    configured: str | None = None,
+) -> list[str] | None:
+    template = configured or os.environ.get("CR_REVEAL_CMD")
+    if template:
+        return _format_template(
+            template,
+            {
+                "file": str(path),
+                "dir": str(path.parent),
+            },
+        )
+    return reveal_command(path)
+
+
+def _format_template(template: str, replacements: dict[str, str]) -> list[str]:
+    return [part.format(**replacements) for part in shlex.split(template)]

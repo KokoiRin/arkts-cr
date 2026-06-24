@@ -81,6 +81,21 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     browse.add_argument(
+        "--copy-cmd",
+        metavar="CMD",
+        help=(
+            "command used by browse 'copy path' and 'copy anchor'; receives "
+            "text on stdin and supports {text}"
+        ),
+    )
+    browse.add_argument(
+        "--reveal-cmd",
+        metavar="CMD",
+        help=(
+            "command used by browse 'reveal'; supports {file} and {dir}"
+        ),
+    )
+    browse.add_argument(
         "--build-cmd",
         metavar="CMD",
         help=(

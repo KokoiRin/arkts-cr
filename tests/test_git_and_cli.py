@@ -357,7 +357,7 @@ class CliTests(unittest.TestCase):
         state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
         executor = BrowserCommandExecutor(
             state,
-            argparse_namespace(),
+            argparse_namespace(copy_cmd="copy-tool"),
             TerminalStyle(),
             BrowserFrame(),
             raw_keys=False,
@@ -370,7 +370,7 @@ class CliTests(unittest.TestCase):
 
         self.assertTrue(result.handled)
         self.assertFalse(result.needs_redraw)
-        copy.assert_called_once_with("src/Sample.ts")
+        copy.assert_called_once_with("src/Sample.ts", "copy-tool")
         self.assertIn("Copied src/Sample.ts", output.getvalue())
 
     def test_browser_command_executor_copies_selected_anchor(self):
@@ -381,6 +381,7 @@ class CliTests(unittest.TestCase):
             all_changes=False,
             base=None,
             ref_range=None,
+            copy_cmd=None,
         )
         state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
         executor = BrowserCommandExecutor(
@@ -406,7 +407,7 @@ class CliTests(unittest.TestCase):
             base=None,
             ref_range=None,
         )
-        copy.assert_called_once_with("src/Sample.ts:12")
+        copy.assert_called_once_with("src/Sample.ts:12", None)
         self.assertIn("Copied src/Sample.ts:12", output.getvalue())
 
     def test_browser_command_executor_anchor_falls_back_to_path_without_line(self):
@@ -417,6 +418,7 @@ class CliTests(unittest.TestCase):
             all_changes=False,
             base=None,
             ref_range=None,
+            copy_cmd=None,
         )
         state = BrowserState([FileChange("asset.bin", None, None)])
         executor = BrowserCommandExecutor(
@@ -433,7 +435,7 @@ class CliTests(unittest.TestCase):
                     result = executor.execute(parse_browser_command("copy anchor"))
 
         self.assertTrue(result.handled)
-        copy.assert_called_once_with("asset.bin")
+        copy.assert_called_once_with("asset.bin", None)
 
     def test_browser_command_executor_reveals_selected_file(self):
         from cr.ui.browser import parse_browser_command
@@ -441,7 +443,7 @@ class CliTests(unittest.TestCase):
         state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
         executor = BrowserCommandExecutor(
             state,
-            argparse_namespace(),
+            argparse_namespace(reveal_cmd="reveal-tool --file {file}"),
             TerminalStyle(),
             BrowserFrame(),
             raw_keys=False,
@@ -456,7 +458,7 @@ class CliTests(unittest.TestCase):
 
         self.assertTrue(result.handled)
         self.assertFalse(result.needs_redraw)
-        reveal.assert_called_once_with(repo_file)
+        reveal.assert_called_once_with(repo_file, "reveal-tool --file {file}")
         self.assertIn("Revealed src/Sample.ts", output.getvalue())
 
     def test_browser_file_actions_report_when_no_changed_file_is_available(self):
@@ -805,6 +807,23 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(command, ["open", "/tmp/Sample.ts"])
 
+    def test_browse_parser_accepts_file_action_command_configuration(self):
+        from cr.cli import _build_parser
+
+        parser = _build_parser()
+        args = parser.parse_args(
+            [
+                "browse",
+                "--copy-cmd",
+                "copy-tool",
+                "--reveal-cmd",
+                "reveal-tool --file {file}",
+            ]
+        )
+
+        self.assertEqual(args.copy_cmd, "copy-tool")
+        self.assertEqual(args.reveal_cmd, "reveal-tool --file {file}")
+
     def test_file_action_helpers_discover_macos_clipboard_and_reveal_commands(self):
         from cr.ui.file_actions import clipboard_command, reveal_command
 
@@ -830,6 +849,71 @@ class CliTests(unittest.TestCase):
             self.assertEqual(
                 reveal_path(Path("/tmp/Sample.ts")),
                 "No file browser command found.",
+            )
+
+    def test_file_action_helpers_use_configured_copy_command(self):
+        from cr.ui.file_actions import copy_text
+
+        with patch("cr.ui.file_actions.subprocess.run") as run:
+            result = copy_text("src/Sample.ts", "copy-tool --label {text}")
+
+        self.assertIsNone(result)
+        run.assert_called_once_with(
+            ["copy-tool", "--label", "src/Sample.ts"],
+            input="src/Sample.ts",
+            text=True,
+            check=True,
+        )
+
+    def test_file_action_helpers_use_configured_reveal_command(self):
+        from cr.ui.file_actions import reveal_path
+
+        with patch("cr.ui.file_actions.subprocess.Popen") as popen:
+            result = reveal_path(
+                Path("/tmp/repo/src/Sample.ts"),
+                "reveal-tool --file {file} --dir {dir}",
+            )
+
+        self.assertIsNone(result)
+        popen.assert_called_once_with(
+            [
+                "reveal-tool",
+                "--file",
+                "/tmp/repo/src/Sample.ts",
+                "--dir",
+                "/tmp/repo/src",
+            ]
+        )
+
+    def test_file_action_helpers_use_environment_configuration(self):
+        from cr.ui.file_actions import configured_copy_command, configured_reveal_command
+
+        with patch.dict(
+            os.environ,
+            {
+                "CR_COPY_CMD": "env-copy {text}",
+                "CR_REVEAL_CMD": "env-reveal {file}",
+            },
+            clear=True,
+        ):
+            self.assertEqual(
+                configured_copy_command("src/Sample.ts"),
+                ["env-copy", "src/Sample.ts"],
+            )
+            self.assertEqual(
+                configured_copy_command("src/Sample.ts", "cli-copy {text}"),
+                ["cli-copy", "src/Sample.ts"],
+            )
+            self.assertEqual(
+                configured_reveal_command(Path("/tmp/repo/src/Sample.ts")),
+                ["env-reveal", "/tmp/repo/src/Sample.ts"],
+            )
+            self.assertEqual(
+                configured_reveal_command(
+                    Path("/tmp/repo/src/Sample.ts"),
+                    "cli-reveal {dir}",
+                ),
+                ["cli-reveal", "/tmp/repo/src"],
             )
 
     def test_build_command_detects_douyin_harmony_repo(self):

@@ -148,6 +148,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat `ReviewWorkspace` as the owner of active review scope, changed-file loading, filter/progress state, selected file, selected commit, previous scope, and workspace-state data mapping. Browser file I/O remains at the UI edge.
   - Treat `BrowserCommand` dispatch as the owner of command text aliases, parameter parsing, numeric selections, and unknown-command fallback. `browser.py` may execute parsed actions, but it should not re-own string parsing rules.
   - Treat `BrowserCommandExecutor` as the owner of parsed action execution and loop-control results. `run_browser` should keep input prompts, sentinels, workspace save-on-exit, and render-loop scheduling, but it should not re-own every action branch.
+  - Treat `cr.ui.file_actions` as the owner of copy/reveal command templates, environment fallbacks, platform fallbacks, and subprocess execution. `browser.py` passes selected-file data and configured command strings only.
   - Keep `BrowserState.mode` only as a compatibility property over `BrowserState.page`, preserving older tests, line-mode assumptions, and persisted workspace `mode` values.
   - Treat argparse scope fields as the source of truth for the active review scope; browser commands update those fields and reload through the shared review selection path.
   - Treat `commands` mode as the command palette layer: raw-key users can filter/select executable commands and run them with Enter, while parameterized commands remain available through `:` input.

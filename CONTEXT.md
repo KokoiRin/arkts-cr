@@ -35,9 +35,9 @@ mutating browser state.
 commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
 workspace state.
-`cr.ui.file_actions` owns platform clipboard and file-browser reveal helpers for
-browser file actions. It does not parse commands or choose the selected review
-file.
+`cr.ui.file_actions` owns configured and platform fallback clipboard /
+file-browser reveal helpers for browser file actions. It does not parse browser
+commands or choose the selected review file.
 `cr.ui.tasks` owns Task Panel runtime behavior: task command resolution,
 command-source diagnostics, background process lifecycle, output capture,
 stopping, rerun, foreground run, and completion history. It does not render
@@ -72,7 +72,8 @@ Product navigation terms:
   own browser session shutdown.
 - `File Actions`: selected-file workbench operations such as `copy path`,
   `copy anchor`, and `reveal`. They act within the current Changed Files
-  selection and do not create a new review hierarchy level.
+  selection, support CLI/env command configuration, and do not create a new
+  review hierarchy level.
 - `Task Runtime`: the internal module behind Task Panel behavior. It owns
   process lifecycle and task history, while terminal layout and panel rendering
   stay with the browser frame.

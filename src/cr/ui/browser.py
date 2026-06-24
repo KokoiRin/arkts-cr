@@ -435,6 +435,13 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to reveal.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SHOW_TASK_DIAGNOSTICS:
+            lines = task_runtime.task_diagnostic_lines(git.repo_root(), args)
+            if raw_keys:
+                _show_browser_message(state, " | ".join(lines), raw_keys, frame)
+                return BrowserActionResult(needs_redraw=True)
+            _print_lines(lines)
+            return BrowserActionResult()
         if action == BrowserCommandAction.RUN_BUILD:
             if raw_keys:
                 _start_task(state, args, "build")
@@ -570,8 +577,8 @@ class BrowserCommandExecutor:
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
-                    "copy anchor, reveal, build, stop, rerun, test, lint, "
-                    "staged, all, base, range, or q."
+                    "copy anchor, reveal, tasks, build, stop, rerun, test, "
+                    "lint, staged, all, base, range, or q."
                 )
             )
             _show_browser_message(
@@ -1267,7 +1274,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back to list",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint: tasks    copy path/anchor/reveal: file actions",
+        "  : command prompt    build/test/lint/tasks    copy path/anchor/reveal: file actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1302,6 +1309,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("build", "run configured repo build", "build"),
                 CommandEntry("test / tests", "run configured repo tests", "test"),
                 CommandEntry("lint", "run configured repo lint", "lint"),
+                CommandEntry("tasks", "show task command sources", "tasks"),
                 CommandEntry("stop / cancel", "stop running task", "stop"),
                 CommandEntry("rerun / rebuild", "run recent task again", "rerun"),
             ),

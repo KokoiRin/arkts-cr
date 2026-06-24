@@ -206,6 +206,10 @@ class CliTests(unittest.TestCase):
             parse_browser_command("reveal").action,
             BrowserCommandAction.REVEAL_FILE,
         )
+        self.assertEqual(
+            parse_browser_command("tasks").action,
+            BrowserCommandAction.SHOW_TASK_DIAGNOSTICS,
+        )
 
         base = parse_browser_command("base main")
         self.assertEqual(base.action, BrowserCommandAction.SWITCH_BASE)
@@ -424,6 +428,37 @@ class CliTests(unittest.TestCase):
         reveal.assert_not_called()
         self.assertIn("No changed file to copy.", output.getvalue())
         self.assertIn("No changed file to reveal.", output.getvalue())
+
+    def test_browser_command_executor_shows_task_diagnostics_without_starting_task(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.task_runtime.task_diagnostic_lines",
+                    return_value=["Task commands:", "build: missing"],
+                ) as diagnostics:
+                    with redirect_stdout(output):
+                        result = executor.execute(parse_browser_command("tasks"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        self.assertIsNone(state.task)
+        diagnostics.assert_called_once_with(repo, args)
+        self.assertIn("Task commands:", output.getvalue())
+        self.assertIn("build: missing", output.getvalue())
 
     def test_browser_main_loop_delegates_action_execution(self):
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
@@ -820,6 +855,51 @@ class CliTests(unittest.TestCase):
             self.assertEqual(task_presets(repo), {"lint": "npm run lint"})
             self.assertIsNone(task_command(repo, args, "test"))
             self.assertEqual(task_command(repo, args, "lint"), ["npm", "run", "lint"])
+
+    def test_task_runtime_diagnostics_report_sources_and_preset_errors(self):
+        from cr.ui.tasks import task_diagnostic_lines
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            config_dir = repo / ".cr"
+            config_dir.mkdir()
+            (config_dir / "tasks.json").write_text("{", encoding="utf-8")
+            args = argparse_namespace(
+                build_cmd="./cli-build",
+                test_cmd=None,
+                lint_cmd=None,
+            )
+
+            with patch.dict(os.environ, {"CR_TEST_CMD": "env-test"}, clear=True):
+                lines = task_diagnostic_lines(repo, args)
+
+        text = "\n".join(lines)
+        self.assertIn("preset: invalid .cr/tasks.json", text)
+        self.assertIn("build: cli ./cli-build", text)
+        self.assertIn("test: env env-test", text)
+        self.assertIn("lint: missing", text)
+
+    def test_task_runtime_diagnostics_report_preset_and_douyin_default(self):
+        from cr.ui.tasks import task_diagnostic_lines
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "DouyinHarmony"
+            repo.mkdir()
+            (repo / "remote").write_text("#!/bin/sh\n", encoding="utf-8")
+            (repo / ".cr").mkdir()
+            (repo / ".cr" / "tasks.json").write_text(
+                json.dumps({"test": "npm test", "lint": "npm run lint"}),
+                encoding="utf-8",
+            )
+            args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
+
+            with patch.dict(os.environ, {}, clear=True):
+                lines = task_diagnostic_lines(repo, args)
+
+        text = "\n".join(lines)
+        self.assertIn("build: default ./remote buildEntry --app douyin", text)
+        self.assertIn("test: preset npm test", text)
+        self.assertIn("lint: preset npm run lint", text)
 
     def test_task_runtime_module_runs_and_records_task(self):
         from cr.ui.tasks import poll_task, record_completed_task, start_task
@@ -2442,6 +2522,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy path", commands)
         self.assertIn("copy anchor", commands)
         self.assertIn("reveal", commands)
+        self.assertIn("tasks", commands)
         self.assertIn("staged", commands)
         self.assertIn("remaining", commands)
         self.assertNotIn("b", commands)

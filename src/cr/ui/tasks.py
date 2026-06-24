@@ -38,6 +38,19 @@ class TaskRecord:
     returncode: int | None = None
 
 
+@dataclass(frozen=True)
+class TaskCommandSource:
+    kind: str
+    source: str
+    command: list[str] | None = None
+
+
+@dataclass(frozen=True)
+class TaskPresetResult:
+    presets: dict[str, str]
+    error: str | None = None
+
+
 @dataclass
 class TaskState:
     command: list[str]
@@ -86,15 +99,8 @@ def missing_task_command_message(kind: str) -> str:
 
 
 def build_command(repo: Path, configured: str | None = None) -> list[str] | None:
-    template = configured or os.environ.get("CR_BUILD_CMD")
-    if template:
-        return shlex.split(template)
-    preset = task_presets(repo).get("build")
-    if preset:
-        return shlex.split(preset)
-    if repo.name == "DouyinHarmony" and (repo / "remote").exists():
-        return ["./remote", "buildEntry", "--app", "douyin"]
-    return None
+    args = argparse.Namespace(build_cmd=configured, test_cmd=None, lint_cmd=None)
+    return _task_command_source(repo, args, "build").command
 
 
 def task_command(
@@ -102,39 +108,106 @@ def task_command(
     args: argparse.Namespace,
     kind: str,
 ) -> list[str] | None:
-    if kind == "build":
-        return build_command(repo, getattr(args, "build_cmd", None))
-    if kind == "test":
-        template = (
-            getattr(args, "test_cmd", None)
-            or os.environ.get("CR_TEST_CMD")
-            or task_presets(repo).get("test")
-        )
-        return shlex.split(template) if template else None
-    if kind == "lint":
-        template = (
-            getattr(args, "lint_cmd", None)
-            or os.environ.get("CR_LINT_CMD")
-            or task_presets(repo).get("lint")
-        )
-        return shlex.split(template) if template else None
-    return None
+    return _task_command_source(repo, args, kind).command
 
 
 def task_presets(repo: Path) -> dict[str, str]:
+    return load_task_presets(repo).presets
+
+
+def load_task_presets(repo: Path) -> TaskPresetResult:
     path = repo / ".cr" / "tasks.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    except FileNotFoundError:
+        return TaskPresetResult({})
+    except json.JSONDecodeError:
+        return TaskPresetResult({}, "invalid .cr/tasks.json: invalid JSON")
+    except OSError as exc:
+        return TaskPresetResult({}, f"invalid .cr/tasks.json: {exc}")
     if not isinstance(data, dict):
-        return {}
+        return TaskPresetResult({}, "invalid .cr/tasks.json: expected object")
     presets: dict[str, str] = {}
     for kind in TASK_PRESET_KINDS:
         value = data.get(kind)
         if isinstance(value, str) and value.strip():
             presets[kind] = value
-    return presets
+    return TaskPresetResult(presets)
+
+
+def task_diagnostic_lines(repo: Path, args: argparse.Namespace) -> list[str]:
+    preset_result = load_task_presets(repo)
+    lines = ["Task commands:"]
+    if preset_result.error:
+        lines.append(f"preset: {preset_result.error}")
+    for kind in ("build", "test", "lint"):
+        source = _task_command_source(repo, args, kind, preset_result)
+        if source.command is None:
+            lines.append(f"{kind}: missing")
+        else:
+            lines.append(f"{kind}: {source.source} {_format_command(source.command)}")
+    return lines
+
+
+def _task_command_source(
+    repo: Path,
+    args: argparse.Namespace,
+    kind: str,
+    preset_result: TaskPresetResult | None = None,
+) -> TaskCommandSource:
+    preset_result = preset_result or load_task_presets(repo)
+    if kind == "build":
+        cli = getattr(args, "build_cmd", None)
+        if cli:
+            return TaskCommandSource(kind, "cli", shlex.split(cli))
+        env = os.environ.get("CR_BUILD_CMD")
+        if env:
+            return TaskCommandSource(kind, "env", shlex.split(env))
+        preset = preset_result.presets.get("build")
+        if preset:
+            return TaskCommandSource(kind, "preset", shlex.split(preset))
+        if repo.name == "DouyinHarmony" and (repo / "remote").exists():
+            return TaskCommandSource(
+                kind,
+                "default",
+                ["./remote", "buildEntry", "--app", "douyin"],
+            )
+        return TaskCommandSource(kind, "missing")
+    if kind == "test":
+        return _template_task_command_source(
+            kind,
+            getattr(args, "test_cmd", None),
+            "CR_TEST_CMD",
+            preset_result.presets.get("test"),
+        )
+    if kind == "lint":
+        return _template_task_command_source(
+            kind,
+            getattr(args, "lint_cmd", None),
+            "CR_LINT_CMD",
+            preset_result.presets.get("lint"),
+        )
+    return TaskCommandSource(kind, "missing")
+
+
+def _template_task_command_source(
+    kind: str,
+    cli: str | None,
+    env_name: str,
+    preset: str | None,
+) -> TaskCommandSource:
+    if cli:
+        return TaskCommandSource(kind, "cli", shlex.split(cli))
+    env = os.environ.get(env_name)
+    if env:
+        return TaskCommandSource(kind, "env", shlex.split(env))
+    if preset:
+        return TaskCommandSource(kind, "preset", shlex.split(preset))
+    return TaskCommandSource(kind, "missing")
+
+
+def _format_command(command: list[str]) -> str:
+    return " ".join(shlex.quote(part) for part in command)
 
 
 def task_status(task: TaskState) -> str:

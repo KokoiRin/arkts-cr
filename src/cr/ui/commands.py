@@ -36,6 +36,7 @@ class BrowserCommandAction:
     COPY_PATH = "copy_path"
     COPY_ANCHOR = "copy_anchor"
     REVEAL_FILE = "reveal_file"
+    SHOW_TASK_DIAGNOSTICS = "show_task_diagnostics"
     RUN_BUILD = "run_build"
     RUN_TEST = "run_test"
     RUN_LINT = "run_lint"
@@ -122,6 +123,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_ANCHOR)
     if command in {"reveal", "show in finder"}:
         return BrowserCommand(BrowserCommandAction.REVEAL_FILE)
+    if command in {"tasks", "task sources"}:
+        return BrowserCommand(BrowserCommandAction.SHOW_TASK_DIAGNOSTICS)
     if command in {"build", "compile"}:
         return BrowserCommand(BrowserCommandAction.RUN_BUILD)
     if command in {"test", "tests"}:

@@ -159,6 +159,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Keep background task lifecycle in `cr.ui.tasks`: build, test, and lint share the same current task runtime while `TaskRecord` remains compact session-local history, not a generic concurrent task manager.
   - Keep Task Panel rendering in `browser.py`; `cr.ui.tasks` owns runtime state and process behavior, not terminal layout, Browser Frame regions, or styled panel lines.
   - Treat `.cr/tasks.json` as project-local task presets for `build`, `test`, and `lint`. Command resolution order is CLI argument, environment variable, project preset, DouyinHarmony build default, then missing-command feedback.
+  - Treat `tasks` as a source diagnostic command, not a task runner. Source explanation and malformed preset reporting belong in `cr.ui.tasks`.
   - Treat in-session review progress as browser workspace state: seen paths and remaining-only view belong in `BrowserState` and persist with `.git/cr/browse-state.json`.
   - Keep progress commands simple and reversible: `m`/`seen` marks the current file, `todo`/`unseen` clears it, `remaining` filters to unreviewed files, and `allfiles` returns to the full changed-file list.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.

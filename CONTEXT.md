@@ -38,11 +38,11 @@ workspace state.
 browser file actions. It does not parse commands or choose the selected review
 file.
 `cr.ui.tasks` owns Task Panel runtime behavior: task command resolution,
-background process lifecycle, output capture, stopping, rerun, foreground run,
-and completion history. It does not render terminal panels or manage browser
-pages. `cr.ui.tasks` also owns project-local task preset discovery from
-`.cr/tasks.json`; CLI arguments and environment variables remain higher
-priority overrides.
+command-source diagnostics, background process lifecycle, output capture,
+stopping, rerun, foreground run, and completion history. It does not render
+terminal panels or manage browser pages. `cr.ui.tasks` also owns project-local
+task preset discovery from `.cr/tasks.json`; CLI arguments and environment
+variables remain higher priority overrides.
 
 Product navigation terms:
 
@@ -77,3 +77,5 @@ Product navigation terms:
 - `Task Presets`: project-local default build/test/lint commands read from
   `.cr/tasks.json` by Task Runtime. Presets are defaults, not overrides for
   explicit CLI arguments or environment variables.
+- `Task Diagnostics`: source explanations for build/test/lint command
+  resolution, surfaced by `tasks` without starting a background task.

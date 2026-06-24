@@ -76,12 +76,21 @@ q             退出
 
 在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`n/p` 仍然用于切到下一个 / 上一个文件。
 
+查看所有 `:` 命令：
+
+```text
+: commands
+```
+
+在真实 TUI 里按 `:` 后直接回车，或输入 `?`，也会打开命令列表。命令列表按 Navigation、Review scope、Build task、Files、Session 分组；按 `b` 回到文件列表。
+
 如果终端不支持真实 TUI，`cr` 会退回行模式。行模式里可以输入：
 
 ```text
 /Second
 filter Second
 clear
+commands
 g
 1
 q
@@ -115,7 +124,7 @@ cr --context 0
 ```
 
 工作区没有未提交改动，或者当前改动已经暂存时，直接运行 `cr` 会显示最近的 commit 列表。也可以在文件列表里按 `g`，手动切到最近 commit 列表；选中某个 commit 后会进入这个 commit 的 changed-file list。
-查看 commit 后，按 `b` 会回到最近 commit 列表，按 `w` 会回到原来的工作区改动范围。
+查看 commit 后，按 `b` 会逐层返回：文件 diff -> 该 commit 的 changed-file list -> 最近 commit 列表；按 `w` 会回到原来的工作区改动范围。
 
 切换 review scope：
 

@@ -16,9 +16,11 @@ from cr.ui.browser import (
     _build_command,
     _build_panel_lines,
     _build_status,
+    _browse_command_lines,
     _browse_file_screen_lines,
     _draw_build_panel_only,
     _draw_browse_screen,
+    _normalize_command_query,
     _open_command,
     _poll_build,
     _read_browse_command,
@@ -345,6 +347,36 @@ class CliTests(unittest.TestCase):
         process.wait(timeout=1)
         self.assertEqual(before_panel.count("\n"), 23)
 
+    def test_browse_screen_shows_command_list_with_build_panel(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            build=BuildState(["true"], process, lines=["compile line"]),
+            mode="commands",
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 40)),
+        ):
+            with redirect_stdout(output):
+                _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        process.wait(timeout=1)
+        self.assertIn("Commands", text)
+        self.assertIn("Review scope", text)
+        self.assertIn("compile line", text)
+        self.assertIn("\033[40;1H\033[2Kcr:commands> ", text)
+
     def test_raw_key_command_read_does_not_print_newline(self):
         output = StringIO()
 
@@ -451,6 +483,24 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.first_line_cache, {})
         self.assertEqual(state.file_line_cache, {})
         process.wait(timeout=1)
+
+    def test_command_query_empty_or_question_mark_opens_command_list(self):
+        self.assertEqual(_normalize_command_query(""), "commands")
+        self.assertEqual(_normalize_command_query("?"), "commands")
+        self.assertEqual(_normalize_command_query(" build "), "build")
+
+    def test_command_list_lines_group_commands_by_purpose(self):
+        lines = _browse_command_lines(TerminalStyle(False), max_lines=40)
+        text = "\n".join(lines)
+
+        self.assertIn("Commands", text)
+        self.assertIn("Navigation", text)
+        self.assertIn("Review scope", text)
+        self.assertIn("Build task", text)
+        self.assertIn("Files", text)
+        self.assertIn("Session", text)
+        self.assertIn("staged", text)
+        self.assertIn("build", text)
 
     def test_browse_screen_only_measures_visible_list_rows(self):
         changes = [FileChange(f"src/File{index}.ts", 1, 0) for index in range(30)]
@@ -777,6 +827,38 @@ struct SamplePage {
             self.assertIn("-export const sample = 'committed'", session.stdout)
             self.assertIn("+export const sample = 'working tree'", session.stdout)
 
+    def test_cli_browser_back_from_commit_file_returns_to_commit_file_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            alpha = repo / "src" / "Alpha.ts"
+            beta = repo / "src" / "Beta.ts"
+            alpha.parent.mkdir(parents=True)
+            alpha.write_text("export const alpha = 'old'\n", encoding="utf-8")
+            beta.write_text("export const beta = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            alpha.write_text("export const alpha = 'committed'\n", encoding="utf-8")
+            beta.write_text("export const beta = 'committed'\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "change both files")
+
+            session = self._cr_input(
+                repo,
+                "g\n1\n1\nb\n2\nq\n",
+                "browse",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Scope: commit", session.stdout)
+            self.assertIn("+export const alpha = 'committed'", session.stdout)
+            self.assertIn("+export const beta = 'committed'", session.stdout)
+
     def test_cli_browser_can_switch_review_scopes_in_line_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -841,6 +923,35 @@ struct SamplePage {
             self.assertIn("+export const sample = 'worktree'", session.stdout)
             self.assertIn("Scope: range HEAD~1..HEAD", session.stdout)
             self.assertIn("+export const sample = 'committed'", session.stdout)
+
+    def test_cli_browser_command_list_is_discoverable_in_line_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("export const sample = 'new'\n", encoding="utf-8")
+
+            session = self._cr_input(
+                repo,
+                "commands\nb\ncmds\nb\nhelp commands\nq\n",
+                "browse",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertGreaterEqual(session.stdout.count("Commands"), 3)
+            self.assertIn("Review scope", session.stdout)
+            self.assertIn("Build task", session.stdout)
+            self.assertIn("cr:commands>", session.stdout)
+            self.assertIn("Changed files", session.stdout)
 
     def test_cli_interactive_browser_filters_files_in_line_mode(self):
         with tempfile.TemporaryDirectory() as tmp:

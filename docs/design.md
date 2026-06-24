@@ -58,7 +58,8 @@ Implement a terminal-first code review workbench named `cr`.
   - Updates build output by repainting only the task panel when the user is idle.
   - Lets users stop a running build with `stop` / `cancel` and rerun the configured build with `rerun` / `rebuild`.
   - Distinguishes build task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
-  - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return, `r` to refresh, and `q` to quit.
+  - Provides an in-session command list via `commands`, `cmds`, or `help commands`; raw command prompt empty input or `?` opens the same list.
+  - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return one visible navigation layer, `r` to refresh, and `q` to quit.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
   - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` from the command prompt for repo builds.
@@ -133,6 +134,7 @@ Implement a terminal-first code review workbench named `cr`.
   - Reuse `src/cr/review/changes.py` for changed-file selection, sorting, code-file detection, hunk rendering, and modified-symbol facts so `browse`, `review`, and `diff` share one implementation of review-scope rules.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, mode, and filter query.
   - Treat argparse scope fields as the source of truth for the active review scope; browser commands update those fields and reload through the shared review selection path.
+  - Keep command discovery as a read-only `commands` mode until real usage justifies searchable or executable command palette behavior.
   - Treat browser screen layout as one module-owned concept: content height, background task height, task panel start row, and prompt row are calculated together.
   - Keep build task lifecycle in `BuildState` until a second real background task exists; do not introduce a generic task manager prematurely.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.

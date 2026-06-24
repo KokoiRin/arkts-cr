@@ -94,6 +94,18 @@ class BrowseTreeRow:
     change_index: int | None = None
 
 
+@dataclass(frozen=True)
+class CommandEntry:
+    command: str
+    description: str
+
+
+@dataclass(frozen=True)
+class CommandGroup:
+    title: str
+    entries: tuple[CommandEntry, ...]
+
+
 @dataclass
 class _BrowseTreeNode:
     name: str
@@ -166,6 +178,8 @@ def run_browser(args: argparse.Namespace) -> int:
                         scope_label=_scope_label(state, args),
                     )
                 )
+            elif state.mode == "commands":
+                _print_lines(_browse_command_lines(style, max_lines=_screen_height()))
             elif state.mode == "list":
                 _print_lines(
                     _browse_list_lines(
@@ -222,7 +236,7 @@ def run_browser(args: argparse.Namespace) -> int:
                 needs_redraw = True
             continue
         if command == "command_prompt":
-            command = _read_command_query()
+            command = _normalize_command_query(_read_command_query())
             if command == "__interrupt__":
                 continue
         if command.startswith("/") and not raw_keys:
@@ -239,6 +253,10 @@ def run_browser(args: argparse.Namespace) -> int:
             continue
         if command in {"q", "quit", "exit"}:
             return 0
+        if command in {"commands", "cmds", "help commands"}:
+            state.mode = "commands"
+            needs_redraw = True
+            continue
         if command in {"g", "commits", "log"}:
             state.commits = _load_recent_commits()
             state.mode = "commits"
@@ -350,7 +368,13 @@ def run_browser(args: argparse.Namespace) -> int:
             needs_redraw = True
             continue
         if command in {"s", "summary", "list", "ls", "b", "back"}:
-            if command in {"b", "back"} and state.selected_commit is not None:
+            if command in {"b", "back"} and state.mode == "commands":
+                state.mode = "list"
+                state.file_scroll = 0
+            elif command in {"b", "back"} and state.mode == "file":
+                state.mode = "list"
+                state.file_scroll = 0
+            elif command in {"b", "back"} and state.selected_commit is not None:
                 state.mode = "commits"
                 state.file_scroll = 0
             else:
@@ -412,7 +436,13 @@ def run_browser(args: argparse.Namespace) -> int:
                 needs_redraw = True
             continue
         if command in {"left", "h"}:
-            if state.selected_commit is not None:
+            if state.mode == "commands":
+                state.mode = "list"
+                state.file_scroll = 0
+            elif state.mode == "file":
+                state.mode = "list"
+                state.file_scroll = 0
+            elif state.selected_commit is not None:
                 state.mode = "commits"
                 state.file_scroll = 0
             else:
@@ -695,6 +725,15 @@ def _draw_browse_screen(
                 max(1, content_lines - len(_browse_help_lines(style)) - 1),
             ),
         ]
+    elif state.mode == "commands":
+        lines = [
+            *_browse_help_lines(style),
+            _scope_context_line(state, args, style),
+            *_browse_command_lines(
+                style,
+                max(1, content_lines - len(_browse_help_lines(style)) - 1),
+            ),
+        ]
     elif state.mode == "list":
         lines = [
             *_browse_help_lines(style),
@@ -783,12 +822,21 @@ def _browse_prompt(mode: str) -> str:
         return "cr:file> "
     if mode == "commits":
         return "cr:commits> "
+    if mode == "commands":
+        return "cr:commands> "
     return "cr:list> "
 
 
 def _print_lines(lines: list[str]) -> None:
     for line in lines:
         print(line)
+
+
+def _normalize_command_query(command: str) -> str:
+    normalized = command.strip()
+    if normalized in {"", "?"}:
+        return "commands"
+    return normalized
 
 
 def _browse_help_lines(style: TerminalStyle) -> list[str]:
@@ -801,6 +849,80 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         "  n/p: next/previous        g: commits    w: worktree    r: refresh    q: quit",
         "",
     ]
+
+
+def _command_catalog() -> tuple[CommandGroup, ...]:
+    return (
+        CommandGroup(
+            "Navigation",
+            (
+                CommandEntry("Enter / 1..N", "open selected file or choose by number"),
+                CommandEntry("b / back", "return to file list"),
+                CommandEntry("n / p", "next or previous file"),
+                CommandEntry("g / commits", "show recent commits"),
+            ),
+        ),
+        CommandGroup(
+            "Review scope",
+            (
+                CommandEntry("worktree", "review unstaged worktree changes"),
+                CommandEntry("staged", "review staged/index changes"),
+                CommandEntry("all", "review staged and unstaged local changes"),
+                CommandEntry("base REF", "review changes against a base ref"),
+                CommandEntry("range OLD..NEW", "review an explicit ref range"),
+            ),
+        ),
+        CommandGroup(
+            "Build task",
+            (
+                CommandEntry("build", "run configured repo build"),
+                CommandEntry("stop / cancel", "stop running build"),
+                CommandEntry("rerun / rebuild", "run build again"),
+            ),
+        ),
+        CommandGroup(
+            "Files",
+            (
+                CommandEntry("/QUERY / filter QUERY", "filter changed files by path"),
+                CommandEntry("clear", "clear active file filter"),
+                CommandEntry("open", "open selected file in editor"),
+                CommandEntry("refresh", "reload current review scope"),
+            ),
+        ),
+        CommandGroup(
+            "Session",
+            (
+                CommandEntry("commands", "show this command list"),
+                CommandEntry("help", "show compact key help"),
+                CommandEntry("quit", "exit browser"),
+            ),
+        ),
+    )
+
+
+def _browse_command_lines(style: TerminalStyle, max_lines: int) -> list[str]:
+    lines = [
+        style.bold("Commands"),
+        "Use : then type a command. b/back returns to the file list.",
+        "",
+    ]
+    command_width = max(
+        len(entry.command)
+        for group in _command_catalog()
+        for entry in group.entries
+    )
+    for group in _command_catalog():
+        lines.append(style.bold(group.title))
+        for entry in group.entries:
+            lines.append(
+                f"  {entry.command.ljust(command_width)}  {entry.description}"
+            )
+        lines.append("")
+    if len(lines) <= max_lines:
+        return lines
+    clipped = lines[: max(1, max_lines - 1)]
+    clipped.append(style.dim(f"showing 1-{len(clipped)}/{len(lines)}"))
+    return clipped
 
 
 def _scope_label(state: BrowserState, args: argparse.Namespace) -> str:

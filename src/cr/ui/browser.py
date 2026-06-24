@@ -60,11 +60,13 @@ class BrowserState:
     selected: int = 0
     list_scroll: int = 0
     commit_scroll: int = 0
+    command_scroll: int = 0
     file_scroll: int = 0
     mode: str = "list"
     filter_text: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
+    command_selected: int = 0
 
     @property
     def visible_changes(self) -> list[git.FileChange]:
@@ -74,13 +76,24 @@ class BrowserState:
         return changes
 
     def clamp_selection(self) -> None:
-        total = len(self.commits) if self.mode == "commits" else len(self.visible_changes)
+        if self.mode == "commits":
+            total = len(self.commits)
+        elif self.mode == "commands":
+            total = len(_command_palette_entries())
+        else:
+            total = len(self.visible_changes)
         if total == 0:
-            self.selected = 0
+            if self.mode == "commands":
+                self.command_selected = 0
+            else:
+                self.selected = 0
             if self.mode == "file":
                 self.mode = "list"
             return
-        self.selected = max(0, min(self.selected, total - 1))
+        if self.mode == "commands":
+            self.command_selected = max(0, min(self.command_selected, total - 1))
+        else:
+            self.selected = max(0, min(self.selected, total - 1))
 
     def clear_render_cache(self) -> None:
         self.first_line_cache.clear()
@@ -110,12 +123,21 @@ class BrowseTreeRow:
 class CommandEntry:
     command: str
     description: str
+    action: str | None = None
 
 
 @dataclass(frozen=True)
 class CommandGroup:
     title: str
     entries: tuple[CommandEntry, ...]
+
+
+@dataclass(frozen=True)
+class PaletteCommand:
+    group: str
+    label: str
+    command: str
+    description: str
 
 
 @dataclass
@@ -270,6 +292,11 @@ def run_browser(args: argparse.Namespace) -> int:
             _save_browser_workspace_state_on_exit(state, args, repo)
             return 130
         command = command_result
+        if state.mode == "commands" and command in {"enter", "right", "l"}:
+            palette_command = _selected_palette_command(state)
+            if palette_command is None:
+                continue
+            command = palette_command.command
 
         if command == "filter_prompt":
             query = _read_filter_query()
@@ -488,6 +515,8 @@ def run_browser(args: argparse.Namespace) -> int:
         if command in {"home", "0"}:
             if state.mode == "file":
                 state.file_scroll = 0
+            elif state.mode == "commands":
+                state.command_selected = 0
             else:
                 state.selected = 0
             needs_redraw = True
@@ -495,6 +524,10 @@ def run_browser(args: argparse.Namespace) -> int:
         if command in {"end", "$"}:
             if state.mode == "file":
                 state.file_scroll = _max_file_scroll(state, args, style)
+            elif state.mode == "commands":
+                total = len(_command_palette_entries())
+                if total:
+                    state.command_selected = total - 1
             else:
                 total = len(state.commits) if state.mode == "commits" else len(state.visible_changes)
                 if total:
@@ -845,10 +878,18 @@ def _restore_previous_scope(state: BrowserState, args: argparse.Namespace) -> No
 
 
 def _move_selection(state: BrowserState, delta: int) -> None:
-    total = len(state.commits) if state.mode == "commits" else len(state.visible_changes)
+    if state.mode == "commits":
+        total = len(state.commits)
+    elif state.mode == "commands":
+        total = len(_command_palette_entries())
+    else:
+        total = len(state.visible_changes)
     if not total:
         return
-    state.selected = max(0, min(state.selected + delta, total - 1))
+    if state.mode == "commands":
+        state.command_selected = max(0, min(state.command_selected + delta, total - 1))
+    else:
+        state.selected = max(0, min(state.selected + delta, total - 1))
 
 
 def _scroll_file(
@@ -977,7 +1018,8 @@ def _draw_browse_screen(
         lines = [
             *_browse_help_lines(style),
             _scope_context_line(state, args, style),
-            *_browse_command_lines(
+            *_browse_command_palette_screen_lines(
+                state,
                 style,
                 max(1, content_lines - len(_browse_help_lines(style)) - 1),
             ),
@@ -1118,15 +1160,15 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("Enter / 1..N", "open selected file or choose by number"),
                 CommandEntry("b / back", "return to file list"),
                 CommandEntry("n / p", "next or previous file"),
-                CommandEntry("g / commits", "show recent commits"),
+                CommandEntry("g / commits", "show recent commits", "g"),
             ),
         ),
         CommandGroup(
             "Review scope",
             (
-                CommandEntry("worktree", "review unstaged worktree changes"),
-                CommandEntry("staged", "review staged/index changes"),
-                CommandEntry("all", "review staged and unstaged local changes"),
+                CommandEntry("worktree", "review unstaged worktree changes", "worktree"),
+                CommandEntry("staged", "review staged/index changes", "staged"),
+                CommandEntry("all", "review staged and unstaged local changes", "all"),
                 CommandEntry("base REF", "review changes against a base ref"),
                 CommandEntry("range OLD..NEW", "review an explicit ref range"),
             ),
@@ -1134,33 +1176,58 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
         CommandGroup(
             "Build task",
             (
-                CommandEntry("build", "run configured repo build"),
-                CommandEntry("stop / cancel", "stop running build"),
-                CommandEntry("rerun / rebuild", "run build again"),
+                CommandEntry("build", "run configured repo build", "build"),
+                CommandEntry("stop / cancel", "stop running build", "stop"),
+                CommandEntry("rerun / rebuild", "run build again", "rerun"),
             ),
         ),
         CommandGroup(
             "Files",
             (
                 CommandEntry("/QUERY / filter QUERY", "filter changed files by path"),
-                CommandEntry("clear", "clear active file filter"),
-                CommandEntry("m / seen / done", "mark selected file as seen"),
-                CommandEntry("todo / unseen / unmark", "mark selected file as todo"),
-                CommandEntry("remaining", "show files not marked seen"),
-                CommandEntry("allfiles / show all", "show all changed files"),
-                CommandEntry("open", "open selected file in editor"),
-                CommandEntry("refresh", "reload current review scope"),
+                CommandEntry("clear", "clear active file filter", "clear"),
+                CommandEntry("m / seen / done", "mark selected file as seen", "m"),
+                CommandEntry("todo / unseen / unmark", "mark selected file as todo", "todo"),
+                CommandEntry("remaining", "show files not marked seen", "remaining"),
+                CommandEntry("allfiles / show all", "show all changed files", "allfiles"),
+                CommandEntry("open", "open selected file in editor", "open"),
+                CommandEntry("refresh", "reload current review scope", "refresh"),
             ),
         ),
         CommandGroup(
             "Session",
             (
-                CommandEntry("commands", "show this command list"),
-                CommandEntry("help", "show compact key help"),
-                CommandEntry("quit", "exit browser"),
+                CommandEntry("commands", "show this command list", "commands"),
+                CommandEntry("help", "show compact key help", "help"),
+                CommandEntry("quit", "exit browser", "quit"),
             ),
         ),
     )
+
+
+def _command_palette_entries() -> list[PaletteCommand]:
+    entries: list[PaletteCommand] = []
+    for group in _command_catalog():
+        for entry in group.entries:
+            if entry.action is None:
+                continue
+            entries.append(
+                PaletteCommand(
+                    group=group.title,
+                    label=entry.command,
+                    command=entry.action,
+                    description=entry.description,
+                )
+            )
+    return entries
+
+
+def _selected_palette_command(state: BrowserState) -> PaletteCommand | None:
+    entries = _command_palette_entries()
+    if not entries:
+        return None
+    state.clamp_selection()
+    return entries[state.command_selected]
 
 
 def _browse_command_lines(style: TerminalStyle, max_lines: int) -> list[str]:
@@ -1186,6 +1253,43 @@ def _browse_command_lines(style: TerminalStyle, max_lines: int) -> list[str]:
     clipped = lines[: max(1, max_lines - 1)]
     clipped.append(style.dim(f"showing 1-{len(clipped)}/{len(lines)}"))
     return clipped
+
+
+def _browse_command_palette_screen_lines(
+    state: BrowserState,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    entries = _command_palette_entries()
+    lines = [
+        style.bold("Command palette"),
+        "Enter: run selected command   b/←: back to files",
+        "",
+    ]
+    if not entries:
+        return [*lines, "No executable commands."][:max_lines]
+    state.clamp_selection()
+    command_width = max(len(entry.label) for entry in entries)
+    row_capacity = max(1, max_lines - len(lines) - 1)
+    start = _ensure_window(
+        state.command_scroll,
+        state.command_selected,
+        len(entries),
+        row_capacity,
+    )
+    state.command_scroll = start
+    end = min(len(entries), start + row_capacity)
+    for index, entry in enumerate(entries[start:end], start):
+        marker = ">" if index == state.command_selected else " "
+        lines.append(
+            f"{marker} {entry.group.ljust(12)} "
+            f"{entry.label.ljust(command_width)}  {entry.description}"
+        )
+    if len(entries) > row_capacity:
+        lines.append(style.dim(f"showing {start + 1}-{end}/{len(entries)}"))
+    else:
+        lines.append("")
+    return lines[:max_lines]
 
 
 def _scope_label(state: BrowserState, args: argparse.Namespace) -> str:

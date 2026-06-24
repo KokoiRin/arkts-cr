@@ -14,7 +14,7 @@ cr
 
 ```text
 上下文区        当前按键、当前 review scope，比如 worktree / staged / range
-主工作区        文件树、commit 列表、单文件 diff、命令列表
+主工作区        文件树、commit 列表、单文件 diff、command palette
 后台任务面板    build 等后台任务的状态和最近输出
 命令提示区      cr:list> / cr:file> / cr:commits>
 ```
@@ -76,13 +76,13 @@ q             退出
 
 在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`n/p` 仍然用于切到下一个 / 上一个文件。
 
-查看所有 `:` 命令：
+打开 command palette：
 
 ```text
 : commands
 ```
 
-在真实 TUI 里按 `:` 后直接回车，或输入 `?`，也会打开命令列表。命令列表按 Navigation、Review scope、Build task、Files、Session 分组；按 `b` 回到文件列表。
+在真实 TUI 里按 `:` 后直接回车，或输入 `?`，也会打开 command palette。可以用 `↑/↓` 或 `j/k` 选择命令，按 `Enter` 执行；按 `b` 回到文件列表。需要参数的命令，比如 `base main` 和 `range main..HEAD`，仍然通过 `:` 输入。
 
 如果终端不支持真实 TUI，`cr` 会退回行模式。行模式里可以输入：
 

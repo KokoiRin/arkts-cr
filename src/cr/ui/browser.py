@@ -53,6 +53,7 @@ class BrowserState:
     changes: list[git.FileChange]
     commits: list[git.CommitSummary] = field(default_factory=list)
     build: "BuildState | None" = None
+    task_history: list["TaskRecord"] = field(default_factory=list)
     previous_scope: "ReviewScope | None" = None
     selected_commit: git.CommitSummary | None = None
     first_line_cache: dict[str, int | None] = field(default_factory=dict)
@@ -167,6 +168,14 @@ class ReviewScope:
     untracked: bool
 
 
+@dataclass(frozen=True)
+class TaskRecord:
+    kind: str
+    status: str
+    command: list[str]
+    returncode: int | None = None
+
+
 @dataclass
 class BuildState:
     command: list[str]
@@ -180,6 +189,7 @@ class BuildState:
     stop_requested: bool = False
     stop_requested_at: float | None = None
     stop_escalated: bool = False
+    history_recorded: bool = False
 
     @property
     def running(self) -> bool:
@@ -226,6 +236,7 @@ def run_browser(args: argparse.Namespace) -> int:
         _print_lines(_browse_help_lines(style))
     while True:
         _poll_build(state.build)
+        _record_completed_build(state)
         state.clamp_selection()
         visible = state.visible_changes
         if raw_keys and (needs_redraw or frame.dirty):
@@ -291,7 +302,7 @@ def run_browser(args: argparse.Namespace) -> int:
             tick_when_idle=state.build is not None and state.build.running,
         )
         if command_result == "__tick__":
-            _draw_build_panel_only(state.build, style, frame)
+            _draw_build_panel_only(state.build, style, frame, state.task_history)
             if frame.dirty:
                 needs_redraw = True
             continue
@@ -977,6 +988,7 @@ def _build_panel_lines(
     build: BuildState | None,
     style: TerminalStyle,
     max_lines: int,
+    history: list[TaskRecord] | None = None,
 ) -> list[str]:
     if build is None or max_lines <= 0:
         return []
@@ -987,11 +999,21 @@ def _build_panel_lines(
         style.dim("─" * min(width, 100)),
         f"{style.bold('Build')} {status}  {style.dim(command)}",
     ]
+    if history:
+        lines.append(_task_history_line(history[-3:]))
     capacity = max(0, max_lines - len(lines))
     body = build.lines[-capacity:] if capacity else []
     if capacity and not body:
         body = [style.dim("(waiting for output)")]
     return [*lines, *body][-max_lines:]
+
+
+def _task_history_line(history: list[TaskRecord]) -> str:
+    summaries = []
+    for record in history:
+        command = " ".join(shlex.quote(part) for part in record.command)
+        summaries.append(f"{record.kind} {record.status} {command}".strip())
+    return "Recent: " + " | ".join(summaries)
 
 
 def _build_status(build: BuildState) -> str:
@@ -1008,6 +1030,27 @@ def _build_status(build: BuildState) -> str:
     if build.returncode == 0:
         return "succeeded"
     return f"failed ({build.returncode})"
+
+
+def _record_completed_build(state: BrowserState) -> None:
+    build = state.build
+    if (
+        build is None
+        or not build.command
+        or build.returncode is None
+        or build.history_recorded
+    ):
+        return
+    state.task_history.append(
+        TaskRecord(
+            kind="build",
+            status=_build_status(build),
+            command=build.command,
+            returncode=build.returncode,
+        )
+    )
+    state.task_history = state.task_history[-5:]
+    build.history_recorded = True
 
 
 def _draw_browse_screen(
@@ -1076,7 +1119,12 @@ def _draw_browse_screen(
             content_frame.extend([""] * (content_lines - len(content_frame)))
         lines = [
             *content_frame,
-            *_build_panel_lines(state.build, style, build_panel_height),
+            *_build_panel_lines(
+                state.build,
+                style,
+                build_panel_height,
+                state.task_history,
+            ),
         ]
     print("\033[2J\033[H", end="")
     _print_lines(lines[:max_lines])
@@ -1085,7 +1133,12 @@ def _draw_browse_screen(
         end="",
         flush=True,
     )
-    rendered_panel = _build_panel_lines(state.build, style, build_panel_height)
+    rendered_panel = _build_panel_lines(
+        state.build,
+        style,
+        build_panel_height,
+        state.task_history,
+    )
     if state.build is not None:
         state.build.last_rendered_panel = rendered_panel
     if frame is not None:
@@ -1099,6 +1152,7 @@ def _draw_build_panel_only(
     build: BuildState | None,
     style: TerminalStyle,
     frame: BrowserFrame | None = None,
+    history: list[TaskRecord] | None = None,
 ) -> bool:
     if build is None:
         return False
@@ -1108,7 +1162,7 @@ def _draw_build_panel_only(
         if not frame.complete or frame.layout != layout:
             frame.dirty = True
             return False
-    lines = _build_panel_lines(build, style, height)
+    lines = _build_panel_lines(build, style, height, history)
     previous_panel = frame.build_panel if frame is not None else build.last_rendered_panel
     if lines == previous_panel:
         return False

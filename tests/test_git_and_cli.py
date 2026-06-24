@@ -15,6 +15,7 @@ from cr.ui.browser import (
     BuildState,
     BrowserFrame,
     BrowserState,
+    TaskRecord,
     _build_command,
     _build_panel_lines,
     _build_status,
@@ -32,6 +33,7 @@ from cr.ui.browser import (
     _normalize_command_query,
     _open_command,
     _poll_build,
+    _record_completed_build,
     _read_browse_command,
     _restore_browser_workspace_state,
     _rerun_build,
@@ -136,6 +138,95 @@ class CliTests(unittest.TestCase):
             self.assertIn("Build succeeded.", text)
             self.assertIn("compile line 1", text)
             self.assertIn("compile line 2", text)
+
+    def test_build_panel_renders_recent_task_history(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        build = BuildState(
+            ["./build.sh"],
+            process,
+            lines=["compile line"],
+            returncode=0,
+        )
+        history = [
+            TaskRecord(
+                kind="build",
+                status="failed (1)",
+                command=["./build.sh"],
+                returncode=1,
+            )
+        ]
+
+        lines = _build_panel_lines(build, TerminalStyle(False), 6, history)
+        text = "\n".join(lines)
+
+        self.assertIn("Recent: build failed (1) ./build.sh", text)
+        self.assertIn("compile line", text)
+
+    def test_completed_build_records_task_history_once(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            build=BuildState(
+                ["./build.sh"],
+                process,
+                lines=["Build succeeded."],
+                returncode=0,
+            ),
+        )
+
+        _record_completed_build(state)
+        _record_completed_build(state)
+
+        self.assertEqual(len(state.task_history), 1)
+        self.assertEqual(state.task_history[0].kind, "build")
+        self.assertEqual(state.task_history[0].status, "succeeded")
+        self.assertEqual(state.task_history[0].returncode, 0)
+
+    def test_stop_without_running_build_does_not_record_task_history(self):
+        state = BrowserState([])
+
+        _stop_build(state)
+        _record_completed_build(state)
+
+        self.assertEqual(state.task_history, [])
+
+    def test_browse_screen_build_panel_includes_task_history(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            build=BuildState(["./build.sh"], process, lines=["compile line"]),
+            task_history=[
+                TaskRecord(
+                    kind="build",
+                    status="succeeded",
+                    command=["./old-build.sh"],
+                    returncode=0,
+                )
+            ],
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+                with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("Recent: build succeeded ./old-build.sh", text)
 
     def test_build_start_records_process_group_id(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -440,6 +531,44 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(state.build.returncode, 0)
             self.assertEqual(output.read_text(encoding="utf-8"), "run\nrun\n")
+
+    def test_build_rerun_keeps_previous_task_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            script = repo / "build.py"
+            output = repo / "build.out"
+            script.write_text(
+                "from pathlib import Path\n"
+                "path = Path('build.out')\n"
+                "count = int(path.read_text()) if path.exists() else 0\n"
+                "path.write_text(str(count + 1))\n",
+                encoding="utf-8",
+            )
+            args = argparse_namespace(build_cmd=f"{sys.executable} {script}")
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                _start_build(state, args)
+                for _ in range(100):
+                    _poll_build(state.build)
+                    if state.build and state.build.returncode is not None:
+                        break
+                    time.sleep(0.01)
+                _record_completed_build(state)
+
+                self.assertEqual(len(state.task_history), 1)
+
+                _rerun_build(state, args)
+
+            self.assertEqual(len(state.task_history), 1)
+            self.assertEqual(state.task_history[0].status, "succeeded")
+            self.assertIsNotNone(state.build)
+            self.assertIsNone(state.build.returncode)
+            if state.build.running:
+                state.build.process.terminate()
+                state.build.process.wait(timeout=1)
+            if state.build.process.stdout is not None:
+                state.build.process.stdout.close()
 
     def test_build_rerun_while_running_does_not_start_second_process(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1350,6 +1479,38 @@ class CliTests(unittest.TestCase):
             self.assertEqual(data["selected_path"], "src/Second.ts")
             self.assertEqual(data["selected_index"], 0)
             self.assertEqual(data["mode"], "file")
+            self.assertNotIn("task_history", data)
+
+    def test_browser_workspace_state_does_not_persist_task_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / ".git").mkdir()
+            state = BrowserState(
+                [FileChange("src/First.ts", 1, 0)],
+                task_history=[
+                    TaskRecord(
+                        kind="build",
+                        status="succeeded",
+                        command=["./build.sh"],
+                        returncode=0,
+                    )
+                ],
+            )
+            args = argparse_namespace(
+                staged=False,
+                all_changes=False,
+                base=None,
+                ref_range=None,
+                untracked=False,
+                paths=[],
+            )
+
+            _save_browser_workspace_state(state, args, repo)
+
+            data = json.loads(
+                _browser_workspace_state_path(repo).read_text(encoding="utf-8")
+            )
+            self.assertNotIn("task_history", data)
 
     def test_browser_workspace_state_saves_and_restores_progress_markers(self):
         with tempfile.TemporaryDirectory() as tmp:

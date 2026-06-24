@@ -58,6 +58,7 @@ Implement a terminal-first code review workbench named `cr`.
   - Updates build output by repainting only the task panel when the user is idle.
   - Lets users stop a running build with `stop` / `cancel` and rerun the configured build with `rerun` / `rebuild`.
   - Distinguishes build task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
+  - Shows compact session-local task history in the background task panel, starting with completed build results.
   - Runs interactive background builds in an isolated process group and stops the group on `stop` / `cancel`, falling back to parent-process termination if group cleanup fails.
   - Escalates stopped builds to force-kill after a short grace period when the process group does not exit.
   - Provides an in-session command palette via `commands`, `cmds`, or `help commands`; raw command prompt empty input or `?` opens the same palette, and `/` filters executable commands inside the palette.
@@ -141,7 +142,7 @@ Implement a terminal-first code review workbench named `cr`.
   - Treat browser screen layout as one module-owned concept: content height, background task height, task panel start row, and prompt row are calculated together.
   - Treat raw-key rendering as one browser frame, not independent stdout writes: full redraw records the current layout and task-panel snapshot; partial task-panel refreshes are allowed only while that frame remains valid.
   - Restore the fixed browser frame after temporary line input (`:` commands or `/` filters), so the next visual update cannot be a stale bottom-panel patch.
-  - Keep build task lifecycle in `BuildState` until a second real background task exists; do not introduce a generic task manager prematurely.
+  - Keep build task lifecycle in `BuildState` until a second real background task exists; task history is a compact session-level record, not a generic concurrent task manager.
   - Treat in-session review progress as browser workspace state: seen paths and remaining-only view belong in `BrowserState` and persist with `.git/cr/browse-state.json`.
   - Keep progress commands simple and reversible: `m`/`seen` marks the current file, `todo`/`unseen` clears it, `remaining` filters to unreviewed files, and `allfiles` returns to the full changed-file list.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
@@ -187,5 +188,6 @@ Implement a terminal-first code review workbench named `cr`.
 - Unit tests cover browser frame state, safe build-panel partial refresh, stale-layout refusal, and line-input frame restoration.
 - Unit tests cover executable command palette entries, command selection, palette rendering, and Enter execution without accidentally opening files.
 - Unit tests cover command palette filtering, empty results, file-filter isolation, clear behavior, and filtered command execution.
+- Unit tests cover task history rendering, completed-build single recording, rerun history retention, and workspace-state exclusion.
 - Unit tests cover review workflow behavior through the CLI while review command implementation lives under `cr.review`.
 - Unit tests cover interactive browser behavior while shared review-scope facts live under `cr.review.changes`.

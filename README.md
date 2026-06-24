@@ -15,7 +15,7 @@ cr
 ```text
 上下文区        当前按键、当前 review scope，比如 worktree / staged / range
 主工作区        文件树、commit 列表、单文件 diff、command palette
-后台任务面板    build 等后台任务的状态和最近输出
+后台任务面板    build 等后台任务的状态、最近输出和最近任务结果
 命令提示区      cr:list> / cr:file> / cr:commits>
 ```
 
@@ -168,7 +168,7 @@ cr --open-cmd 'code -g {fileline}'
 build
 ```
 
-编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。后台日志更新只重画这个面板；如果终端尺寸或页面状态已经变化，会先恢复完整 browser frame，避免日志和用户操作互相打乱。
+编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。后台日志更新只重画这个面板；如果终端尺寸或页面状态已经变化，会先恢复完整 browser frame，避免日志和用户操作互相打乱。面板会保留当前 session 最近完成的 build 结果，方便重跑后仍能看到上一轮成功、失败或停止状态。
 
 常用 build 命令：
 
@@ -178,7 +178,7 @@ build
 : rerun    重跑编译
 ```
 
-build 面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`。后台 build 会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个 build 进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
+build 面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。后台 build 会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个 build 进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
 
 ```bash
 cr --build-cmd './remote buildEntry --app douyin'

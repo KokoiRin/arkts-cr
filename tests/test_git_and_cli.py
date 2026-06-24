@@ -19,12 +19,16 @@ from cr.ui.browser import (
     _build_status,
     _browse_command_lines,
     _browse_file_screen_lines,
+    _browser_workspace_state_path,
+    _save_browser_workspace_state,
+    _load_browser_workspace_state,
     _draw_build_panel_only,
     _draw_browse_screen,
     _normalize_command_query,
     _open_command,
     _poll_build,
     _read_browse_command,
+    _restore_browser_workspace_state,
     _rerun_build,
     _screen_layout,
     _start_build,
@@ -814,6 +818,127 @@ class CliTests(unittest.TestCase):
         self.assertIn("line 11", lower)
         self.assertIn("showing 11-14/20", lower[-1])
 
+    def test_browser_workspace_state_saves_under_git_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / ".git").mkdir()
+            state = BrowserState(
+                [
+                    FileChange("src/First.ts", 1, 0),
+                    FileChange("src/Second.ts", 2, 1),
+                ],
+                selected=0,
+                mode="file",
+                filter_text="Second",
+            )
+            args = argparse_namespace(
+                staged=True,
+                all_changes=False,
+                base=None,
+                ref_range=None,
+                untracked=False,
+                paths=[],
+            )
+
+            _save_browser_workspace_state(state, args, repo)
+
+            path = _browser_workspace_state_path(repo)
+            self.assertEqual(path, repo / ".git" / "cr" / "browse-state.json")
+            data = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(data["version"], 1)
+            self.assertEqual(data["scope"]["staged"], True)
+            self.assertEqual(data["scope"]["all_changes"], False)
+            self.assertEqual(data["filter_text"], "Second")
+            self.assertEqual(data["selected_path"], "src/Second.ts")
+            self.assertEqual(data["selected_index"], 0)
+            self.assertEqual(data["mode"], "file")
+
+    def test_browser_workspace_state_restores_scope_filter_and_selected_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            state_path = _browser_workspace_state_path(repo)
+            state_path.parent.mkdir(parents=True)
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "scope": {
+                            "staged": True,
+                            "all_changes": False,
+                            "base": None,
+                            "ref_range": None,
+                            "untracked": False,
+                        },
+                        "filter_text": "Second",
+                        "selected_path": "src/Second.ts",
+                        "selected_index": 0,
+                        "mode": "file",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            args = argparse_namespace(
+                staged=False,
+                all_changes=False,
+                base=None,
+                ref_range=None,
+                untracked=False,
+                paths=[],
+            )
+            state = BrowserState(
+                [
+                    FileChange("src/First.ts", 1, 0),
+                    FileChange("src/Second.ts", 2, 1),
+                ]
+            )
+
+            workspace_state = _load_browser_workspace_state(repo)
+            self.assertIsNotNone(workspace_state)
+            _restore_browser_workspace_state(state, args, workspace_state)
+
+            self.assertTrue(args.staged)
+            self.assertFalse(args.all_changes)
+            self.assertEqual(state.filter_text, "Second")
+            self.assertEqual(state.selected, 0)
+            self.assertEqual(state.visible_changes[0].path, "src/Second.ts")
+            self.assertEqual(state.mode, "file")
+
+    def test_browser_workspace_state_falls_back_to_index_when_path_is_missing(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            paths=[],
+        )
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 2, 1),
+            ]
+        )
+        workspace_state = {
+            "version": 1,
+            "scope": {
+                "staged": False,
+                "all_changes": False,
+                "base": None,
+                "ref_range": None,
+                "untracked": False,
+            },
+            "filter_text": "",
+            "selected_path": "src/Missing.ts",
+            "selected_index": 9,
+            "mode": "file",
+        }
+
+        _restore_browser_workspace_state(state, args, workspace_state)
+
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(state.visible_changes[state.selected].path, "src/Second.ts")
+        self.assertEqual(state.mode, "file")
+
     def test_cli_diff_outline_and_review_in_temp_repo(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -1232,6 +1357,176 @@ struct SamplePage {
             self.assertIn("Second.ts", session.stdout)
             self.assertIn("-export const second = 'old'", session.stdout)
             self.assertIn("+export const second = 'new'", session.stdout)
+
+    def test_cli_browser_restores_saved_workspace_filter_and_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "First.ts"
+            second = repo / "src" / "Second.ts"
+            first.parent.mkdir(parents=True)
+            first.write_text("export const first = 'old'\n", encoding="utf-8")
+            second.write_text("export const second = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            first.write_text("export const first = 'new'\n", encoding="utf-8")
+            second.write_text("export const second = 'new'\n", encoding="utf-8")
+
+            first_session = self._cr_input(
+                repo,
+                "filter Second\n1\nq\n",
+                "browse",
+                "--sort",
+                "path",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(first_session.returncode, 0, first_session.stderr)
+            self.assertTrue((repo / ".git" / "cr" / "browse-state.json").exists())
+
+            second_session = self._cr_input(
+                repo,
+                "q\n",
+                "browse",
+                "--sort",
+                "path",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(second_session.returncode, 0, second_session.stderr)
+            self.assertIn("File 1/1", second_session.stdout)
+            self.assertIn("Second.ts", second_session.stdout)
+            self.assertNotIn("First.ts", second_session.stdout)
+
+    def test_cli_browser_explicit_scope_ignores_saved_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("export const sample = 'staged'\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+            sample.write_text("export const sample = 'worktree'\n", encoding="utf-8")
+            state_path = repo / ".git" / "cr" / "browse-state.json"
+            state_path.parent.mkdir(parents=True)
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "scope": {
+                            "staged": False,
+                            "all_changes": True,
+                            "base": None,
+                            "ref_range": None,
+                            "untracked": False,
+                        },
+                        "filter_text": "",
+                        "selected_path": "src/Sample.ts",
+                        "selected_index": 0,
+                        "mode": "file",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            session = self._cr_input(
+                repo,
+                "1\nq\n",
+                "browse",
+                "--staged",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Scope: staged", session.stdout)
+            self.assertIn("+export const sample = 'staged'", session.stdout)
+            self.assertNotIn("+export const sample = 'worktree'", session.stdout)
+
+    def test_cli_browser_ignores_malformed_saved_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+            sample.write_text("export const sample = 'new'\n", encoding="utf-8")
+            state_path = repo / ".git" / "cr" / "browse-state.json"
+            state_path.parent.mkdir(parents=True)
+            state_path.write_text("{not json", encoding="utf-8")
+
+            session = self._cr_input(repo, "q\n", "browse", "--context", "0")
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Changed files", session.stdout)
+            self.assertIn("Sample.ts", session.stdout)
+
+    def test_cli_browser_pathspec_ignores_saved_workspace_filter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "First.ts"
+            second = repo / "src" / "Second.ts"
+            first.parent.mkdir(parents=True)
+            first.write_text("export const first = 'old'\n", encoding="utf-8")
+            second.write_text("export const second = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+            first.write_text("export const first = 'new'\n", encoding="utf-8")
+            second.write_text("export const second = 'new'\n", encoding="utf-8")
+            state_path = repo / ".git" / "cr" / "browse-state.json"
+            state_path.parent.mkdir(parents=True)
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "scope": {
+                            "staged": False,
+                            "all_changes": False,
+                            "base": None,
+                            "ref_range": None,
+                            "untracked": False,
+                        },
+                        "filter_text": "Second",
+                        "selected_path": "src/Second.ts",
+                        "selected_index": 0,
+                        "mode": "file",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            session = self._cr_input(
+                repo,
+                "q\n",
+                "browse",
+                "--context",
+                "0",
+                "src/First.ts",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Changed files", session.stdout)
+            self.assertIn("First.ts", session.stdout)
+            self.assertNotIn("Second.ts", session.stdout)
+            self.assertNotIn("Filter: Second", session.stdout)
 
     def test_cli_interactive_browser_can_open_current_file(self):
         with tempfile.TemporaryDirectory() as tmp:

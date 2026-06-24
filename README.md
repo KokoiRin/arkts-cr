@@ -13,8 +13,7 @@ cr
 当前页面分四层：
 
 ```text
-帮助/上下文区    当前按键、当前视图
-工作区上下文    当前 review scope，比如 worktree / staged / range
+帮助/上下文区    当前按键、当前 review scope，比如 worktree / staged / range
 主内容区        文件树、commit 列表、单文件 diff
 任务面板区      build 等后台任务的最近输出
 输入提示区      cr:list> / cr:file> / cr:commits>
@@ -137,6 +136,8 @@ cr --context 0
 ```
 
 界面会显示 `Scope: ...`，这样你能一直知道当前是在看 worktree、staged、all、base、range、recent commits 还是某个 commit。
+
+默认 `cr browse` 会在退出时把当前 scope、filter、选中文件和 list/file 层级保存到 `.git/cr/browse-state.json`；下次直接运行 `cr` 会恢复这个 review workspace。显式传入 `--staged`、`--all`、`--base`、`--range`、`--untracked` 或路径参数时，本次命令优先，不会被历史状态覆盖。
 
 打开编辑器：
 

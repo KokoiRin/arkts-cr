@@ -65,6 +65,7 @@ Implement a terminal-first code review workbench named `cr`.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
   - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` from the command prompt for repo builds.
+  - Persists the default browser workspace in `.git/cr/browse-state.json`, restoring scope, filter, selected file, and list/file layer unless the user passes an explicit scope or pathspec.
 
 ## Not doing
 

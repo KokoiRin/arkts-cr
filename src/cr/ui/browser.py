@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
+import json
 import os
 from pathlib import Path
 import signal
@@ -43,6 +44,7 @@ from ..vcs import git
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
 
 
+BROWSER_WORKSPACE_STATE_VERSION = 1
 BUILD_STOP_KILL_GRACE_SECONDS = 2.0
 
 
@@ -160,8 +162,16 @@ class ScreenLayout:
 
 
 def run_browser(args: argparse.Namespace) -> int:
+    repo = git.repo_root()
     style = make_style(args.color, sys.stdout, args.links)
+    workspace_state = None
+    if _should_restore_browser_workspace_state(args):
+        workspace_state = _load_browser_workspace_state(repo)
+        if workspace_state is not None:
+            _restore_browser_workspace_scope(args, workspace_state)
     state = BrowserState(changes=_load_browse_changes(args))
+    if workspace_state is not None:
+        _restore_browser_workspace_state(state, args, workspace_state)
     _show_commits_when_empty(state, args)
     raw_keys = _use_raw_keys()
     needs_redraw = True
@@ -232,8 +242,10 @@ def run_browser(args: argparse.Namespace) -> int:
             _draw_build_panel_only(state.build, style)
             continue
         if command_result == "__eof__":
+            _save_browser_workspace_state_on_exit(state, args, repo)
             return 0
         if command_result == "__interrupt__":
+            _save_browser_workspace_state_on_exit(state, args, repo)
             return 130
         command = command_result
 
@@ -260,6 +272,7 @@ def run_browser(args: argparse.Namespace) -> int:
             needs_redraw = True
             continue
         if command in {"q", "quit", "exit"}:
+            _save_browser_workspace_state_on_exit(state, args, repo)
             return 0
         if command in {"commands", "cmds", "help commands"}:
             state.mode = "commands"
@@ -506,6 +519,149 @@ def filter_changes_by_query(
     if not normalized:
         return changes
     return [change for change in changes if normalized in change.path.casefold()]
+
+
+def _should_restore_browser_workspace_state(args: argparse.Namespace) -> bool:
+    return (
+        not args.staged
+        and not args.all_changes
+        and args.base is None
+        and args.ref_range is None
+        and not args.untracked
+        and not args.paths
+    )
+
+
+def _browser_workspace_state_path(repo: Path) -> Path:
+    return repo / ".git" / "cr" / "browse-state.json"
+
+
+def _save_browser_workspace_state_on_exit(
+    state: BrowserState,
+    args: argparse.Namespace,
+    repo: Path,
+) -> None:
+    if args.paths:
+        return
+    _save_browser_workspace_state(state, args, repo)
+
+
+def _save_browser_workspace_state(
+    state: BrowserState,
+    args: argparse.Namespace,
+    repo: Path,
+) -> None:
+    path = _browser_workspace_state_path(repo)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.with_suffix(".json.tmp")
+        tmp_path.write_text(
+            json.dumps(
+                _browser_workspace_state_data(state, args),
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        tmp_path.replace(path)
+    except OSError:
+        return
+
+
+def _browser_workspace_state_data(
+    state: BrowserState,
+    args: argparse.Namespace,
+) -> dict[str, object]:
+    visible = state.visible_changes
+    selected_path = None
+    if visible and 0 <= state.selected < len(visible):
+        selected_path = visible[state.selected].path
+    return {
+        "version": BROWSER_WORKSPACE_STATE_VERSION,
+        "scope": {
+            "staged": bool(args.staged),
+            "all_changes": bool(args.all_changes),
+            "base": args.base,
+            "ref_range": args.ref_range,
+            "untracked": bool(args.untracked),
+        },
+        "filter_text": state.filter_text,
+        "selected_path": selected_path,
+        "selected_index": state.selected,
+        "mode": "file" if state.mode == "file" else "list",
+    }
+
+
+def _load_browser_workspace_state(repo: Path) -> dict[str, object] | None:
+    path = _browser_workspace_state_path(repo)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(raw, dict):
+        return None
+    if raw.get("version") != BROWSER_WORKSPACE_STATE_VERSION:
+        return None
+    scope = raw.get("scope")
+    if not isinstance(scope, dict):
+        return None
+    return raw
+
+
+def _restore_browser_workspace_state(
+    state: BrowserState,
+    args: argparse.Namespace,
+    workspace_state: dict[str, object],
+) -> None:
+    _restore_browser_workspace_scope(args, workspace_state)
+    filter_text = workspace_state.get("filter_text")
+    state.filter_text = filter_text if isinstance(filter_text, str) else ""
+    _restore_browser_workspace_selection(state, workspace_state)
+    mode = workspace_state.get("mode")
+    state.mode = "file" if mode == "file" and state.visible_changes else "list"
+    state.list_scroll = 0
+    state.file_scroll = 0
+    state.commit_scroll = 0
+    state.clamp_selection()
+
+
+def _restore_browser_workspace_scope(
+    args: argparse.Namespace,
+    workspace_state: dict[str, object],
+) -> None:
+    scope = workspace_state.get("scope")
+    if not isinstance(scope, dict):
+        return
+    args.staged = bool(scope.get("staged"))
+    args.all_changes = bool(scope.get("all_changes"))
+    args.base = _optional_string(scope.get("base"))
+    args.ref_range = _optional_string(scope.get("ref_range"))
+    args.untracked = bool(scope.get("untracked"))
+
+
+def _restore_browser_workspace_selection(
+    state: BrowserState,
+    workspace_state: dict[str, object],
+) -> None:
+    visible = state.visible_changes
+    if not visible:
+        state.selected = 0
+        return
+    selected_path = workspace_state.get("selected_path")
+    if isinstance(selected_path, str):
+        for index, change in enumerate(visible):
+            if change.path == selected_path:
+                state.selected = index
+                return
+    selected_index = workspace_state.get("selected_index")
+    if isinstance(selected_index, int):
+        state.selected = max(0, min(selected_index, len(visible) - 1))
+    else:
+        state.selected = 0
+
+
+def _optional_string(value: object) -> str | None:
+    return value if isinstance(value, str) else None
 
 
 def _load_browse_changes(args: argparse.Namespace) -> list[git.FileChange]:

@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import os
 from pathlib import Path
 import platform
+import select
 import shlex
 import shutil
 import subprocess
@@ -44,6 +45,7 @@ from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
 class BrowserState:
     changes: list[git.FileChange]
     commits: list[git.CommitSummary] = field(default_factory=list)
+    build: "BuildState | None" = None
     first_line_cache: dict[str, int | None] = field(default_factory=dict)
     file_line_cache: dict[str, list[str]] = field(default_factory=dict)
     selected: int = 0
@@ -98,6 +100,20 @@ class _BrowseTreeNode:
     change_index: int | None = None
 
 
+@dataclass
+class BuildState:
+    command: list[str]
+    process: subprocess.Popen[bytes]
+    lines: list[str] = field(default_factory=list)
+    partial: str = ""
+    returncode: int | None = None
+    start_error: str | None = None
+
+    @property
+    def running(self) -> bool:
+        return self.returncode is None and self.start_error is None
+
+
 def run_browser(args: argparse.Namespace) -> int:
     style = make_style(args.color, sys.stdout, args.links)
     state = BrowserState(changes=_load_browse_changes(args))
@@ -107,6 +123,7 @@ def run_browser(args: argparse.Namespace) -> int:
     if not raw_keys:
         _print_lines(_browse_help_lines(style))
     while True:
+        _poll_build(state.build)
         state.clamp_selection()
         visible = state.visible_changes
         if raw_keys:
@@ -147,7 +164,13 @@ def run_browser(args: argparse.Namespace) -> int:
                 )
                 state.mode = "list"
 
-        command_result = _read_browse_command(prompt, raw_keys)
+        command_result = _read_browse_command(
+            prompt,
+            raw_keys,
+            tick_when_idle=state.build is not None and state.build.running,
+        )
+        if command_result == "__tick__":
+            continue
         if command_result == "__eof__":
             return 0
         if command_result == "__interrupt__":
@@ -196,7 +219,10 @@ def run_browser(args: argparse.Namespace) -> int:
                 print("No changed file to open.")
             continue
         if command in {"build", "compile"}:
-            _run_build(args, wait=raw_keys)
+            if raw_keys:
+                _start_build(state, args)
+            else:
+                _run_build_foreground(args)
             continue
         if command in {"r", "refresh"}:
             if state.mode == "commits":
@@ -399,6 +425,43 @@ def _file_body_capacity() -> int:
     return max(1, _screen_height() - 3)
 
 
+def _build_panel_height(build: BuildState | None, available_lines: int) -> int:
+    if build is None:
+        return 0
+    return max(3, min(10, max(5, available_lines // 4), max(3, available_lines - 6)))
+
+
+def _build_panel_lines(
+    build: BuildState | None,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    if build is None or max_lines <= 0:
+        return []
+    width = shutil.get_terminal_size((100, 30)).columns
+    status = _build_status(build)
+    command = " ".join(shlex.quote(part) for part in build.command)
+    lines = [
+        style.dim("─" * min(width, 100)),
+        f"{style.bold('Build')} {status}  {style.dim(command)}",
+    ]
+    capacity = max(0, max_lines - len(lines))
+    body = build.lines[-capacity:] if capacity else []
+    if capacity and not body:
+        body = [style.dim("(waiting for output)")]
+    return [*lines, *body][-max_lines:]
+
+
+def _build_status(build: BuildState) -> str:
+    if build.start_error is not None:
+        return "failed to start"
+    if build.returncode is None:
+        return "running"
+    if build.returncode == 0:
+        return "succeeded"
+    return f"failed ({build.returncode})"
+
+
 def _draw_browse_screen(
     state: BrowserState,
     args: argparse.Namespace,
@@ -407,13 +470,15 @@ def _draw_browse_screen(
     state.clamp_selection()
     visible = state.visible_changes
     max_lines = _screen_height() - 1
+    build_panel_height = _build_panel_height(state.build, max_lines)
+    content_lines = max(1, max_lines - build_panel_height)
     if state.mode == "commits":
         lines = [
             *_browse_help_lines(style),
             *_browse_commit_screen_lines(
                 state,
                 style,
-                max(1, max_lines - len(_browse_help_lines(style))),
+                max(1, content_lines - len(_browse_help_lines(style))),
             ),
         ]
     elif state.mode == "list":
@@ -423,7 +488,7 @@ def _draw_browse_screen(
                 state,
                 args,
                 style,
-                max(1, max_lines - len(_browse_help_lines(style))),
+                max(1, content_lines - len(_browse_help_lines(style))),
             ),
         ]
     elif visible:
@@ -434,7 +499,7 @@ def _draw_browse_screen(
             len(visible),
             args,
             style,
-            max_lines,
+            content_lines,
         )
     else:
         lines = _empty_browse_lines(
@@ -442,6 +507,11 @@ def _draw_browse_screen(
             state.filter_text,
             total_changes=len(state.changes),
         )
+    if build_panel_height:
+        lines = [
+            *lines[:content_lines],
+            *_build_panel_lines(state.build, style, build_panel_height),
+        ]
     print("\033[2J\033[H", end="")
     _print_lines(lines[:max_lines])
 
@@ -924,7 +994,11 @@ def _use_raw_keys() -> bool:
     )
 
 
-def _read_browse_command(prompt: str, raw_keys: bool) -> str:
+def _read_browse_command(
+    prompt: str,
+    raw_keys: bool,
+    tick_when_idle: bool = False,
+) -> str:
     if not raw_keys:
         try:
             return input(prompt).strip()
@@ -937,10 +1011,12 @@ def _read_browse_command(prompt: str, raw_keys: bool) -> str:
 
     print(prompt, end="", flush=True)
     try:
-        key = _read_raw_key()
+        key = _read_raw_key(timeout=0.2 if tick_when_idle else None)
     except KeyboardInterrupt:
         print()
         return "__interrupt__"
+    if key == "__tick__":
+        return key
     print()
     return key
 
@@ -961,11 +1037,15 @@ def _read_command_query() -> str:
         return "__interrupt__"
 
 
-def _read_raw_key() -> str:
+def _read_raw_key(timeout: float | None = None) -> str:
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
+        if timeout is not None:
+            ready, _, _ = select.select([sys.stdin], [], [], timeout)
+            if not ready:
+                return "__tick__"
         char = sys.stdin.read(1)
         if char == "\x03":
             raise KeyboardInterrupt
@@ -1011,7 +1091,39 @@ def _read_raw_key() -> str:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
-def _run_build(args: argparse.Namespace, wait: bool = False) -> None:
+def _start_build(state: BrowserState, args: argparse.Namespace) -> None:
+    repo = git.repo_root()
+    command = _build_command(repo, args.build_cmd)
+    if command is None:
+        state.build = _failed_build_state(
+            [],
+            "No build command configured. Set --build-cmd or CR_BUILD_CMD; "
+            "DouyinHarmony defaults to './remote buildEntry --app douyin'.",
+        )
+        return
+    if state.build is not None and state.build.running:
+        state.build.lines.append("Build is already running.")
+        return
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=repo,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+    except OSError as exc:
+        state.build = _failed_build_state(command, f"Build failed to start: {exc}")
+        return
+    if process.stdout is not None:
+        os.set_blocking(process.stdout.fileno(), False)
+    state.build = BuildState(
+        command=command,
+        process=process,
+        lines=[f"started in {repo}"],
+    )
+
+
+def _run_build_foreground(args: argparse.Namespace) -> None:
     repo = git.repo_root()
     command = _build_command(repo, args.build_cmd)
     if command is None:
@@ -1030,8 +1142,67 @@ def _run_build(args: argparse.Namespace, wait: bool = False) -> None:
         print("Build succeeded.")
     else:
         print(f"Build failed with exit code {result.returncode}.")
-    if wait:
-        _wait_for_enter()
+
+
+def _failed_build_state(command: list[str], message: str) -> BuildState:
+    process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+    return BuildState(
+        command=command,
+        process=process,
+        lines=[message],
+        returncode=1,
+        start_error=message,
+    )
+
+
+def _poll_build(build: BuildState | None) -> None:
+    if build is None or build.start_error is not None:
+        return
+    if build.returncode is not None:
+        return
+    _drain_build_output(build)
+    returncode = build.process.poll()
+    if returncode is not None and build.returncode is None:
+        _drain_build_output(build)
+        if build.partial:
+            build.lines.append(build.partial)
+            build.partial = ""
+        build.returncode = returncode
+        message = (
+            "Build succeeded."
+            if returncode == 0
+            else f"Build failed with exit code {returncode}."
+        )
+        build.lines.append(message)
+        if build.process.stdout is not None:
+            build.process.stdout.close()
+
+
+def _drain_build_output(build: BuildState) -> None:
+    if build.process.stdout is None:
+        return
+    fd = build.process.stdout.fileno()
+    while True:
+        try:
+            chunk = os.read(fd, 4096)
+        except BlockingIOError:
+            break
+        except OSError as exc:
+            build.lines.append(f"output read failed: {exc}")
+            break
+        if not chunk:
+            break
+        text = chunk.decode(errors="replace")
+        combined = build.partial + text
+        parts = combined.splitlines(keepends=True)
+        build.partial = ""
+        for part in parts:
+            if part.endswith("\n") or part.endswith("\r"):
+                build.lines.append(part.rstrip("\r\n"))
+            else:
+                build.partial = part
+        if len(build.lines) > 200:
+            build.lines = build.lines[-200:]
 
 
 def _build_command(repo: Path, configured: str | None = None) -> list[str] | None:
@@ -1041,13 +1212,6 @@ def _build_command(repo: Path, configured: str | None = None) -> list[str] | Non
     if repo.name == "DouyinHarmony" and (repo / "remote").exists():
         return ["./remote", "buildEntry", "--app", "douyin"]
     return None
-
-
-def _wait_for_enter() -> None:
-    try:
-        input("Press Enter to return to cr...")
-    except (EOFError, KeyboardInterrupt):
-        print()
 
 
 def _open_change(change: git.FileChange, args: argparse.Namespace) -> None:

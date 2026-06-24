@@ -69,7 +69,6 @@ q             退出
 /Second
 filter Second
 clear
-build
 g
 1
 q
@@ -117,7 +116,7 @@ cr --open-cmd 'code -g {fileline}'
 build
 ```
 
-也可以在行模式里直接输入 `build`。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
+编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
 
 ```bash
 cr --build-cmd './remote buildEntry --app douyin'

@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 from contextlib import redirect_stdout
@@ -12,9 +13,12 @@ from io import StringIO
 from cr.ui.browser import (
     BrowserState,
     _build_command,
+    _build_panel_lines,
     _browse_file_screen_lines,
     _draw_browse_screen,
     _open_command,
+    _poll_build,
+    _start_build,
     filter_changes_by_query,
 )
 from cr.review.changes import format_counts
@@ -81,6 +85,36 @@ class CliTests(unittest.TestCase):
                 _build_command(repo, "./custom build"),
                 ["./custom", "build"],
             )
+
+    def test_build_panel_collects_background_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            command = (
+                f"{sys.executable} -c "
+                "\"print('compile line 1'); print('compile line 2')\""
+            )
+            args = argparse_namespace(build_cmd=command)
+            state = BrowserState([])
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                _start_build(state, args)
+                for _ in range(100):
+                    _poll_build(state.build)
+                    if state.build and state.build.returncode is not None:
+                        break
+                    time.sleep(0.01)
+
+            self.assertIsNotNone(state.build)
+            if state.build.returncode is None:
+                state.build.process.terminate()
+                state.build.process.wait(timeout=1)
+            self.assertEqual(state.build.returncode, 0)
+            _poll_build(state.build)
+            lines = _build_panel_lines(state.build, TerminalStyle(False), 5)
+            text = "\n".join(lines)
+            self.assertIn("Build succeeded.", text)
+            self.assertIn("compile line 1", text)
+            self.assertIn("compile line 2", text)
 
     def test_browse_screen_redraws_in_place(self):
         args = argparse_namespace(

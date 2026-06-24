@@ -298,6 +298,74 @@ struct SamplePage {
             self.assertIn("+export const first = 'new'", session.stdout)
             self.assertIn("Changed files", session.stdout)
 
+    def test_cli_browser_shows_recent_commits_when_no_worktree_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("export const sample = 'from commit'\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "change sample")
+
+            sample.write_text("export const sample = 'staged only'\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+
+            session = self._cr_input(
+                repo,
+                "1\n1\nq\n",
+                "browse",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Recent commits", session.stdout)
+            self.assertIn("change sample", session.stdout)
+            self.assertIn("cr:commits>", session.stdout)
+            self.assertIn("Changed files", session.stdout)
+            self.assertIn("Sample.ts", session.stdout)
+            self.assertIn("-export const sample = 'old'", session.stdout)
+            self.assertIn("+export const sample = 'from commit'", session.stdout)
+
+    def test_cli_browser_can_switch_from_worktree_to_recent_commits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("export const sample = 'committed'\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "committed sample")
+
+            sample.write_text("export const sample = 'working tree'\n", encoding="utf-8")
+
+            session = self._cr_input(
+                repo,
+                "g\n1\nq\n",
+                "browse",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Changed files", session.stdout)
+            self.assertIn("Recent commits", session.stdout)
+            self.assertIn("committed sample", session.stdout)
+            self.assertIn("cr:commits>", session.stdout)
+
     def test_cli_interactive_browser_filters_files_in_line_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)

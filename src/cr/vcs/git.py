@@ -13,6 +13,7 @@ import subprocess
 
 
 MAX_INLINE_TEXT_BYTES = 200_000
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,14 @@ class FileChange:
     deleted: int | None
     status: str = "modified"
     old_path: str | None = None
+
+
+@dataclass(frozen=True)
+class CommitSummary:
+    commit: str
+    parent: str | None
+    authored_at: str
+    subject: str
 
 
 class GitError(RuntimeError):
@@ -236,6 +245,31 @@ def range_right_ref(ref_range: str) -> str:
     if len(parts) != 2 or not parts[0] or not parts[1]:
         raise GitError("range must use OLD..NEW")
     return parts[1]
+
+
+def recent_commits(limit: int = 20) -> list[CommitSummary]:
+    output = _git(
+        [
+            "log",
+            "-n",
+            str(max(1, limit)),
+            "--pretty=format:%H%x1f%P%x1f%cs%x1f%s",
+        ]
+    ).stdout
+    commits: list[CommitSummary] = []
+    for line in output.splitlines():
+        parts = line.split("\x1f", 3)
+        if len(parts) != 4:
+            continue
+        commit, parents, authored_at, subject = parts
+        parent = parents.split()[0] if parents else None
+        commits.append(CommitSummary(commit, parent, authored_at, subject))
+    return commits
+
+
+def commit_ref_range(commit: CommitSummary) -> str:
+    left = commit.parent or EMPTY_TREE
+    return f"{left}..{commit.commit}"
 
 
 def _with_paths(args: list[str], paths: list[str] | None) -> list[str]:

@@ -52,6 +52,7 @@ Enter / →     打开当前文件的 review 视图
 /             按路径过滤文件
 c             清除过滤
 n / p         下一项 / 上一项
+g             选择最近 commit
 r             刷新改动
 o             用编辑器打开当前文件
 q             退出
@@ -63,6 +64,7 @@ q             退出
 /Second
 filter Second
 clear
+g
 1
 q
 ```
@@ -93,6 +95,8 @@ cr --untracked
 ```bash
 cr --context 0
 ```
+
+工作区没有未提交改动，或者当前改动已经暂存时，直接运行 `cr` 会显示最近的 commit 列表。也可以在文件列表里按 `g`，手动切到最近 commit 列表；选中某个 commit 后会进入这个 commit 的 changed-file list。
 
 打开编辑器：
 

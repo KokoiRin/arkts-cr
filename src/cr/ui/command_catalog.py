@@ -84,6 +84,22 @@ def command_catalog() -> tuple[CommandGroup, ...]:
             (
                 CommandEntry("/QUERY / filter QUERY", "filter changed files by path"),
                 CommandEntry("clear", "clear active file filter", "clear"),
+                CommandEntry(
+                    "source staged",
+                    "show staged files in current scope",
+                    "source staged",
+                ),
+                CommandEntry(
+                    "source unstaged",
+                    "show unstaged files in current scope",
+                    "source unstaged",
+                ),
+                CommandEntry(
+                    "source mixed",
+                    "show mixed files in current scope",
+                    "source mixed",
+                ),
+                CommandEntry("source all", "clear active source filter", "source all"),
                 CommandEntry("m / seen / done", "mark selected file as seen", "m"),
                 CommandEntry("todo / unseen / unmark", "mark selected file as todo", "todo"),
                 CommandEntry("remaining", "show files not marked seen", "remaining"),

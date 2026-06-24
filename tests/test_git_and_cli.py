@@ -666,6 +666,12 @@ class CliTests(unittest.TestCase):
             parse_browser_command("unstage").action,
             BrowserCommandAction.UNSTAGE_FILE,
         )
+        source = parse_browser_command("source staged")
+        self.assertEqual(source.action, BrowserCommandAction.SET_SOURCE_FILTER)
+        self.assertEqual(source.value, "staged")
+
+        clear_source = parse_browser_command("source clear")
+        self.assertEqual(clear_source.action, BrowserCommandAction.CLEAR_SOURCE_FILTER)
 
         base = parse_browser_command("base main")
         self.assertEqual(base.action, BrowserCommandAction.SWITCH_BASE)
@@ -796,6 +802,14 @@ class CliTests(unittest.TestCase):
         self.assertIn("stage", commands)
         self.assertIn("unstage", commands)
 
+    def test_command_palette_lists_source_filter_actions(self):
+        commands = {entry.command for entry in command_catalog.command_palette_entries()}
+
+        self.assertIn("source staged", commands)
+        self.assertIn("source unstaged", commands)
+        self.assertIn("source mixed", commands)
+        self.assertIn("source all", commands)
+
     def test_browser_command_executor_copies_selected_path(self):
         from cr.ui.browser import parse_browser_command
 
@@ -817,6 +831,76 @@ class CliTests(unittest.TestCase):
         self.assertFalse(result.needs_redraw)
         copy.assert_called_once_with("src/Sample.ts", "copy-tool")
         self.assertIn("Copied src/Sample.ts", output.getvalue())
+
+    def test_browser_command_executor_applies_source_filter(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [
+                FileChange("src/Staged.ts", 1, 0, source="staged"),
+                FileChange("src/Unstaged.ts", 1, 0, source="unstaged"),
+            ],
+            selected=1,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("source staged", raw_keys=True))
+
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.source_filter, "staged")
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(
+            [change.path for change in state.visible_changes],
+            ["src/Staged.ts"],
+        )
+
+    def test_browser_command_executor_rejects_unknown_source_filter(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0, source="staged")])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with redirect_stdout(output):
+            result = executor.execute(parse_browser_command("source generated"))
+
+        self.assertTrue(result.handled)
+        self.assertEqual(state.source_filter, "")
+        self.assertIn("Unknown source filter", output.getvalue())
+
+    def test_browser_command_executor_clears_source_filter(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0, source="staged")],
+            source_filter="staged",
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+
+        with redirect_stdout(StringIO()):
+            result = executor.execute(parse_browser_command("source all"))
+
+        self.assertTrue(result.handled)
+        self.assertEqual(state.source_filter, "")
 
     def test_selected_file_actions_copy_path_returns_status_message(self):
         with patch("cr.ui.selected_file_actions.file_actions.copy_text", return_value=None) as copy:
@@ -4805,6 +4889,35 @@ class CliTests(unittest.TestCase):
         self.assertIn("modified", row)
         self.assertIn("note", row)
 
+    def test_page_content_changed_file_header_shows_source_filter(self):
+        state = BrowserState(
+            [
+                FileChange("src/Staged.ts", 1, 0, source="staged"),
+                FileChange("src/Unstaged.ts", 1, 0, source="unstaged"),
+            ],
+            source_filter="staged",
+        )
+
+        lines = page_content.browse_list_screen_lines(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            max_lines=10,
+        )
+
+        self.assertIn("Source: staged", "\n".join(lines))
+
+    def test_browse_list_lines_wrapper_passes_source_filter(self):
+        lines = _browse_list_lines(
+            [FileChange("src/Staged.ts", 1, 0, source="staged")],
+            argparse_namespace(),
+            TerminalStyle(),
+            selected=0,
+            source_filter="staged",
+        )
+
+        self.assertIn("Source: staged", "\n".join(lines))
+
     def test_browse_filter_matches_paths_and_clamps_selection(self):
         changes = [
             FileChange("src/pages/Home.ets", 1, 1),
@@ -4848,6 +4961,93 @@ class CliTests(unittest.TestCase):
             [change.path for change in state.visible_changes],
             ["src/Second.ts"],
         )
+
+    def test_review_workspace_source_filter_combines_with_path_and_remaining_filters(self):
+        workspace = ReviewWorkspace(
+            [
+                FileChange("src/First.ts", 1, 0, source="staged"),
+                FileChange("src/Second.ts", 2, 1, source="unstaged"),
+                FileChange("docs/Third.md", 1, 0, source="staged"),
+            ],
+            filter_text="src",
+            source_filter="staged",
+            seen_paths={"src/First.ts"},
+            remaining_only=True,
+        )
+
+        self.assertEqual(workspace.visible_changes, [])
+        workspace.remaining_only = False
+        self.assertEqual(
+            [change.path for change in workspace.visible_changes],
+            ["src/First.ts"],
+        )
+
+    def test_browser_state_syncs_source_filter_with_workspace(self):
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0, source="staged"),
+                FileChange("src/Second.ts", 1, 0, source="unstaged"),
+            ],
+            source_filter="staged",
+        )
+
+        self.assertEqual(
+            [change.path for change in state.visible_changes],
+            ["src/First.ts"],
+        )
+
+        state.source_filter = "unstaged"
+        state._sync_to_workspace()
+        state._sync_from_workspace()
+
+        self.assertEqual(
+            [change.path for change in state.visible_changes],
+            ["src/Second.ts"],
+        )
+
+    def test_review_workspace_persists_source_filter(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=True,
+            base=None,
+            ref_range=None,
+            untracked=False,
+        )
+        workspace = ReviewWorkspace(
+            [FileChange("src/First.ts", 1, 0, source="staged")],
+            source_filter="staged",
+        )
+
+        data = workspace.state_data(args, mode=BrowserPage.CHANGED_FILES)
+        restored = ReviewWorkspace([FileChange("src/First.ts", 1, 0, source="staged")])
+        restored.restore_state(args, data)
+
+        self.assertEqual(data["source_filter"], "staged")
+        self.assertEqual(restored.source_filter, "staged")
+
+    def test_review_workspace_scope_switch_clears_source_filter(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=True,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+            code=False,
+        )
+        workspace = ReviewWorkspace(
+            [FileChange("src/Old.ts", 1, 0, source="staged")],
+            source_filter="staged",
+        )
+
+        workspace.switch_scope(
+            args,
+            ReviewScope(False, False, None, None, False),
+            loader=lambda _args: [FileChange("src/New.ts", 1, 0, source="unstaged")],
+        )
+
+        self.assertEqual(workspace.source_filter, "")
 
     def test_switch_review_scope_resets_view_state_but_keeps_task_panel(self):
         args = argparse_namespace(

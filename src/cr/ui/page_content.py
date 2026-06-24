@@ -171,6 +171,7 @@ def browse_list_lines(
     selected: int | None = None,
     total_changes: int | None = None,
     filter_text: str = "",
+    source_filter: str = "",
     scope_label_text: str = "",
     seen_paths: set[str] | None = None,
     seen_count: int | None = None,
@@ -195,6 +196,8 @@ def browse_list_lines(
         lines.append(
             f"Filter: {filter_text} ({len(changes)}/{total_changes} matches, c to clear)"
         )
+    if source_filter:
+        lines.append(f"Source: {source_filter} (source all to clear)")
     if total_changes:
         if seen_count is None:
             seen_count = sum(1 for change in changes if change.path in seen_paths)
@@ -249,6 +252,8 @@ def browse_list_screen_lines(
             f"Filter: {state.filter_text} "
             f"({len(changes)}/{len(state.changes)} matches, c to clear)"
         )
+    if getattr(state, "source_filter", ""):
+        lines.append(f"Source: {state.source_filter} (source all to clear)")
     if len(changes) > 1 and max_lines >= 4:
         lines.append("Enter: open file   PgUp/PgDn: page   Home/End: jump")
     rows = browse_tree_rows(changes)

@@ -70,6 +70,7 @@ class BrowserState:
     file_scroll: int = 0
     page: str = BrowserPage.CHANGED_FILES
     filter_text: str = ""
+    source_filter: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
     review_notes: dict[str, str] = field(default_factory=dict)
@@ -90,6 +91,7 @@ class BrowserState:
                 selected=self.selected,
                 list_scroll=self.list_scroll,
                 filter_text=self.filter_text,
+                source_filter=self.source_filter,
                 seen_paths=self.seen_paths,
                 remaining_only=self.remaining_only,
                 review_notes=self.review_notes,
@@ -106,6 +108,7 @@ class BrowserState:
         self.selected = workspace.selected
         self.list_scroll = workspace.list_scroll
         self.filter_text = workspace.filter_text
+        self.source_filter = workspace.source_filter
         self.seen_paths = workspace.seen_paths
         self.remaining_only = workspace.remaining_only
         self.review_notes = workspace.review_notes
@@ -121,6 +124,7 @@ class BrowserState:
         workspace.selected = self.selected
         workspace.list_scroll = self.list_scroll
         workspace.filter_text = self.filter_text
+        workspace.source_filter = self.source_filter
         workspace.seen_paths = self.seen_paths
         workspace.remaining_only = self.remaining_only
         workspace.review_notes = self.review_notes
@@ -241,6 +245,25 @@ class BrowserCommandExecutor:
                 state.clear_command_filter()
             else:
                 state.clear_filter()
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SET_SOURCE_FILTER:
+            source = parsed_command.value
+            if source not in {"staged", "unstaged", "mixed"}:
+                _show_browser_message(
+                    state,
+                    "Unknown source filter. Use source staged, source unstaged, source mixed, or source all.",
+                    raw_keys,
+                    frame,
+                )
+                return BrowserActionResult(needs_redraw=raw_keys)
+            state._sync_to_workspace().set_source_filter(source)
+            state._sync_from_workspace()
+            BrowserNavigation.show_changed_files(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.CLEAR_SOURCE_FILTER:
+            state._sync_to_workspace().clear_source_filter()
+            state._sync_from_workspace()
+            BrowserNavigation.show_changed_files(state)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.MARK_SEEN:
             _mark_selected_seen(state)
@@ -609,7 +632,7 @@ class BrowserCommandExecutor:
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
                     "copy anchor, copy notes, copy prompt, save prompt, reveal, "
                     "stage, unstage, note, notes, tasks, build, stop, rerun, "
-                    "test, lint, staged, all, base, range, or q."
+                    "test, lint, source staged, staged, all, base, range, or q."
                 )
             )
             _show_browser_message(
@@ -718,6 +741,7 @@ def run_browser(args: argparse.Namespace) -> int:
                         selected=None,
                         total_changes=len(state.changes),
                         filter_text=state.filter_text,
+                        source_filter=state.source_filter,
                         scope_label=_scope_label(state, args),
                         seen_paths=state.seen_paths,
                         seen_count=sum(
@@ -1516,6 +1540,7 @@ def _browse_list_lines(
     selected: int | None = None,
     total_changes: int | None = None,
     filter_text: str = "",
+    source_filter: str = "",
     scope_label: str = "",
     seen_paths: set[str] | None = None,
     seen_count: int | None = None,
@@ -1529,6 +1554,7 @@ def _browse_list_lines(
         selected=selected,
         total_changes=total_changes,
         filter_text=filter_text,
+        source_filter=source_filter,
         scope_label_text=scope_label,
         seen_paths=seen_paths,
         seen_count=seen_count,

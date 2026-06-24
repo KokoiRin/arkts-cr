@@ -17,6 +17,8 @@ class BrowserCommandAction:
     COMMAND_PROMPT = "command_prompt"
     SET_FILE_FILTER = "set_file_filter"
     CLEAR_FILTER = "clear_filter"
+    SET_SOURCE_FILTER = "set_source_filter"
+    CLEAR_SOURCE_FILTER = "clear_source_filter"
     MARK_SEEN = "mark_seen"
     MARK_TODO = "mark_todo"
     SHOW_REMAINING = "show_remaining"
@@ -91,6 +93,11 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         )
     if command in {"c", "clear"}:
         return BrowserCommand(BrowserCommandAction.CLEAR_FILTER)
+    if command.startswith("source "):
+        source = command.removeprefix("source ").strip()
+        if source in {"all", "clear"}:
+            return BrowserCommand(BrowserCommandAction.CLEAR_SOURCE_FILTER)
+        return BrowserCommand(BrowserCommandAction.SET_SOURCE_FILTER, source)
     if command in {"m", "seen", "done"}:
         return BrowserCommand(BrowserCommandAction.MARK_SEEN)
     if command in {"todo", "unseen", "unmark"}:

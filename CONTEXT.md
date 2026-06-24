@@ -38,8 +38,8 @@ File Detail lines, and page scroll window calculations. It does not read raw
 input, draw the Browser Frame, run commands, switch review scopes, persist
 workspace state, or execute file actions.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
-loading, filtering, progress markers, per-file review notes, selected-file
-state, and browser workspace-state data interpretation.
+loading, path/source filtering, progress markers, per-file review notes,
+selected-file state, and browser workspace-state data interpretation.
 `cr.ui.workspace_persistence` owns browser workspace persistence file I/O:
 `.git/cr/browse-state.json` path construction, schema version wrapping and
 validation, tolerant JSON read/write, and default-session save/restore
@@ -102,13 +102,17 @@ Product navigation terms:
 - `Change Source Badges`: lightweight local Git source labels shown in Changed
   Files rows, such as `staged`, `unstaged`, and `mixed`. `cr.vcs.git` owns the
   facts; `Page Content` owns row display.
+- `Change Source Filter`: a Changed Files view filter controlled by
+  `source staged` / `source unstaged` / `source mixed` / `source all`. It is
+  owned by Review Workspace and composes with path filters and remaining-only
+  review progress.
 - `Browser Navigation`: the internal module that moves between Scope Home,
   Commit Picker, Changed Files, File Detail, and Command Palette, including
   in-session back/forward page history, without loading Git data or rendering
   terminal output.
 - `Review Workspace`: the internal module that owns the current Review Scope,
-  changed files, filter/progress/note state, selected file, selected commit,
-  previous scope, and persistence data mapping for `cr browse`.
+  changed files, path/source filter state, progress/note state, selected file,
+  selected commit, previous scope, and persistence data mapping for `cr browse`.
 - `Workspace Persistence`: the internal module that owns `.git/cr/browse-state.json`
   path construction, version validation, tolerant JSON read/write, and default
   workspace save/restore eligibility.

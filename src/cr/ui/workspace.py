@@ -57,6 +57,7 @@ class ReviewWorkspace:
     selected: int = 0
     list_scroll: int = 0
     filter_text: str = ""
+    source_filter: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
     review_notes: dict[str, str] = field(default_factory=dict)
@@ -73,6 +74,7 @@ class ReviewWorkspace:
     @property
     def visible_changes(self) -> list[git.FileChange]:
         changes = filter_changes_by_query(self.changes, self.filter_text)
+        changes = filter_changes_by_source(changes, self.source_filter)
         if self.remaining_only:
             return [change for change in changes if change.path not in self.seen_paths]
         return changes
@@ -85,6 +87,16 @@ class ReviewWorkspace:
 
     def clear_filter(self) -> None:
         self.set_filter("")
+
+    def set_source_filter(self, source: str) -> None:
+        normalized = normalize_source_filter(source)
+        self.source_filter = normalized
+        self.selected = 0
+        self.list_scroll = 0
+        self.clamp_selection()
+
+    def clear_source_filter(self) -> None:
+        self.set_source_filter("")
 
     def clamp_selection(self) -> None:
         total = len(self.visible_changes)
@@ -104,6 +116,7 @@ class ReviewWorkspace:
         self.selected_commit = None
         self.previous_scope = None
         self.filter_text = ""
+        self.source_filter = ""
         self.changes = loader(args)
         self.selected = 0
         self.list_scroll = 0
@@ -125,6 +138,7 @@ class ReviewWorkspace:
         args.all_changes = False
         args.untracked = False
         self.filter_text = ""
+        self.source_filter = ""
         self.changes = loader(args)
         self.selected = 0
         self.list_scroll = 0
@@ -154,6 +168,7 @@ class ReviewWorkspace:
                 "untracked": bool(args.untracked),
             },
             "filter_text": self.filter_text,
+            "source_filter": self.source_filter,
             "selected_path": selected_path,
             "selected_index": self.selected,
             "mode": mode,
@@ -170,6 +185,8 @@ class ReviewWorkspace:
         restore_scope_from_state(args, workspace_state)
         filter_text = workspace_state.get("filter_text")
         self.filter_text = filter_text if isinstance(filter_text, str) else ""
+        source_filter = workspace_state.get("source_filter")
+        self.source_filter = normalize_source_filter(source_filter)
         self.seen_paths = string_set(workspace_state.get("seen_paths"))
         self.remaining_only = workspace_state.get("remaining_only") is True
         self.review_notes = clean_review_notes(workspace_state.get("review_notes"))
@@ -202,6 +219,25 @@ def filter_changes_by_query(
     if not normalized:
         return changes
     return [change for change in changes if normalized in change.path.casefold()]
+
+
+def filter_changes_by_source(
+    changes: list[git.FileChange],
+    source: str,
+) -> list[git.FileChange]:
+    normalized = normalize_source_filter(source)
+    if not normalized:
+        return changes
+    return [change for change in changes if change.source == normalized]
+
+
+def normalize_source_filter(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    normalized = value.strip().casefold()
+    if normalized in {"staged", "unstaged", "mixed"}:
+        return normalized
+    return ""
 
 
 def restore_scope_from_state(

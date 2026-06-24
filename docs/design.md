@@ -55,6 +55,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Provides a Review Scope Home through `scopes` / `scope`, exposing worktree, staged, all local changes, recent commits, and base/range command hints as first-level scope entry points.
   - Shows a changed-file list first, then a focused per-file diff view.
   - Shows local change source badges such as `staged`, `unstaged`, and `mixed` in Changed Files rows when the active scope is local and mutable.
+  - Supports source filtering inside Changed Files with `source staged`, `source unstaged`, `source mixed`, and `source all`.
   - Uses stable screen regions in interactive TTYs so navigation and background tasks do not append repeated output.
   - Renders four page layers: context/status, main content, background task panel, and input prompt.
   - Displays the active review scope in the context/status area: worktree, staged, all local changes, base ref, explicit range, recent commits, or selected commit.
@@ -152,7 +153,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, page, and filter query.
   - Treat `BrowserPage` as the canonical internal page vocabulary for Scope Home, Commit Picker, Changed Files, File Detail, and Command Palette.
   - Treat `BrowserNavigation` as the owner of page transition rules, in-session page history, and small local state resets such as file scroll, command selection, scope selection, and commit picker selection resets.
-  - Treat `ReviewWorkspace` as the owner of active review scope, changed-file loading, filter/progress/note state, selected file, selected commit, previous scope, and workspace-state data mapping. Browser file I/O remains at the UI edge.
+  - Treat `ReviewWorkspace` as the owner of active review scope, changed-file loading, path/source filter state, progress/note state, selected file, selected commit, previous scope, and workspace-state data mapping. Browser file I/O remains at the UI edge.
   - Treat `Workspace Persistence` as the owner of `.git/cr/browse-state.json` path construction, schema version wrapping/validation, tolerant JSON read/write, and default-session restore/save eligibility. `browser.py` decides when to call it, while `ReviewWorkspace` interprets product state.
   - Treat `BrowserCommand` dispatch as the owner of command text aliases, parameter parsing, numeric selections, and unknown-command fallback. `browser.py` may execute parsed actions, but it should not re-own string parsing rules.
   - Treat `Command Catalog` as the owner of grouped command help, executable command palette entries, filtering/ranking, and command surface row rendering. `browser.py` owns command filter/selection/scroll state and frame placement, not catalog data.
@@ -179,6 +180,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat prompt handoff as a `cr.review` output format reused by the browser: `copy prompt` / `copy prompt file` / `save prompt` / `save prompt file` may choose current browser files and pass matching review notes, but Markdown structure stays owned by `cr.review.prompt`. UI-side handoff file paths and writes stay in `cr.ui.handoff`.
   - Keep progress commands simple and reversible: `m`/`seen` marks the current file, `todo`/`unseen` clears it, `remaining` filters to unreviewed files, and `allfiles` returns to the full changed-file list.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
+  - Treat source filters as exact matches against `FileChange.source`, composing with path filters and remaining-only filtering.
   - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.
   - Treat raw-key navigation as command events, not text output; normal key reads must not emit an extra newline.
   - Preserve non-TTY line mode for tests, pipes, and terminals where raw-key mode is unavailable.

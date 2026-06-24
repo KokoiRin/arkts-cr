@@ -150,6 +150,7 @@ copy notes             复制当前 review 备注汇总
 copy notes QUERY       复制过滤后的 review 备注汇总
 copy diff              复制当前文件的轻量 diff review 片段
 save diff [PATH]       保存当前文件的轻量 diff review 片段
+open hunk              在编辑器里打开当前 diff hunk
 next hunk / ]          跳到当前文件的下一个 diff hunk
 prev hunk / [          跳到当前文件的上一个 diff hunk
 copy prompt            复制当前可见改动的 AI review handoff
@@ -193,6 +194,7 @@ cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 
 ```text
 : open         打开当前文件到首个改动行
+: open hunk    打开当前 diff hunk 到编辑器
 : copy path    复制当前文件相对路径
 : copy anchor  复制当前文件 path:line review anchor
 : copy diff    复制当前文件的轻量 diff review 片段

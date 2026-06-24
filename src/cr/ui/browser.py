@@ -391,6 +391,10 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to open.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.OPEN_HUNK:
+            message = _open_current_hunk(state, args, style)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_PATH:
             visible = state.visible_changes
             if visible:
@@ -680,8 +684,8 @@ class BrowserCommandExecutor:
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
                     "copy anchor, copy diff, save diff, next hunk, prev hunk, "
-                    "copy notes, copy prompt, save prompt, reveal, stage, unstage, "
-                    "note, notes, tasks, build, stop, rerun, test, lint, "
+                    "open hunk, copy notes, copy prompt, save prompt, reveal, "
+                    "stage, unstage, note, notes, tasks, build, stop, rerun, test, lint, "
                     "source staged, staged, all, base, range, or q."
                 )
             )
@@ -1287,6 +1291,36 @@ def _jump_file_hunk(
     )
     state.file_scroll = result.scroll
     return result.message
+
+
+def _open_current_hunk(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to open hunk."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to open hunk."
+    state.clamp_selection()
+    change = visible[state.selected]
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    line = file_detail_navigation.active_hunk_new_line(lines, state.file_scroll)
+    if line is None:
+        return "No diff hunks in current file."
+    repo_file = git.repo_path(change.path)
+    message = file_actions.open_path(repo_file, line, getattr(args, "open_cmd", None))
+    if message:
+        return message
+    return f"Opened hunk {shorten_path(change.path)}:{line}"
 
 
 def _max_file_scroll(

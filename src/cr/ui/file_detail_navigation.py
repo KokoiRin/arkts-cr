@@ -12,6 +12,7 @@ import re
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+HUNK_HEADER_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(?P<new>\d+)(?:,\d+)? @@")
 
 
 @dataclass(frozen=True)
@@ -52,9 +53,34 @@ def hunk_scroll_positions(lines: list[str]) -> list[int]:
     positions: list[int] = []
     body = lines[1:]
     for index, line in enumerate(body):
-        if _plain_text(line).lstrip().startswith("@@"):
+        if _is_hunk_header(line):
             positions.append(index)
     return positions
+
+
+def active_hunk_new_line(lines: list[str], current_scroll: int) -> int | None:
+    body = lines[1:]
+    hunk_headers = [
+        (index, _plain_text(line).lstrip())
+        for index, line in enumerate(body)
+        if _is_hunk_header(line)
+    ]
+    if not hunk_headers:
+        return None
+    active = hunk_headers[0]
+    for hunk in hunk_headers:
+        if hunk[0] <= current_scroll:
+            active = hunk
+        else:
+            break
+    match = HUNK_HEADER_RE.match(active[1])
+    if not match:
+        return None
+    return int(match.group("new"))
+
+
+def _is_hunk_header(line: str) -> bool:
+    return _plain_text(line).lstrip().startswith("@@")
 
 
 def _plain_text(line: str) -> str:

@@ -105,6 +105,7 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("remaining", "show files not marked seen", "remaining"),
                 CommandEntry("allfiles / show all", "show all changed files", "allfiles"),
                 CommandEntry("open", "open selected file in editor", "open"),
+                CommandEntry("open hunk", "open current diff hunk in editor", "open hunk"),
                 CommandEntry("copy path", "copy selected file path", "copy path"),
                 CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
                 CommandEntry("copy diff", "copy selected file diff snippet", "copy diff"),

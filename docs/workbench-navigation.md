@@ -330,7 +330,7 @@ Status: implemented.
 
 Status: implemented.
 
-`next hunk` / `]` and `prev hunk` / `[` now move within the current File Detail diff by jumping between rendered hunk headers. The command stays inside the selected file and preserves Review Scope, filters, notes, progress, and task state. `cr.ui.file_detail_navigation` owns hunk header detection and target scroll calculation, while `BrowserCommandExecutor` applies the result.
+`next hunk` / `]` and `prev hunk` / `[` now move within the current File Detail diff by jumping between rendered hunk headers. `open hunk` opens the active hunk's new-file line in the editor through the existing open command configuration. These commands stay inside the selected file and preserve Review Scope, filters, notes, progress, and task state. `cr.ui.file_detail_navigation` owns hunk header detection, target scroll calculation, and active hunk line resolution, while `BrowserCommandExecutor` applies the result.
 
 ### P0: File action configuration
 

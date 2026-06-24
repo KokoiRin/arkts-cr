@@ -35,6 +35,7 @@ class BrowserCommandAction:
     SWITCH_RANGE = "switch_range"
     HELP = "help"
     OPEN_FILE = "open_file"
+    OPEN_HUNK = "open_hunk"
     COPY_PATH = "copy_path"
     COPY_ANCHOR = "copy_anchor"
     COPY_DIFF = "copy_diff"
@@ -140,6 +141,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.HELP)
     if command in {"o", "open"}:
         return BrowserCommand(BrowserCommandAction.OPEN_FILE)
+    if command == "open hunk":
+        return BrowserCommand(BrowserCommandAction.OPEN_HUNK)
     if command in {"copy", "copy path"}:
         return BrowserCommand(BrowserCommandAction.COPY_PATH)
     if command == "copy anchor":

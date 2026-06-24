@@ -156,6 +156,25 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result.scroll, 1)
         self.assertEqual(result.message, "Moved to hunk 1/1.")
 
+    def test_file_detail_navigation_resolves_active_hunk_new_line(self):
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  purpose: sample",
+            "  @@ -1,3 +4,4 @@",
+            "  +first",
+            "  context",
+            "  \033[36;1m@@ -20,2 +31,3 @@\033[0m",
+            "  +second",
+        ]
+
+        before_first = file_detail_navigation.active_hunk_new_line(lines, 0)
+        second = file_detail_navigation.active_hunk_new_line(lines, 5)
+        none = file_detail_navigation.active_hunk_new_line(["File 1/1"], 0)
+
+        self.assertEqual(before_first, 4)
+        self.assertEqual(second, 31)
+        self.assertIsNone(none)
+
     def test_handoff_module_saves_repo_relative_and_absolute_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -478,6 +497,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Commands", text)
         self.assertIn("Review scope", text)
         self.assertIn("copy prompt file", text)
+        self.assertIn("open hunk", text)
         self.assertIn("save diff", text)
         self.assertIn("next hunk", text)
         self.assertIn("prev hunk", text)
@@ -496,6 +516,7 @@ class CliTests(unittest.TestCase):
 
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
+        self.assertIn("open hunk", commands)
         self.assertIn("save diff", commands)
         self.assertIn("next hunk", commands)
         self.assertIn("prev hunk", commands)
@@ -706,6 +727,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy diff").action,
             BrowserCommandAction.COPY_DIFF,
+        )
+        self.assertEqual(
+            parse_browser_command("open hunk").action,
+            BrowserCommandAction.OPEN_HUNK,
         )
         save_diff = parse_browser_command("save diff")
         self.assertEqual(save_diff.action, BrowserCommandAction.SAVE_DIFF)
@@ -1423,6 +1448,143 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.needs_redraw)
         self.assertEqual(state.file_scroll, 3)
         self.assertIn("Moved to hunk 2/2.", state.status_message)
+
+    def test_browser_command_executor_opens_current_hunk_in_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(open_cmd="editor {fileline}")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=3,
+            review_notes={"src/Sample.ts": "keep note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1 +3 @@",
+            "  +first",
+            "  context",
+            "  @@ -20,2 +31,3 @@",
+            "  +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch("cr.ui.browser.git.repo_path", return_value=Path("/repo/src/Sample.ts")):
+                with patch(
+                    "cr.ui.browser.file_actions.open_path",
+                    return_value=None,
+                ) as open_path:
+                    result = executor.execute(
+                        parse_browser_command("open hunk", raw_keys=True)
+                    )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        open_path.assert_called_once_with(
+            Path("/repo/src/Sample.ts"),
+            31,
+            "editor {fileline}",
+        )
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(state.review_notes["src/Sample.ts"], "keep note")
+        self.assertIsNotNone(state.task)
+        self.assertIn("Opened hunk src/Sample.ts:31", state.status_message)
+
+    def test_browser_command_executor_reports_open_hunk_outside_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(open_cmd=None)
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.open_path") as open_path:
+            result = executor.execute(parse_browser_command("open hunk", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        open_path.assert_not_called()
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertIn("Open a file detail to open hunk.", state.status_message)
+
+    def test_browser_command_executor_reports_open_hunk_without_hunks(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(open_cmd=None)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=["File 1/1"]):
+            with patch("cr.ui.browser.file_actions.open_path") as open_path:
+                result = executor.execute(
+                    parse_browser_command("open hunk", raw_keys=True)
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        open_path.assert_not_called()
+        self.assertIn("No diff hunks in current file.", state.status_message)
+
+    def test_browser_command_executor_surfaces_open_hunk_failure(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(open_cmd="editor {fileline}")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch(
+            "cr.ui.browser._cached_file_lines",
+            return_value=["File 1/1", "  @@ -1 +9 @@"],
+        ):
+            with patch(
+                "cr.ui.browser.git.repo_path",
+                return_value=Path("/repo/src/Sample.ts"),
+            ):
+                with patch(
+                    "cr.ui.browser.file_actions.open_path",
+                    return_value="Open failed (cli editor): missing editor",
+                ):
+                    result = executor.execute(
+                        parse_browser_command("open hunk", raw_keys=True)
+                    )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("Open failed (cli editor): missing editor", state.status_message)
 
     def test_browser_command_executor_reports_hunk_navigation_outside_file_detail(self):
         from cr.ui.browser import parse_browser_command
@@ -6132,6 +6294,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy notes QUERY", text)
         self.assertIn("copy prompt", text)
         self.assertIn("copy prompt file", text)
+        self.assertIn("open hunk", text)
         self.assertIn("save diff", text)
         self.assertIn("next hunk", text)
         self.assertIn("prev hunk", text)
@@ -6156,6 +6319,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
         self.assertIn("copy diff", commands)
+        self.assertIn("open hunk", commands)
         self.assertIn("save diff", commands)
         self.assertIn("next hunk", commands)
         self.assertIn("prev hunk", commands)

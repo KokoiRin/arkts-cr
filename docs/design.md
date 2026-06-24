@@ -119,6 +119,7 @@ Implement a lightweight terminal-first code reading tool named `cr`.
   - Hide Git metadata headers and truncate long hunk output to keep the terminal readable.
 - Browse:
   - Keep `src/cr/cli.py` as the command parser and delegate interactive browse execution to `src/cr/ui/browser.py`.
+  - Reuse `src/cr/review/changes.py` for changed-file selection, sorting, code-file detection, hunk rendering, and modified-symbol facts so `browse`, `review`, and `diff` share one implementation of review-scope rules.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, mode, and filter query.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
   - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.
@@ -159,3 +160,4 @@ Implement a lightweight terminal-first code reading tool named `cr`.
 - Unit tests cover the packaged `cr` console script entry point.
 - Unit tests cover interactive browser filtering, fixed-screen redraw rendering, and non-TTY filtered selection.
 - Unit tests cover review workflow behavior through the CLI while review command implementation lives under `cr.review`.
+- Unit tests cover interactive browser behavior while shared review-scope facts live under `cr.review.changes`.

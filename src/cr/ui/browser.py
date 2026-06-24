@@ -19,10 +19,17 @@ import sys
 import termios
 import tty
 
-from ..review.hunks import render_diff_hunks
+from ..review.changes import (
+    change_hunk_lines,
+    empty_message,
+    is_code_file,
+    modified_names,
+    parse_change_symbols,
+    selected_changes,
+    sort_changes,
+)
 from ..review.risk import risk_hints
 from ..review.tree import format_change_summary, shorten_path
-from ..source.outline import CODE_EXTENSIONS, modified_symbols, parse_outline
 from ..source.purpose import describe_file
 from ..vcs import git
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
@@ -202,7 +209,7 @@ def filter_changes_by_query(
 
 
 def _load_browse_changes(args: argparse.Namespace) -> list[git.FileChange]:
-    return _sort_changes(_selected_changes(args), args.sort)
+    return sort_changes(selected_changes(args), args.sort)
 
 
 def _draw_browse_screen(
@@ -316,7 +323,7 @@ def _empty_browse_lines(
             "Press c to clear the filter.",
             "",
         ]
-    return [_empty_message(args)]
+    return [empty_message(args)]
 
 
 def _browse_file_lines(
@@ -343,11 +350,11 @@ def _browse_file_lines(
     risks = risk_hints(change.path)
     if risks:
         lines.append(f"  {style.warning('risk: ' + ', '.join(risks))}")
-    if change.status != "deleted" and _is_code_file(change.path):
+    if change.status != "deleted" and is_code_file(change.path):
         try:
-            symbols = _parse_change_symbols(change, args)
+            symbols = parse_change_symbols(change, args)
             lines.append(f"  purpose: {describe_file(change.path, symbols)}")
-            names = _modified_names(
+            names = modified_names(
                 change.path,
                 staged=args.staged,
                 all_changes=args.all_changes,
@@ -358,7 +365,7 @@ def _browse_file_lines(
         except FileNotFoundError:
             lines.append("  (file deleted or unavailable)")
     lines.extend(
-        _change_hunk_lines(
+        change_hunk_lines(
             change,
             staged=args.staged,
             all_changes=args.all_changes,
@@ -505,131 +512,6 @@ def _format_open_template(
         "fileline": f"{file_path}:{line_number}",
     }
     return [part.format(**replacements) for part in shlex.split(template)]
-
-
-def _selected_changes(args: argparse.Namespace) -> list[git.FileChange]:
-    changes = git.changed_files(
-        args.paths,
-        staged=args.staged,
-        all_changes=args.all_changes,
-        base=args.base,
-        ref_range=args.ref_range,
-        include_untracked=args.untracked,
-    )
-    return _filter_changes(changes, code_only=args.code)
-
-
-def _filter_changes(
-    changes: list[git.FileChange],
-    code_only: bool = False,
-) -> list[git.FileChange]:
-    if code_only:
-        return [change for change in changes if _is_code_file(change.path)]
-    return changes
-
-
-def _sort_changes(
-    changes: list[git.FileChange],
-    sort_mode: str,
-) -> list[git.FileChange]:
-    if sort_mode == "git":
-        return changes
-    if sort_mode == "path":
-        return sorted(changes, key=lambda change: change.path)
-    if sort_mode == "churn":
-        return sorted(changes, key=lambda change: (-_change_churn(change), change.path))
-    if sort_mode == "risk":
-        return sorted(
-            changes,
-            key=lambda change: (
-                0 if risk_hints(change.path) else 1,
-                -_change_churn(change),
-                change.path,
-            ),
-        )
-    return changes
-
-
-def _change_churn(change: git.FileChange) -> int:
-    return (change.added or 0) + (change.deleted or 0)
-
-
-def _modified_names(
-    path: str,
-    staged: bool = False,
-    all_changes: bool = False,
-    base: str | None = None,
-    ref_range: str | None = None,
-) -> list[str]:
-    try:
-        symbols = parse_outline(git.file_text(path, _range_right_ref(ref_range)))
-    except FileNotFoundError:
-        return ["unknown"]
-    return modified_symbols(
-        symbols,
-        git.changed_new_lines(
-            path,
-            staged=staged,
-            all_changes=all_changes,
-            base=base,
-            ref_range=ref_range,
-        ),
-    )
-
-
-def _change_hunk_lines(
-    change: git.FileChange,
-    staged: bool = False,
-    all_changes: bool = False,
-    base: str | None = None,
-    ref_range: str | None = None,
-    context: int = 2,
-    style: TerminalStyle | None = None,
-) -> list[str]:
-    style = style or TerminalStyle(False)
-    lines = render_diff_hunks(
-        git.file_diff(
-            change.path,
-            context=context,
-            staged=staged,
-            all_changes=all_changes,
-            base=base,
-            ref_range=ref_range,
-        ),
-        style=style,
-    )
-    rendered = [f"  {style.bold('changes:')}"]
-    if not lines:
-        return [*rendered, "  (no text diff available)"]
-    for line in lines:
-        rendered.append(f"  {line}")
-    return rendered
-
-
-def _empty_message(args: argparse.Namespace) -> str:
-    if args.ref_range:
-        return f"No changes in {args.ref_range}."
-    if args.base:
-        return f"No changes from {args.base}."
-    if args.all_changes:
-        return "No local changes."
-    if args.staged:
-        return "No staged changes."
-    return "No working tree changes."
-
-
-def _is_code_file(path: str) -> bool:
-    return Path(path).suffix in CODE_EXTENSIONS
-
-
-def _parse_change_symbols(change: git.FileChange, args: argparse.Namespace):
-    return parse_outline(git.file_text(change.path, _range_right_ref(args.ref_range)))
-
-
-def _range_right_ref(ref_range: str | None) -> str | None:
-    if ref_range is None:
-        return None
-    return git.range_right_ref(ref_range)
 
 
 def _link_target(

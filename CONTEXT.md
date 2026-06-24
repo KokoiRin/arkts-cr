@@ -19,4 +19,6 @@ delegates to these deeper modules. New behavior should usually land in one of
 the four module groups before the CLI knows about it. In particular,
 `cr.review.workflow.run_review` is the interface for the review command, while
 `cr.review.changes` owns shared review-scope facts used by both `review` and
-`diff`.
+`diff`. The interactive browser also reuses `cr.review.changes` for changed-file
+selection, sorting, code-file detection, hunk rendering, and modified-symbol
+facts; `cr.ui.browser` should only own interaction state and terminal behavior.

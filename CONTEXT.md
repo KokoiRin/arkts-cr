@@ -21,10 +21,16 @@ the four module groups before the CLI knows about it. In particular,
 `cr.review.changes` owns shared review-scope facts used by both `review` and
 `diff`. The interactive browser also reuses `cr.review.changes` for changed-file
 selection, sorting, code-file detection, hunk rendering, and modified-symbol
-facts; `cr.ui.browser` should own browse orchestration, page-specific terminal
-content, prompt input flow, and selected-file action handoff, while
+facts; `cr.ui.browser` should own browse orchestration, prompt input flow,
+selected-file action handoff, and session startup/shutdown, while
 `cr.ui.navigation.BrowserNavigation` owns page transition rules, in-session page
 history, and their small local state resets.
+`cr.ui.page_content` owns browser page main-content rendering: prompt labels,
+help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree
+rows, Commit Picker rows, empty states, File Detail lines, and page scroll
+window calculations. It does not read raw input, draw the Browser Frame, run
+commands, switch review scopes, persist workspace state, or execute file
+actions.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
 loading, filtering, progress markers, per-file review notes, selected-file
 state, and browser workspace-state data interpretation.
@@ -74,6 +80,10 @@ Product navigation terms:
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
   content, task panel, and prompt regions. Internally, `cr.ui.frame` owns the
   screen-layer layout and Task Panel presentation helpers.
+- `Page Content`: the internal module that renders product-page main content
+  for Scope Home, Commit Picker, Changed Files, empty states, and File Detail.
+  It owns page text and scroll-window rendering rules, while Browser Frame owns
+  screen placement.
 - `Browser Navigation`: the internal module that moves between Scope Home,
   Commit Picker, Changed Files, File Detail, and Command Palette, including
   in-session back/forward page history, without loading Git data or rendering

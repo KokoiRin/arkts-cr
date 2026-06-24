@@ -12,6 +12,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 import cr.ui.browser as browser_module
+from cr.ui import page_content
 from cr.ui.browser import (
     TaskState,
     BrowserActionResult,
@@ -4402,6 +4403,24 @@ class CliTests(unittest.TestCase):
         self.assertIn("\033[37mSample.ts", text)
         self.assertNotIn("\033[36mSample.ts", text)
         self.assertNotIn("\033]8;;", text)
+
+    def test_page_content_owns_prompt_labels_and_scroll_window(self):
+        self.assertEqual(page_content.browse_prompt(BrowserPage.SCOPE_HOME), "cr:scopes> ")
+        self.assertEqual(page_content.browse_prompt(BrowserPage.FILE_DETAIL), "cr:file> ")
+        self.assertEqual(page_content.ensure_window(0, 8, 20, 5), 4)
+        self.assertEqual(page_content.ensure_window(4, 2, 20, 5), 2)
+
+    def test_page_content_builds_compacted_changed_file_tree(self):
+        changes = [
+            FileChange("src/pages/home/HomeView.ets", 1, 0),
+            FileChange("src/pages/home/HomeModel.ets", 2, 1),
+        ]
+
+        rows = page_content.browse_tree_rows(changes)
+
+        self.assertEqual(rows[0].label, "└─ src/pages/home")
+        self.assertEqual(rows[1].label, "   ├─ HomeModel.ets")
+        self.assertEqual(rows[2].label, "   └─ HomeView.ets")
 
     def test_browse_filter_matches_paths_and_clamps_selection(self):
         changes = [

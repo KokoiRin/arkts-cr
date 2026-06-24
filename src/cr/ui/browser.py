@@ -1,9 +1,10 @@
 """Interactive review browser for cr.
 
-This module owns browse orchestration, page-specific terminal content, prompt
-input flow, and selected-file action execution. Review workspace state, page
-navigation rules, Browser Frame layout, task runtime, and platform file action
-details live in deeper UI modules so the CLI parser can stay shallow.
+This module owns browse orchestration, prompt input flow, selected-file action
+execution, and browser session startup/shutdown. Page-specific terminal
+content, review workspace state, page navigation rules, Browser Frame layout,
+task runtime, and platform file action details live in deeper UI modules so
+the CLI parser can stay shallow.
 """
 
 from __future__ import annotations
@@ -19,7 +20,6 @@ import tty
 
 from ..review.changes import (
     change_hunk_lines,
-    empty_message,
     is_code_file,
     modified_names,
     other_change_counts,
@@ -28,12 +28,7 @@ from ..review.changes import (
 from ..review.data import build_review_data
 from ..review.prompt import render_prompt_handoff
 from ..review.risk import risk_hints
-from ..review.tree import (
-    DEFAULT_PATH_CONTEXT_DIRS,
-    format_change_summary,
-    shorten_path,
-    style_change_summary,
-)
+from ..review.tree import shorten_path
 from ..source.purpose import describe_file
 from ..vcs import git
 from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
@@ -44,6 +39,7 @@ from . import frame as frame_module
 from .frame import BrowserFrame, ScreenLayout
 from . import handoff as handoff_module
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
+from . import page_content
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
@@ -195,26 +191,9 @@ class BrowserState:
         self.set_command_filter("")
 
 
-@dataclass
-class BrowseTreeRow:
-    label: str
-    change: git.FileChange | None = None
-    change_index: int | None = None
-
-
-@dataclass(frozen=True)
-class ScopeHomeEntry:
-    label: str
-    description: str
-    action: str | None = None
-
-
-@dataclass
-class _BrowseTreeNode:
-    name: str
-    children: dict[str, "_BrowseTreeNode"] = field(default_factory=dict)
-    change: git.FileChange | None = None
-    change_index: int | None = None
+BrowseTreeRow = page_content.BrowseTreeRow
+ScopeHomeEntry = page_content.ScopeHomeEntry
+_BrowseTreeNode = page_content._BrowseTreeNode
 
 
 @dataclass(frozen=True)
@@ -1380,15 +1359,7 @@ def _fit_terminal_line(line: str) -> str:
 
 
 def _browse_prompt(mode: str) -> str:
-    if mode == BrowserPage.FILE_DETAIL:
-        return "cr:file> "
-    if mode == BrowserPage.COMMIT_PICKER:
-        return "cr:commits> "
-    if mode == BrowserPage.SCOPE_HOME:
-        return "cr:scopes> "
-    if mode == BrowserPage.COMMAND_PALETTE:
-        return "cr:commands> "
-    return "cr:list> "
+    return page_content.browse_prompt(mode)
 
 
 def _print_lines(lines: list[str]) -> None:
@@ -1404,15 +1375,7 @@ def _normalize_command_query(command: str) -> str:
 
 
 def _browse_help_lines(style: TerminalStyle) -> list[str]:
-    return [
-        style.bold("Interactive review"),
-        "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
-        "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks help    note/notes/copy/save prompt/actions",
-        "  PgUp/PgDn or u/d: page    Home/End: jump",
-        "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
-        "",
-    ]
+    return page_content.browse_help_lines(style)
 
 
 def _command_catalog() -> tuple[CommandGroup, ...]:
@@ -1424,14 +1387,7 @@ def _command_palette_entries() -> list[PaletteCommand]:
 
 
 def _scope_home_entries() -> tuple[ScopeHomeEntry, ...]:
-    return (
-        ScopeHomeEntry("Worktree", "Review unstaged worktree changes", "worktree"),
-        ScopeHomeEntry("Staged", "Review staged/index changes", "staged"),
-        ScopeHomeEntry("All local changes", "Review staged and unstaged changes", "all"),
-        ScopeHomeEntry("Recent commits", "Choose a commit as the Review Scope", BrowserPage.COMMIT_PICKER),
-        ScopeHomeEntry("Base ref", "Type : base REF to review changes against a base"),
-        ScopeHomeEntry("Explicit range", "Type : range OLD..NEW to review two refs"),
-    )
+    return page_content.scope_home_entries()
 
 
 def _select_scope_home_entry(
@@ -1508,62 +1464,15 @@ def _browse_scope_home_screen_lines(
     style: TerminalStyle,
     max_lines: int,
 ) -> list[str]:
-    entries = _scope_home_entries()
-    lines = [
-        f"{style.bold('Review scopes')} ({len(entries)} entries)",
-        "Enter: open scope   b: back to files   : base REF / : range OLD..NEW",
-    ]
-    if max_lines <= len(lines):
-        return lines[:max_lines]
-    row_capacity = max(1, max_lines - len(lines) - 1)
-    start = _ensure_window(0, state.scope_selected, len(entries), row_capacity)
-    end = min(len(entries), start + row_capacity)
-    label_width = max(len(entry.label) for entry in entries)
-    for index, entry in enumerate(entries[start:end], start):
-        marker = ">" if index == state.scope_selected else " "
-        command_hint = f"  [{entry.action}]" if entry.action else ""
-        lines.append(
-            f"{marker} {index + 1}  "
-            f"{entry.label.ljust(label_width)}  {entry.description}{command_hint}"
-        )
-    if len(entries) > row_capacity:
-        lines.append(style.dim(f"showing {start + 1}-{end}/{len(entries)}"))
-    else:
-        lines.append("")
-    return lines[:max_lines]
+    return page_content.browse_scope_home_screen_lines(state, style, max_lines)
 
 
 def _scope_label(state: BrowserState, args: argparse.Namespace) -> str:
-    if state.page == BrowserPage.SCOPE_HOME:
-        return "scope home"
-    if state.page == BrowserPage.COMMIT_PICKER:
-        return "recent commits"
-    if state.selected_commit is not None:
-        return f"commit {state.selected_commit.commit[:8]}"
-    if args.ref_range:
-        return f"range {args.ref_range}"
-    if args.base:
-        return f"base {args.base}"
-    if args.staged:
-        return "staged"
-    if args.all_changes:
-        return "all local changes"
-    if _args_untracked(args):
-        return "worktree + untracked"
-    return "worktree"
+    return page_content.scope_label(state, args)
 
 
 def _product_breadcrumb(state: BrowserState, args: argparse.Namespace) -> str:
-    label = _scope_label(state, args)
-    if state.page in {BrowserPage.SCOPE_HOME, BrowserPage.COMMIT_PICKER}:
-        return label
-    if state.page == BrowserPage.COMMAND_PALETTE:
-        return f"{label} > Commands"
-    if state.page == BrowserPage.FILE_DETAIL:
-        visible = state.visible_changes
-        if visible and 0 <= state.selected < len(visible):
-            return f"{label} > Files > {visible[state.selected].path}"
-    return f"{label} > Files"
+    return page_content.product_breadcrumb(state, args)
 
 
 def _args_untracked(args: argparse.Namespace) -> bool:
@@ -1575,10 +1484,7 @@ def _scope_context_line(
     args: argparse.Namespace,
     style: TerminalStyle,
 ) -> str:
-    line = f"Scope: {_product_breadcrumb(state, args)}"
-    if state.status_message:
-        line = f"{line}  |  {state.status_message}"
-    return style.dim(_fit_terminal_line(line))
+    return page_content.scope_context_line(state, args, style, _fit_terminal_line)
 
 
 def _show_browser_message(
@@ -1608,46 +1514,19 @@ def _browse_list_lines(
     remaining_only: bool = False,
     review_notes: dict[str, str] | None = None,
 ) -> list[str]:
-    seen_paths = seen_paths or set()
-    review_notes = review_notes or {}
-    total_changes = len(changes) if total_changes is None else total_changes
-    if not changes:
-        return _empty_browse_lines(args, filter_text, total_changes=total_changes)
-    total_added = sum(change.added or 0 for change in changes)
-    total_deleted = sum(change.deleted or 0 for change in changes)
-    lines = [
-        f"Scope: {scope_label}" if scope_label else "",
-        f"{style.bold('Changed files')} "
-        f"({len(changes)} files, {style.added('+' + str(total_added))} "
-        f"{style.deleted('-' + str(total_deleted))})"
-    ]
-    lines = [line for line in lines if line]
-    if filter_text:
-        lines.append(
-            f"Filter: {filter_text} ({len(changes)}/{total_changes} matches, c to clear)"
-        )
-    if total_changes:
-        if seen_count is None:
-            seen_count = sum(1 for change in changes if change.path in seen_paths)
-        suffix = " remaining only" if remaining_only else ""
-        lines.append(f"Progress: {seen_count}/{total_changes} seen{suffix}")
-    rows = _browse_tree_rows(changes)
-    label_width = max(len(row.label) for row in rows)
-    index_width = len(str(len(changes)))
-    for row in rows:
-        lines.append(
-            _format_browse_tree_row(
-                row,
-                selected,
-                index_width,
-                label_width,
-                style,
-                seen_paths,
-                review_notes,
-            )
-        )
-    lines.append("")
-    return lines
+    return page_content.browse_list_lines(
+        changes,
+        args,
+        style,
+        selected=selected,
+        total_changes=total_changes,
+        filter_text=filter_text,
+        scope_label_text=scope_label,
+        seen_paths=seen_paths,
+        seen_count=seen_count,
+        remaining_only=remaining_only,
+        review_notes=review_notes,
+    )
 
 
 def _browse_list_screen_lines(
@@ -1656,72 +1535,11 @@ def _browse_list_screen_lines(
     style: TerminalStyle,
     max_lines: int,
 ) -> list[str]:
-    changes = state.visible_changes
-    if not changes:
-        return _empty_browse_lines(
-            args,
-            state.filter_text,
-            total_changes=len(state.changes),
-        )[:max_lines]
-    total_added = sum(change.added or 0 for change in changes)
-    total_deleted = sum(change.deleted or 0 for change in changes)
-    header = (
-        f"{style.bold('Changed files')} "
-        f"({len(changes)} files, {style.added('+' + str(total_added))} "
-        f"{style.deleted('-' + str(total_deleted))})"
-    )
-    if state.changes:
-        seen_count = sum(1 for change in state.changes if change.path in state.seen_paths)
-        suffix = " remaining only" if state.remaining_only else ""
-        header = f"{header}  Progress: {seen_count}/{len(state.changes)} seen{suffix}"
-    lines = [header]
-    if state.filter_text:
-        lines.append(
-            f"Filter: {state.filter_text} "
-            f"({len(changes)}/{len(state.changes)} matches, c to clear)"
-        )
-    if len(changes) > 1 and max_lines >= 4:
-        lines.append("Enter: open file   PgUp/PgDn: page   Home/End: jump")
-    rows = _browse_tree_rows(changes)
-    selected_row = _selected_tree_row(rows, state.selected)
-    row_capacity = max(1, max_lines - len(lines) - 1)
-    start = _ensure_window(state.list_scroll, selected_row, len(rows), row_capacity)
-    state.list_scroll = start
-    end = min(len(rows), start + row_capacity)
-    visible_rows = rows[start:end]
-    index_width = len(str(len(changes)))
-    label_width = max(len(row.label) for row in visible_rows)
-    for row in visible_rows:
-        lines.append(
-            _format_browse_tree_row(
-                row,
-                state.selected,
-                index_width,
-                label_width,
-                style,
-                state.seen_paths,
-                state.review_notes,
-            )
-        )
-    if len(rows) > row_capacity:
-        lines.append(style.dim(f"showing rows {start + 1}-{end}/{len(rows)}"))
-    else:
-        lines.append("")
-    return lines[:max_lines]
+    return page_content.browse_list_screen_lines(state, args, style, max_lines)
 
 
 def _browse_tree_rows(changes: list[git.FileChange]) -> list[BrowseTreeRow]:
-    common_dir = _browser_common_changed_dir(changes)
-    root = _BrowseTreeNode("")
-    for index, change in enumerate(changes):
-        _insert_browse_tree(root, change, index, common_dir)
-
-    root_label = _browser_compact_root_label(common_dir)
-    child_prefix = "   " if root_label else ""
-    rows = _render_browse_tree_children(root, child_prefix)
-    if root_label and rows:
-        return [BrowseTreeRow(f"└─ {root_label}"), *rows]
-    return rows
+    return page_content.browse_tree_rows(changes)
 
 
 def _insert_browse_tree(
@@ -1730,35 +1548,14 @@ def _insert_browse_tree(
     change_index: int,
     common_dir: list[str],
 ) -> None:
-    node = root
-    parts = [part for part in change.path.split("/") if part]
-    if common_dir and parts[: len(common_dir)] == common_dir:
-        parts = parts[len(common_dir) :]
-    for part in parts:
-        node = node.children.setdefault(part, _BrowseTreeNode(part))
-    node.change = change
-    node.change_index = change_index
+    page_content.insert_browse_tree(root, change, change_index, common_dir)
 
 
 def _render_browse_tree_children(
     node: _BrowseTreeNode,
     prefix: str,
 ) -> list[BrowseTreeRow]:
-    rows: list[BrowseTreeRow] = []
-    items = sorted(node.children.values(), key=lambda child: child.name)
-    for index, child in enumerate(items):
-        is_last = index == len(items) - 1
-        branch = "└─" if is_last else "├─"
-        rows.append(
-            BrowseTreeRow(
-                f"{prefix}{branch} {child.name}",
-                child.change,
-                child.change_index,
-            )
-        )
-        child_prefix = prefix + ("   " if is_last else "│  ")
-        rows.extend(_render_browse_tree_children(child, child_prefix))
-    return rows
+    return page_content.render_browse_tree_children(node, prefix)
 
 
 def _format_browse_tree_row(
@@ -1770,29 +1567,19 @@ def _format_browse_tree_row(
     seen_paths: set[str] | None = None,
     review_notes: dict[str, str] | None = None,
 ) -> str:
-    if row.change is None or row.change_index is None:
-        return f"  {' ' * index_width}  {_style_tree_directory(row.label, style)}"
-
-    marker = ">" if selected == row.change_index else " "
-    progress = "[x]" if row.change.path in (seen_paths or set()) else "[ ]"
-    status = " modified" if row.change.status == "modified" else ""
-    note = " note" if row.change.path in (review_notes or {}) else ""
-    styled_label = _style_tree_file(
-        row.label,
+    return page_content.format_browse_tree_row(
+        row,
+        selected,
+        index_width,
         label_width,
         style,
-    )
-    return (
-        f"{marker} {str(row.change_index + 1).rjust(index_width)} {progress} "
-        f"{styled_label}  "
-        f"{style_change_summary(row.change, style)}"
-        f"{status}"
-        f"{note}"
+        seen_paths,
+        review_notes,
     )
 
 
 def _style_tree_directory(label: str, style: TerminalStyle) -> str:
-    return style.path(label)
+    return page_content.style_tree_directory(label, style)
 
 
 def _style_tree_file(
@@ -1800,47 +1587,23 @@ def _style_tree_file(
     width: int,
     style: TerminalStyle,
 ) -> str:
-    guide, filename = _split_tree_label(label)
-    padding = " " * max(0, width - len(label))
-    return f"{style.path(guide)}{style.file_path(filename + padding)}"
+    return page_content.style_tree_file(label, width, style)
 
 
 def _split_tree_label(label: str) -> tuple[str, str]:
-    marker = "─ "
-    if marker not in label:
-        return "", label
-    index = label.rfind(marker) + len(marker)
-    return label[:index], label[index:]
+    return page_content.split_tree_label(label)
 
 
 def _selected_tree_row(rows: list[BrowseTreeRow], selected: int) -> int:
-    for index, row in enumerate(rows):
-        if row.change_index == selected:
-            return index
-    return 0
+    return page_content.selected_tree_row(rows, selected)
 
 
 def _browser_common_changed_dir(changes: list[git.FileChange]) -> list[str]:
-    dirs = [[part for part in change.path.split("/") if part][:-1] for change in changes]
-    if not dirs:
-        return []
-    common = dirs[0]
-    for directory in dirs[1:]:
-        index = 0
-        limit = min(len(common), len(directory))
-        while index < limit and common[index] == directory[index]:
-            index += 1
-        common = common[:index]
-        if not common:
-            return []
-    return common
+    return page_content.browser_common_changed_dir(changes)
 
 
 def _browser_compact_root_label(common_dir: list[str]) -> str:
-    if not common_dir:
-        return ""
-    prefix = ".../" if len(common_dir) > DEFAULT_PATH_CONTEXT_DIRS else ""
-    return prefix + "/".join(common_dir[-DEFAULT_PATH_CONTEXT_DIRS:])
+    return page_content.browser_compact_root_label(common_dir)
 
 
 def _browse_commit_lines(
@@ -1849,28 +1612,12 @@ def _browse_commit_lines(
     selected: int | None = None,
     scope_label: str = "",
 ) -> list[str]:
-    if not commits:
-        return [
-            f"Scope: {scope_label}" if scope_label else "",
-            "No recent commits.",
-            "",
-        ] if scope_label else ["No recent commits.", ""]
-    lines = [
-        f"Scope: {scope_label}" if scope_label else "",
-        f"{style.bold('Recent commits')} ({len(commits)} shown)",
-        "Choose a commit to review its files. Press w to return to worktree.",
-    ]
-    lines = [line for line in lines if line]
-    index_width = len(str(len(commits)))
-    for index, commit in enumerate(commits, start=1):
-        marker = ">" if selected == index - 1 else " "
-        short_hash = commit.commit[:8]
-        lines.append(
-            f"{marker} {str(index).rjust(index_width)}  "
-            f"{style.dim(short_hash)}  {commit.authored_at}  {commit.subject}"
-        )
-    lines.append("")
-    return lines
+    return page_content.browse_commit_lines(
+        commits,
+        style,
+        selected=selected,
+        scope_label_text=scope_label,
+    )
 
 
 def _browse_commit_screen_lines(
@@ -1878,30 +1625,7 @@ def _browse_commit_screen_lines(
     style: TerminalStyle,
     max_lines: int,
 ) -> list[str]:
-    commits = state.commits
-    if not commits:
-        return ["No recent commits.", ""]
-    lines = [
-        f"{style.bold('Recent commits')} ({len(commits)} shown)",
-        "Enter: review commit   b: back here   w: worktree   PgUp/PgDn: page",
-    ]
-    row_capacity = max(1, max_lines - len(lines) - 1)
-    start = _ensure_window(state.commit_scroll, state.selected, len(commits), row_capacity)
-    state.commit_scroll = start
-    end = min(len(commits), start + row_capacity)
-    index_width = len(str(len(commits)))
-    for index, commit in enumerate(commits[start:end], start=start + 1):
-        marker = ">" if state.selected == index - 1 else " "
-        short_hash = commit.commit[:8]
-        lines.append(
-            f"{marker} {str(index).rjust(index_width)}  "
-            f"{style.dim(short_hash)}  {commit.authored_at}  {commit.subject}"
-        )
-    if len(commits) > row_capacity:
-        lines.append(style.dim(f"showing {start + 1}-{end}/{len(commits)}"))
-    else:
-        lines.append("")
-    return lines[:max_lines]
+    return page_content.browse_commit_screen_lines(state, style, max_lines)
 
 
 def _empty_browse_lines(
@@ -1910,15 +1634,12 @@ def _empty_browse_lines(
     total_changes: int = 0,
     scope_label: str = "",
 ) -> list[str]:
-    prefix = [f"Scope: {scope_label}"] if scope_label else []
-    if filter_text:
-        return [
-            *prefix,
-            f"No changes match filter: {filter_text} ({total_changes} total).",
-            "Press c to clear the filter.",
-            "",
-        ]
-    return [*prefix, empty_message(args)]
+    return page_content.empty_browse_lines(
+        args,
+        filter_text,
+        total_changes,
+        scope_label_text=scope_label,
+    )
 
 
 def _browse_file_screen_lines(
@@ -1958,55 +1679,24 @@ def _browse_file_lines(
     seen: bool = False,
     review_note: str = "",
 ) -> list[str]:
-    first_line = git.first_changed_line(
-        change.path,
-        staged=args.staged,
-        all_changes=args.all_changes,
-        base=args.base,
-        ref_range=args.ref_range,
+    return page_content.browse_file_lines(
+        change,
+        index,
+        total,
+        args,
+        style,
+        scope_label_text=scope_label,
+        seen=seen,
+        review_note=review_note,
+        first_changed_line=git.first_changed_line,
+        link_target=_link_target,
+        risk_hints=risk_hints,
+        is_code_file=is_code_file,
+        parse_change_symbols=parse_change_symbols,
+        describe_file=describe_file,
+        modified_names=modified_names,
+        change_hunk_lines=change_hunk_lines,
     )
-    anchor = f":{first_line}" if first_line else ""
-    lines = [
-        f"Scope: {scope_label}" if scope_label else "",
-        f"{style.bold(f'File {index + 1}/{total}')}  "
-        f"{style.path(shorten_path(change.path), _link_target(change.path, first_line, args))}"
-        f"{style.dim(anchor)}  "
-        f"{style.bold(format_change_summary(change))}  "
-        f"{style.dim('seen' if seen else 'todo')}"
-    ]
-    lines = [line for line in lines if line]
-    risks = risk_hints(change.path)
-    if review_note:
-        lines.append(f"  note: {review_note}")
-    if risks:
-        lines.append(f"  {style.warning('risk: ' + ', '.join(risks))}")
-    if change.status != "deleted" and is_code_file(change.path):
-        try:
-            symbols = parse_change_symbols(change, args)
-            lines.append(f"  purpose: {describe_file(change.path, symbols)}")
-            names = modified_names(
-                change.path,
-                staged=args.staged,
-                all_changes=args.all_changes,
-                base=args.base,
-                ref_range=args.ref_range,
-            )
-            lines.append(f"  modified: {', '.join(names)}")
-        except FileNotFoundError:
-            lines.append("  (file deleted or unavailable)")
-    lines.extend(
-        change_hunk_lines(
-            change,
-            staged=args.staged,
-            all_changes=args.all_changes,
-            base=args.base,
-            ref_range=args.ref_range,
-            context=args.context,
-            style=style,
-        )
-    )
-    lines.append("")
-    return lines
 
 
 def _cached_first_changed_line(
@@ -2060,20 +1750,14 @@ def _file_cache_key(
     scope_label: str = "",
     review_note: str = "",
 ) -> str:
-    return "\x1f".join(
-        [
-            change.path,
-            scope_label,
-            "seen" if seen else "todo",
-            review_note,
-            str(index),
-            str(total),
-            str(args.context),
-            str(args.staged),
-            str(args.all_changes),
-            args.base or "",
-            args.ref_range or "",
-        ]
+    return page_content.file_cache_key(
+        change,
+        index,
+        total,
+        args,
+        seen=seen,
+        scope_label_text=scope_label,
+        review_note=review_note,
     )
 
 
@@ -2083,15 +1767,7 @@ def _ensure_window(
     total: int,
     capacity: int,
 ) -> int:
-    if total <= capacity:
-        return 0
-    max_start = max(0, total - capacity)
-    start = max(0, min(current_start, max_start))
-    if selected < start:
-        return selected
-    if selected >= start + capacity:
-        return min(max_start, selected - capacity + 1)
-    return start
+    return page_content.ensure_window(current_start, selected, total, capacity)
 
 
 def _use_raw_keys() -> bool:

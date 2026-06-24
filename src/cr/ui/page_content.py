@@ -1,0 +1,624 @@
+"""Page-specific main-content rendering for the interactive browser."""
+
+from __future__ import annotations
+
+import argparse
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from ..review.changes import (
+    change_hunk_lines as default_change_hunk_lines,
+    empty_message,
+    is_code_file as default_is_code_file,
+    modified_names as default_modified_names,
+    parse_change_symbols as default_parse_change_symbols,
+)
+from ..review.risk import risk_hints as default_risk_hints
+from ..review.tree import (
+    DEFAULT_PATH_CONTEXT_DIRS,
+    format_change_summary,
+    shorten_path,
+    style_change_summary,
+)
+from ..source.purpose import describe_file as default_describe_file
+from ..vcs import git
+from .navigation import BrowserPage
+from .terminal import TerminalStyle, file_uri, vscode_uri
+
+
+@dataclass
+class BrowseTreeRow:
+    label: str
+    change: git.FileChange | None = None
+    change_index: int | None = None
+
+
+@dataclass(frozen=True)
+class ScopeHomeEntry:
+    label: str
+    description: str
+    action: str | None = None
+
+
+@dataclass
+class _BrowseTreeNode:
+    name: str
+    children: dict[str, "_BrowseTreeNode"] = field(default_factory=dict)
+    change: git.FileChange | None = None
+    change_index: int | None = None
+
+
+def browse_prompt(page: str) -> str:
+    if page == BrowserPage.FILE_DETAIL:
+        return "cr:file> "
+    if page == BrowserPage.COMMIT_PICKER:
+        return "cr:commits> "
+    if page == BrowserPage.SCOPE_HOME:
+        return "cr:scopes> "
+    if page == BrowserPage.COMMAND_PALETTE:
+        return "cr:commands> "
+    return "cr:list> "
+
+
+def browse_help_lines(style: TerminalStyle) -> list[str]:
+    return [
+        style.bold("Interactive review"),
+        "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
+        "  /: filter files     c: clear filter      m: seen      remaining: todo",
+        "  : command prompt    build/test/lint/tasks help    note/notes/copy/save prompt/actions",
+        "  PgUp/PgDn or u/d: page    Home/End: jump",
+        "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
+        "",
+    ]
+
+
+def scope_home_entries() -> tuple[ScopeHomeEntry, ...]:
+    return (
+        ScopeHomeEntry("Worktree", "Review unstaged worktree changes", "worktree"),
+        ScopeHomeEntry("Staged", "Review staged/index changes", "staged"),
+        ScopeHomeEntry("All local changes", "Review staged and unstaged changes", "all"),
+        ScopeHomeEntry(
+            "Recent commits",
+            "Choose a commit as the Review Scope",
+            BrowserPage.COMMIT_PICKER,
+        ),
+        ScopeHomeEntry("Base ref", "Type : base REF to review changes against a base"),
+        ScopeHomeEntry("Explicit range", "Type : range OLD..NEW to review two refs"),
+    )
+
+
+def scope_label(state: Any, args: argparse.Namespace) -> str:
+    if state.page == BrowserPage.SCOPE_HOME:
+        return "scope home"
+    if state.page == BrowserPage.COMMIT_PICKER:
+        return "recent commits"
+    if state.selected_commit is not None:
+        return f"commit {state.selected_commit.commit[:8]}"
+    if args.ref_range:
+        return f"range {args.ref_range}"
+    if args.base:
+        return f"base {args.base}"
+    if args.staged:
+        return "staged"
+    if args.all_changes:
+        return "all local changes"
+    if _args_untracked(args):
+        return "worktree + untracked"
+    return "worktree"
+
+
+def product_breadcrumb(state: Any, args: argparse.Namespace) -> str:
+    label = scope_label(state, args)
+    if state.page in {BrowserPage.SCOPE_HOME, BrowserPage.COMMIT_PICKER}:
+        return label
+    if state.page == BrowserPage.COMMAND_PALETTE:
+        return f"{label} > Commands"
+    if state.page == BrowserPage.FILE_DETAIL:
+        visible = state.visible_changes
+        if visible and 0 <= state.selected < len(visible):
+            return f"{label} > Files > {visible[state.selected].path}"
+    return f"{label} > Files"
+
+
+def scope_context_line(
+    state: Any,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    fit_line: Callable[[str], str],
+) -> str:
+    line = f"Scope: {product_breadcrumb(state, args)}"
+    if state.status_message:
+        line = f"{line}  |  {state.status_message}"
+    return style.dim(fit_line(line))
+
+
+def browse_scope_home_screen_lines(
+    state: Any,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    entries = scope_home_entries()
+    lines = [
+        f"{style.bold('Review scopes')} ({len(entries)} entries)",
+        "Enter: open scope   b: back to files   : base REF / : range OLD..NEW",
+    ]
+    if max_lines <= len(lines):
+        return lines[:max_lines]
+    row_capacity = max(1, max_lines - len(lines) - 1)
+    start = ensure_window(0, state.scope_selected, len(entries), row_capacity)
+    end = min(len(entries), start + row_capacity)
+    label_width = max(len(entry.label) for entry in entries)
+    for index, entry in enumerate(entries[start:end], start):
+        marker = ">" if index == state.scope_selected else " "
+        command_hint = f"  [{entry.action}]" if entry.action else ""
+        lines.append(
+            f"{marker} {index + 1}  "
+            f"{entry.label.ljust(label_width)}  {entry.description}{command_hint}"
+        )
+    if len(entries) > row_capacity:
+        lines.append(style.dim(f"showing {start + 1}-{end}/{len(entries)}"))
+    else:
+        lines.append("")
+    return lines[:max_lines]
+
+
+def browse_list_lines(
+    changes: list[git.FileChange],
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    selected: int | None = None,
+    total_changes: int | None = None,
+    filter_text: str = "",
+    scope_label_text: str = "",
+    seen_paths: set[str] | None = None,
+    seen_count: int | None = None,
+    remaining_only: bool = False,
+    review_notes: dict[str, str] | None = None,
+) -> list[str]:
+    seen_paths = seen_paths or set()
+    review_notes = review_notes or {}
+    total_changes = len(changes) if total_changes is None else total_changes
+    if not changes:
+        return empty_browse_lines(args, filter_text, total_changes=total_changes)
+    total_added = sum(change.added or 0 for change in changes)
+    total_deleted = sum(change.deleted or 0 for change in changes)
+    lines = [
+        f"Scope: {scope_label_text}" if scope_label_text else "",
+        f"{style.bold('Changed files')} "
+        f"({len(changes)} files, {style.added('+' + str(total_added))} "
+        f"{style.deleted('-' + str(total_deleted))})",
+    ]
+    lines = [line for line in lines if line]
+    if filter_text:
+        lines.append(
+            f"Filter: {filter_text} ({len(changes)}/{total_changes} matches, c to clear)"
+        )
+    if total_changes:
+        if seen_count is None:
+            seen_count = sum(1 for change in changes if change.path in seen_paths)
+        suffix = " remaining only" if remaining_only else ""
+        lines.append(f"Progress: {seen_count}/{total_changes} seen{suffix}")
+    rows = browse_tree_rows(changes)
+    label_width = max(len(row.label) for row in rows)
+    index_width = len(str(len(changes)))
+    for row in rows:
+        lines.append(
+            format_browse_tree_row(
+                row,
+                selected,
+                index_width,
+                label_width,
+                style,
+                seen_paths,
+                review_notes,
+            )
+        )
+    lines.append("")
+    return lines
+
+
+def browse_list_screen_lines(
+    state: Any,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    changes = state.visible_changes
+    if not changes:
+        return empty_browse_lines(
+            args,
+            state.filter_text,
+            total_changes=len(state.changes),
+        )[:max_lines]
+    total_added = sum(change.added or 0 for change in changes)
+    total_deleted = sum(change.deleted or 0 for change in changes)
+    header = (
+        f"{style.bold('Changed files')} "
+        f"({len(changes)} files, {style.added('+' + str(total_added))} "
+        f"{style.deleted('-' + str(total_deleted))})"
+    )
+    if state.changes:
+        seen_count = sum(1 for change in state.changes if change.path in state.seen_paths)
+        suffix = " remaining only" if state.remaining_only else ""
+        header = f"{header}  Progress: {seen_count}/{len(state.changes)} seen{suffix}"
+    lines = [header]
+    if state.filter_text:
+        lines.append(
+            f"Filter: {state.filter_text} "
+            f"({len(changes)}/{len(state.changes)} matches, c to clear)"
+        )
+    if len(changes) > 1 and max_lines >= 4:
+        lines.append("Enter: open file   PgUp/PgDn: page   Home/End: jump")
+    rows = browse_tree_rows(changes)
+    selected_row = selected_tree_row(rows, state.selected)
+    row_capacity = max(1, max_lines - len(lines) - 1)
+    start = ensure_window(state.list_scroll, selected_row, len(rows), row_capacity)
+    state.list_scroll = start
+    end = min(len(rows), start + row_capacity)
+    visible_rows = rows[start:end]
+    index_width = len(str(len(changes)))
+    label_width = max(len(row.label) for row in visible_rows)
+    for row in visible_rows:
+        lines.append(
+            format_browse_tree_row(
+                row,
+                state.selected,
+                index_width,
+                label_width,
+                style,
+                state.seen_paths,
+                state.review_notes,
+            )
+        )
+    if len(rows) > row_capacity:
+        lines.append(style.dim(f"showing rows {start + 1}-{end}/{len(rows)}"))
+    else:
+        lines.append("")
+    return lines[:max_lines]
+
+
+def browse_tree_rows(changes: list[git.FileChange]) -> list[BrowseTreeRow]:
+    common_dir = browser_common_changed_dir(changes)
+    root = _BrowseTreeNode("")
+    for index, change in enumerate(changes):
+        insert_browse_tree(root, change, index, common_dir)
+
+    root_label = browser_compact_root_label(common_dir)
+    child_prefix = "   " if root_label else ""
+    rows = render_browse_tree_children(root, child_prefix)
+    if root_label and rows:
+        return [BrowseTreeRow(f"└─ {root_label}"), *rows]
+    return rows
+
+
+def insert_browse_tree(
+    root: _BrowseTreeNode,
+    change: git.FileChange,
+    change_index: int,
+    common_dir: list[str],
+) -> None:
+    node = root
+    parts = [part for part in change.path.split("/") if part]
+    if common_dir and parts[: len(common_dir)] == common_dir:
+        parts = parts[len(common_dir) :]
+    for part in parts:
+        node = node.children.setdefault(part, _BrowseTreeNode(part))
+    node.change = change
+    node.change_index = change_index
+
+
+def render_browse_tree_children(
+    node: _BrowseTreeNode,
+    prefix: str,
+) -> list[BrowseTreeRow]:
+    rows: list[BrowseTreeRow] = []
+    items = sorted(node.children.values(), key=lambda child: child.name)
+    for index, child in enumerate(items):
+        is_last = index == len(items) - 1
+        branch = "└─" if is_last else "├─"
+        rows.append(
+            BrowseTreeRow(
+                f"{prefix}{branch} {child.name}",
+                child.change,
+                child.change_index,
+            )
+        )
+        child_prefix = prefix + ("   " if is_last else "│  ")
+        rows.extend(render_browse_tree_children(child, child_prefix))
+    return rows
+
+
+def format_browse_tree_row(
+    row: BrowseTreeRow,
+    selected: int | None,
+    index_width: int,
+    label_width: int,
+    style: TerminalStyle,
+    seen_paths: set[str] | None = None,
+    review_notes: dict[str, str] | None = None,
+) -> str:
+    if row.change is None or row.change_index is None:
+        return f"  {' ' * index_width}  {style_tree_directory(row.label, style)}"
+
+    marker = ">" if selected == row.change_index else " "
+    progress = "[x]" if row.change.path in (seen_paths or set()) else "[ ]"
+    status = " modified" if row.change.status == "modified" else ""
+    note = " note" if row.change.path in (review_notes or {}) else ""
+    styled_label = style_tree_file(row.label, label_width, style)
+    return (
+        f"{marker} {str(row.change_index + 1).rjust(index_width)} {progress} "
+        f"{styled_label}  "
+        f"{style_change_summary(row.change, style)}"
+        f"{status}"
+        f"{note}"
+    )
+
+
+def style_tree_directory(label: str, style: TerminalStyle) -> str:
+    return style.path(label)
+
+
+def style_tree_file(label: str, width: int, style: TerminalStyle) -> str:
+    guide, filename = split_tree_label(label)
+    padding = " " * max(0, width - len(label))
+    return f"{style.path(guide)}{style.file_path(filename + padding)}"
+
+
+def split_tree_label(label: str) -> tuple[str, str]:
+    marker = "─ "
+    if marker not in label:
+        return "", label
+    index = label.rfind(marker) + len(marker)
+    return label[:index], label[index:]
+
+
+def selected_tree_row(rows: list[BrowseTreeRow], selected: int) -> int:
+    for index, row in enumerate(rows):
+        if row.change_index == selected:
+            return index
+    return 0
+
+
+def browser_common_changed_dir(changes: list[git.FileChange]) -> list[str]:
+    dirs = [[part for part in change.path.split("/") if part][:-1] for change in changes]
+    if not dirs:
+        return []
+    common = dirs[0]
+    for directory in dirs[1:]:
+        index = 0
+        limit = min(len(common), len(directory))
+        while index < limit and common[index] == directory[index]:
+            index += 1
+        common = common[:index]
+        if not common:
+            return []
+    return common
+
+
+def browser_compact_root_label(common_dir: list[str]) -> str:
+    if not common_dir:
+        return ""
+    prefix = ".../" if len(common_dir) > DEFAULT_PATH_CONTEXT_DIRS else ""
+    return prefix + "/".join(common_dir[-DEFAULT_PATH_CONTEXT_DIRS:])
+
+
+def browse_commit_lines(
+    commits: list[git.CommitSummary],
+    style: TerminalStyle,
+    selected: int | None = None,
+    scope_label_text: str = "",
+) -> list[str]:
+    if not commits:
+        return (
+            [
+                f"Scope: {scope_label_text}" if scope_label_text else "",
+                "No recent commits.",
+                "",
+            ]
+            if scope_label_text
+            else ["No recent commits.", ""]
+        )
+    lines = [
+        f"Scope: {scope_label_text}" if scope_label_text else "",
+        f"{style.bold('Recent commits')} ({len(commits)} shown)",
+        "Choose a commit to review its files. Press w to return to worktree.",
+    ]
+    lines = [line for line in lines if line]
+    index_width = len(str(len(commits)))
+    for index, commit in enumerate(commits, start=1):
+        marker = ">" if selected == index - 1 else " "
+        short_hash = commit.commit[:8]
+        lines.append(
+            f"{marker} {str(index).rjust(index_width)}  "
+            f"{style.dim(short_hash)}  {commit.authored_at}  {commit.subject}"
+        )
+    lines.append("")
+    return lines
+
+
+def browse_commit_screen_lines(
+    state: Any,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    commits = state.commits
+    if not commits:
+        return ["No recent commits.", ""]
+    lines = [
+        f"{style.bold('Recent commits')} ({len(commits)} shown)",
+        "Enter: review commit   b: back here   w: worktree   PgUp/PgDn: page",
+    ]
+    row_capacity = max(1, max_lines - len(lines) - 1)
+    start = ensure_window(state.commit_scroll, state.selected, len(commits), row_capacity)
+    state.commit_scroll = start
+    end = min(len(commits), start + row_capacity)
+    index_width = len(str(len(commits)))
+    for index, commit in enumerate(commits[start:end], start=start + 1):
+        marker = ">" if state.selected == index - 1 else " "
+        short_hash = commit.commit[:8]
+        lines.append(
+            f"{marker} {str(index).rjust(index_width)}  "
+            f"{style.dim(short_hash)}  {commit.authored_at}  {commit.subject}"
+        )
+    if len(commits) > row_capacity:
+        lines.append(style.dim(f"showing {start + 1}-{end}/{len(commits)}"))
+    else:
+        lines.append("")
+    return lines[:max_lines]
+
+
+def empty_browse_lines(
+    args: argparse.Namespace,
+    filter_text: str = "",
+    total_changes: int = 0,
+    scope_label_text: str = "",
+) -> list[str]:
+    prefix = [f"Scope: {scope_label_text}"] if scope_label_text else []
+    if filter_text:
+        return [
+            *prefix,
+            f"No changes match filter: {filter_text} ({total_changes} total).",
+            "Press c to clear the filter.",
+            "",
+        ]
+    return [*prefix, empty_message(args)]
+
+
+def browse_file_lines(
+    change: git.FileChange,
+    index: int,
+    total: int,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    scope_label_text: str = "",
+    seen: bool = False,
+    review_note: str = "",
+    *,
+    first_changed_line: Callable[..., int | None] = git.first_changed_line,
+    link_target: Callable[[str, int | None, argparse.Namespace], str] | None = None,
+    risk_hints: Callable[[str], list[str]] = default_risk_hints,
+    is_code_file: Callable[[str], bool] = default_is_code_file,
+    parse_change_symbols: Callable[..., Any] = default_parse_change_symbols,
+    describe_file: Callable[[str, Any], str] = default_describe_file,
+    modified_names: Callable[..., list[str]] = default_modified_names,
+    change_hunk_lines: Callable[..., list[str]] = default_change_hunk_lines,
+) -> list[str]:
+    first_line = first_changed_line(
+        change.path,
+        staged=args.staged,
+        all_changes=args.all_changes,
+        base=args.base,
+        ref_range=args.ref_range,
+    )
+    if link_target is None:
+        link_target = default_link_target
+    anchor = f":{first_line}" if first_line else ""
+    lines = [
+        f"Scope: {scope_label_text}" if scope_label_text else "",
+        f"{style.bold(f'File {index + 1}/{total}')}  "
+        f"{style.path(shorten_path(change.path), link_target(change.path, first_line, args))}"
+        f"{style.dim(anchor)}  "
+        f"{style.bold(format_change_summary(change))}  "
+        f"{style.dim('seen' if seen else 'todo')}",
+    ]
+    lines = [line for line in lines if line]
+    risks = risk_hints(change.path)
+    if review_note:
+        lines.append(f"  note: {review_note}")
+    if risks:
+        lines.append(f"  {style.warning('risk: ' + ', '.join(risks))}")
+    if change.status != "deleted" and is_code_file(change.path):
+        try:
+            symbols = parse_change_symbols(change, args)
+            lines.append(f"  purpose: {describe_file(change.path, symbols)}")
+            names = modified_names(
+                change.path,
+                staged=args.staged,
+                all_changes=args.all_changes,
+                base=args.base,
+                ref_range=args.ref_range,
+            )
+            lines.append(f"  modified: {', '.join(names)}")
+        except FileNotFoundError:
+            lines.append("  (file deleted or unavailable)")
+    lines.extend(
+        change_hunk_lines(
+            change,
+            staged=args.staged,
+            all_changes=args.all_changes,
+            base=args.base,
+            ref_range=args.ref_range,
+            context=args.context,
+            style=style,
+        )
+    )
+    lines.append("")
+    return lines
+
+
+def file_cache_key(
+    change: git.FileChange,
+    index: int,
+    total: int,
+    args: argparse.Namespace,
+    seen: bool = False,
+    scope_label_text: str = "",
+    review_note: str = "",
+) -> str:
+    return "\x1f".join(
+        [
+            change.path,
+            scope_label_text,
+            "seen" if seen else "todo",
+            review_note,
+            str(index),
+            str(total),
+            str(args.context),
+            str(args.staged),
+            str(args.all_changes),
+            args.base or "",
+            args.ref_range or "",
+        ]
+    )
+
+
+def ensure_window(
+    current_start: int,
+    selected: int,
+    total: int,
+    capacity: int,
+) -> int:
+    if total <= capacity:
+        return 0
+    max_start = max(0, total - capacity)
+    start = max(0, min(current_start, max_start))
+    if selected < start:
+        return selected
+    if selected >= start + capacity:
+        return min(max_start, selected - capacity + 1)
+    return start
+
+
+def default_link_target(
+    path: str,
+    line: int | None,
+    args: argparse.Namespace,
+) -> str:
+    repo_file = git.repo_path(path)
+    return link_target_for_repo_file(repo_file, line, args)
+
+
+def link_target_for_repo_file(
+    repo_file: Path,
+    line: int | None,
+    args: argparse.Namespace,
+) -> str:
+    if args.link_scheme == "vscode":
+        return vscode_uri(repo_file, line)
+    return file_uri(repo_file, line)
+
+
+def _args_untracked(args: argparse.Namespace) -> bool:
+    return bool(getattr(args, "untracked", False))

@@ -21,9 +21,10 @@ the four module groups before the CLI knows about it. In particular,
 `cr.review.changes` owns shared review-scope facts used by both `review` and
 `diff`. The interactive browser also reuses `cr.review.changes` for changed-file
 selection, sorting, code-file detection, hunk rendering, and modified-symbol
-facts; `cr.ui.browser` should own browse orchestration and terminal behavior,
-while `cr.ui.navigation.BrowserNavigation` owns page transition rules,
-in-session page history, and their small local state resets.
+facts; `cr.ui.browser` should own browse orchestration, page-specific terminal
+content, prompt input flow, and selected-file action handoff, while
+`cr.ui.navigation.BrowserNavigation` owns page transition rules, in-session page
+history, and their small local state resets.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
 loading, filtering, progress markers, per-file review notes, selected-file
 state, and browser workspace-state data interpretation.
@@ -45,6 +46,10 @@ workspace state.
 `cr.ui.file_actions` owns configured and platform fallback open/copy/reveal
 helpers, subprocess launches, and source diagnostics for browser file actions.
 It does not parse browser commands or choose the selected review file.
+`cr.ui.frame` owns Browser Frame screen-layer behavior: terminal height and line
+fitting, content/task/prompt region layout, Task Panel line presentation, and
+Task Panel-only refresh output. It does not generate page-specific review
+content, run task processes, parse commands, or own workspace state.
 `cr.ui.tasks` owns Task Panel runtime behavior: task command resolution,
 command-source diagnostics, preset-format help, background process lifecycle,
 output capture, stopping, rerun, foreground run, and completion history. It
@@ -63,7 +68,8 @@ Product navigation terms:
 - `Task Panel`: a screen-rendering region for background tasks, not a review
   hierarchy level.
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
-  content, task panel, and prompt regions.
+  content, task panel, and prompt regions. Internally, `cr.ui.frame` owns the
+  screen-layer layout and Task Panel presentation helpers.
 - `Browser Navigation`: the internal module that moves between Scope Home,
   Commit Picker, Changed Files, File Detail, and Command Palette, including
   in-session back/forward page history, without loading Git data or rendering
@@ -98,8 +104,8 @@ Product navigation terms:
   `reveal`, surfaced by `file actions` and failure messages without executing
   diagnostics commands.
 - `Task Runtime`: the internal module behind Task Panel behavior. It owns
-  process lifecycle and task history, while terminal layout and panel rendering
-  stay with the browser frame.
+  process lifecycle and task history, while terminal layout and panel
+  presentation stay with Browser Frame.
 - `Task Presets`: project-local default build/test/lint commands read from
   `.cr/tasks.json` by Task Runtime. Presets are defaults, not overrides for
   explicit CLI arguments or environment variables.

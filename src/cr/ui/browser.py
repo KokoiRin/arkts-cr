@@ -1,9 +1,9 @@
 """Interactive review browser for cr.
 
-This module owns browse orchestration, terminal rendering, key command mapping,
-background task display, and selected-file action execution. Review workspace
-state, page navigation rules, and platform file action details live in deeper
-UI modules so the CLI parser can stay shallow.
+This module owns browse orchestration, page-specific terminal content, prompt
+input flow, and selected-file action execution. Review workspace state, page
+navigation rules, Browser Frame layout, task runtime, and platform file action
+details live in deeper UI modules so the CLI parser can stay shallow.
 """
 
 from __future__ import annotations
@@ -12,8 +12,6 @@ import argparse
 from dataclasses import dataclass, field
 from pathlib import Path
 import select
-import shlex
-import shutil
 import sys
 import time
 import termios
@@ -42,6 +40,8 @@ from .commands import BrowserCommand, BrowserCommandAction, parse_browser_comman
 from . import command_catalog as command_catalog_module
 from .command_catalog import CommandEntry, CommandGroup, PaletteCommand
 from . import file_actions
+from . import frame as frame_module
+from .frame import BrowserFrame, ScreenLayout
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import tasks as task_runtime
 from .tasks import TaskRecord, TaskState
@@ -214,26 +214,6 @@ class _BrowseTreeNode:
     children: dict[str, "_BrowseTreeNode"] = field(default_factory=dict)
     change: git.FileChange | None = None
     change_index: int | None = None
-
-
-@dataclass(frozen=True)
-class ScreenLayout:
-    content_height: int
-    task_height: int
-    prompt_row: int
-    task_start_row: int | None
-
-    @property
-    def max_render_lines(self) -> int:
-        return max(0, self.prompt_row - 1)
-
-
-@dataclass
-class BrowserFrame:
-    layout: ScreenLayout | None = None
-    complete: bool = False
-    task_panel: list[str] = field(default_factory=list)
-    dirty: bool = True
 
 
 @dataclass(frozen=True)
@@ -1176,7 +1156,7 @@ def _page_step() -> int:
 
 
 def _screen_height() -> int:
-    return max(8, shutil.get_terminal_size((100, 30)).lines)
+    return frame_module.screen_height()
 
 
 def _file_body_capacity() -> int:
@@ -1184,23 +1164,11 @@ def _file_body_capacity() -> int:
 
 
 def _task_panel_height(task: TaskState | None, available_lines: int) -> int:
-    if task is None:
-        return 0
-    return max(3, min(10, max(5, available_lines // 4), max(3, available_lines - 6)))
+    return frame_module.task_panel_height(task, available_lines)
 
 
 def _screen_layout(task: TaskState | None, rows: int | None = None) -> ScreenLayout:
-    terminal_rows = _screen_height() if rows is None else max(8, rows)
-    max_render_lines = max(1, terminal_rows - 1)
-    task_height = _task_panel_height(task, max_render_lines)
-    content_height = max(1, max_render_lines - task_height)
-    task_start_row = content_height + 1 if task_height else None
-    return ScreenLayout(
-        content_height=content_height,
-        task_height=task_height,
-        prompt_row=terminal_rows,
-        task_start_row=task_start_row,
-    )
+    return frame_module.screen_layout(task, rows)
 
 
 def _task_panel_lines(
@@ -1209,30 +1177,11 @@ def _task_panel_lines(
     max_lines: int,
     history: list[TaskRecord] | None = None,
 ) -> list[str]:
-    if task is None or max_lines <= 0:
-        return []
-    width = shutil.get_terminal_size((100, 30)).columns
-    status = _task_status(task)
-    command = " ".join(shlex.quote(part) for part in task.command)
-    lines = [
-        style.dim("─" * min(width, 100)),
-        f"{style.bold(_task_label(task.kind))} {status}  {style.dim(command)}",
-    ]
-    if history:
-        lines.append(_task_history_line(history[-3:]))
-    capacity = max(0, max_lines - len(lines))
-    body = task.lines[-capacity:] if capacity else []
-    if capacity and not body:
-        body = [style.dim("(waiting for output)")]
-    return [*lines, *body][-max_lines:]
+    return frame_module.task_panel_lines(task, style, max_lines, history)
 
 
 def _task_history_line(history: list[TaskRecord]) -> str:
-    summaries = []
-    for record in history:
-        command = " ".join(shlex.quote(part) for part in record.command)
-        summaries.append(f"{record.kind} {record.status} {command}".strip())
-    return "Recent: " + " | ".join(summaries)
+    return frame_module.task_history_line(history)
 
 
 def _task_status(task: TaskState) -> str:
@@ -1366,40 +1315,11 @@ def _draw_task_panel_only(
     frame: BrowserFrame | None = None,
     history: list[TaskRecord] | None = None,
 ) -> bool:
-    if task is None:
-        return False
-    layout = _screen_layout(task)
-    height = layout.task_height
-    if frame is not None:
-        if frame.dirty or not frame.complete or frame.layout != layout:
-            frame.dirty = True
-            return False
-    lines = _task_panel_lines(task, style, height, history)
-    previous_panel = frame.task_panel if frame is not None else task.last_rendered_panel
-    if lines == previous_panel:
-        return False
-    task.last_rendered_panel = lines
-    if frame is not None:
-        frame.task_panel = lines
-    start_row = layout.task_start_row or 1
-    output: list[str] = ["\0337", f"\033[{start_row};1H"]
-    for index in range(height):
-        output.append("\033[2K")
-        if index < len(lines):
-            output.append(_fit_terminal_line(lines[index]))
-        if index != height - 1:
-            output.append("\n")
-    output.append("\0338")
-    sys.stdout.write("".join(output))
-    sys.stdout.flush()
-    return True
+    return frame_module.draw_task_panel_only(task, style, frame, history)
 
 
 def _fit_terminal_line(line: str) -> str:
-    if "\033[" in line:
-        return line
-    width = shutil.get_terminal_size((100, 30)).columns
-    return line[: max(0, width - 1)]
+    return frame_module.fit_terminal_line(line)
 
 
 def _browse_prompt(mode: str) -> str:

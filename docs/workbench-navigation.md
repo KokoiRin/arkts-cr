@@ -125,8 +125,8 @@ Command Palette
 Task Panel / Browser Frame
   current implementation:
     cr.ui.tasks owns TaskState, TaskRecord history, command resolution, project task presets, process lifecycle, output capture, stop, rerun, foreground run, and history recording
-    browser.py owns Task Panel rendering, BrowserFrame, and screen layout
-    BrowserFrame
+    cr.ui.frame owns BrowserFrame, screen layout, Task Panel presentation, terminal line fitting, and Task Panel-only refresh output
+    browser.py owns page-specific main content rendering and prompt input flow
 
 Browser Navigation
   current implementation:
@@ -225,13 +225,19 @@ Status: implemented.
 
 Status: implemented.
 
-`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress/note state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns terminal rendering, command dispatch, background tasks, selected-file action execution, and live state synchronization around persistence calls.
+`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress/note state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns page-specific main content rendering, prompt input flow, selected-file action execution, and live state synchronization around persistence calls.
 
 ### P0: Workspace persistence extraction
 
 Status: implemented.
 
 `cr.ui.workspace_persistence` now owns `.git/cr/browse-state.json` path construction, schema version wrapping and validation, tolerant JSON read/write, and default-session restore/save eligibility. `ReviewWorkspace` keeps product state interpretation, and `browser.py` keeps startup/exit orchestration plus live `BrowserState` synchronization.
+
+### P0: Browser Frame extraction
+
+Status: implemented.
+
+`cr.ui.frame` now owns Browser Frame screen-layer behavior: terminal height and line fitting, content/task/prompt region layout, Task Panel line presentation, and Task Panel-only partial refresh output. `browser.py` keeps page-specific main content generation, prompt input flow, command execution, and workspace startup/exit orchestration.
 
 ### P0: Command dispatch deepening
 
@@ -261,7 +267,7 @@ Status: implemented.
 
 Status: implemented.
 
-`cr.ui.tasks` now owns Task Panel runtime behavior: build/test/lint command resolution, process lifecycle, output drain, stop escalation, rerun, foreground execution, and compact task history. `browser.py` still owns the bottom panel's terminal rendering and frame layout.
+`cr.ui.tasks` now owns Task Panel runtime behavior: build/test/lint command resolution, process lifecycle, output drain, stop escalation, rerun, foreground execution, and compact task history. `cr.ui.frame` owns the bottom panel's screen presentation and frame layout.
 
 ### P0: Task configuration presets
 
@@ -333,6 +339,6 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 
 Current architecture risk:
 
-- `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and persistence file I/O.
-- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `Workspace Persistence` hides persisted workspace file I/O, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, and `cr.ui.file_actions` hides open/copy/reveal platform behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, and prompt input.
-- The next product opportunity should come from concrete usage friction around richer review handoff workflows or deeper rendering/task-panel extraction.
+- `src/cr/ui/browser.py` is still a large module that owns session orchestration, page-specific main content rendering, prompt input flow, and selected-file action handoff.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `Workspace Persistence` hides persisted workspace file I/O, `Browser Frame` hides screen-layer layout and Task Panel presentation, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, and `cr.ui.file_actions` hides open/copy/reveal platform behavior.
+- The next product opportunity should come from concrete usage friction around richer review handoff workflows or deeper page-content/prompt-input extraction.

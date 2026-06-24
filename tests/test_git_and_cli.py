@@ -60,6 +60,7 @@ from cr.review.changes import format_counts
 from cr.review.data import build_review_data
 from cr.review.prompt import render_prompt_handoff
 from cr.ui import command_catalog
+from cr.ui import frame as frame_module
 from cr.ui import workspace_persistence
 from cr.ui.terminal import TerminalStyle
 from cr.vcs.git import CommitSummary, FileChange
@@ -79,6 +80,115 @@ def argparse_namespace(**kwargs):
 
 
 class CliTests(unittest.TestCase):
+    def test_browser_frame_module_renders_task_panel_lines(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        task = TaskState(["./build.sh"], process, lines=["compile line"], returncode=0)
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            layout = frame_module.screen_layout(task)
+            lines = frame_module.task_panel_lines(
+                task,
+                TerminalStyle(False),
+                layout.task_height,
+                [
+                    TaskRecord(
+                        kind="build",
+                        status="succeeded",
+                        command=["./old-build.sh"],
+                        returncode=0,
+                    )
+                ],
+            )
+
+        self.assertEqual(layout.prompt_row, 12)
+        self.assertGreaterEqual(layout.task_height, 3)
+        text = "\n".join(lines)
+        self.assertIn("Build succeeded", text)
+        self.assertIn("Recent: build succeeded ./old-build.sh", text)
+        self.assertIn("compile line", text)
+
+    def test_browser_frame_module_draws_task_panel_without_full_clear(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        task = TaskState(["true"], process, lines=["compile line"])
+        frame = frame_module.BrowserFrame(
+            layout=frame_module.screen_layout(task, rows=12),
+            complete=True,
+            task_panel=["old panel"],
+            dirty=False,
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with redirect_stdout(output):
+                refreshed = frame_module.draw_task_panel_only(
+                    task,
+                    TerminalStyle(False),
+                    frame,
+                )
+            second_output = StringIO()
+            with redirect_stdout(second_output):
+                second_refreshed = frame_module.draw_task_panel_only(
+                    task,
+                    TerminalStyle(False),
+                    frame,
+                )
+
+        text = output.getvalue()
+        self.assertTrue(refreshed)
+        self.assertNotIn("\033[2J", text)
+        self.assertIn("\0337", text)
+        self.assertIn("\033[7;1H", text)
+        self.assertIn("\0338", text)
+        self.assertIn("compile line", text)
+        self.assertFalse(second_refreshed)
+        self.assertEqual(second_output.getvalue(), "")
+        process.wait(timeout=1)
+
+    def test_browser_frame_module_refuses_dirty_partial_refresh(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        task = TaskState(["true"], process, lines=["compile line"])
+        frame = frame_module.BrowserFrame(
+            layout=frame_module.screen_layout(task, rows=12),
+            complete=True,
+            task_panel=["old panel"],
+            dirty=True,
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with redirect_stdout(output):
+                refreshed = frame_module.draw_task_panel_only(
+                    task,
+                    TerminalStyle(False),
+                    frame,
+                )
+
+        self.assertFalse(refreshed)
+        self.assertEqual(output.getvalue(), "")
+        self.assertTrue(frame.dirty)
+        process.wait(timeout=1)
+
+    def test_browser_frame_module_fits_plain_terminal_lines(self):
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((8, 12)),
+        ):
+            self.assertEqual(frame_module.fit_terminal_line("abcdefghi"), "abcdefg")
+            self.assertEqual(
+                frame_module.fit_terminal_line("\033[31mabcdefghi\033[0m"),
+                "\033[31mabcdefghi\033[0m",
+            )
+
     def test_workspace_persistence_module_paths_and_eligibility(self):
         repo = Path("/tmp/sample-repo")
         default_args = argparse_namespace(
@@ -1754,6 +1864,20 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("selected_changes", source)
         self.assertNotIn("sort_changes", source)
 
+    def test_browser_frame_module_owns_task_panel_presentation_implementation(self):
+        browser_source = Path(browser_module.__file__).read_text(encoding="utf-8")
+        frame_source = Path(frame_module.__file__).read_text(encoding="utf-8")
+
+        self.assertIn("class BrowserFrame", frame_source)
+        self.assertIn("class ScreenLayout", frame_source)
+        self.assertIn("def task_panel_lines", frame_source)
+        self.assertIn("def draw_task_panel_only", frame_source)
+        self.assertIn("frame_module.task_panel_lines", browser_source)
+        self.assertIn("frame_module.draw_task_panel_only", browser_source)
+        self.assertNotIn("shlex.quote", browser_source)
+        self.assertNotIn("def task_panel_lines", browser_source)
+        self.assertNotIn("def draw_task_panel_only", browser_source)
+
     def test_review_workspace_selects_commit_scope_and_captures_previous_scope(self):
         loads: list[str | None] = []
 
@@ -2597,7 +2721,7 @@ class CliTests(unittest.TestCase):
         output = StringIO()
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 12)),
         ):
             with patch("cr.ui.browser.git.first_changed_line", return_value=3):
@@ -3029,7 +3153,7 @@ class CliTests(unittest.TestCase):
         output = StringIO()
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 12)),
         ):
             with redirect_stdout(output):
@@ -3044,7 +3168,7 @@ class CliTests(unittest.TestCase):
 
         output = StringIO()
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 12)),
         ):
             with redirect_stdout(output):
@@ -3070,7 +3194,7 @@ class CliTests(unittest.TestCase):
         output = StringIO()
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 12)),
         ):
             with patch("cr.ui.browser.git.first_changed_line", return_value=3):
@@ -3104,7 +3228,7 @@ class CliTests(unittest.TestCase):
         output = StringIO()
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 30)),
         ):
             with redirect_stdout(output):
@@ -3127,7 +3251,7 @@ class CliTests(unittest.TestCase):
         output = StringIO()
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 12)),
         ):
             with redirect_stdout(output):
@@ -3153,7 +3277,7 @@ class CliTests(unittest.TestCase):
         _show_browser_message(state, "Opened src/Sample.ts:3", raw_keys=True, frame=frame)
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 12)),
         ):
             with redirect_stdout(output):
@@ -3598,7 +3722,7 @@ class CliTests(unittest.TestCase):
         output = StringIO()
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 12)),
         ):
             with patch("cr.ui.browser.git.first_changed_line", return_value=3):
@@ -3796,7 +3920,7 @@ class CliTests(unittest.TestCase):
         output = StringIO()
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 30)),
         ):
             with patch("cr.ui.browser.git.first_changed_line", return_value=3):
@@ -3826,7 +3950,7 @@ class CliTests(unittest.TestCase):
         output = StringIO()
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 40)),
         ):
             with redirect_stdout(output):
@@ -4390,7 +4514,7 @@ class CliTests(unittest.TestCase):
         output = StringIO()
 
         with patch(
-            "cr.ui.browser.shutil.get_terminal_size",
+            "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((100, 12)),
         ):
             with patch("cr.ui.browser.git.first_changed_line", return_value=1) as first_line:

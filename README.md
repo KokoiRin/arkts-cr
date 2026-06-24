@@ -10,16 +10,16 @@ cr
 
 这会打开交互式 review browser。后续大部分操作都在里面完成。
 
-当前页面分四层：
+交互界面由一个固定 browser frame 管理，不是普通 stdout 日志流。当前 frame 分四层：
 
 ```text
-帮助/上下文区    当前按键、当前 review scope，比如 worktree / staged / range
-主内容区        文件树、commit 列表、单文件 diff
-任务面板区      build 等后台任务的最近输出
-输入提示区      cr:list> / cr:file> / cr:commits>
+上下文区        当前按键、当前 review scope，比如 worktree / staged / range
+主工作区        文件树、commit 列表、单文件 diff、命令列表
+后台任务面板    build 等后台任务的状态和最近输出
+命令提示区      cr:list> / cr:file> / cr:commits>
 ```
 
-build 运行时只更新底部任务面板；主内容区仍然可以继续浏览，最底下的输入提示不会被日志挤走。
+build 运行时只允许刷新后台任务面板；主工作区仍然可以继续浏览，最底下的命令提示不会被日志挤走。用户打开 `:` 或 `/` 这种临时输入后，界面会回到同一个固定 frame。
 
 ## 安装
 
@@ -168,7 +168,7 @@ cr --open-cmd 'code -g {fileline}'
 build
 ```
 
-编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。后台日志更新只重画这个面板，不会滚动主内容。
+编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。后台日志更新只重画这个面板；如果终端尺寸或页面状态已经变化，会先恢复完整 browser frame，避免日志和用户操作互相打乱。
 
 常用 build 命令：
 

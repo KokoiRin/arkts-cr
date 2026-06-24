@@ -166,6 +166,14 @@ class ScreenLayout:
         return max(0, self.prompt_row - 1)
 
 
+@dataclass
+class BrowserFrame:
+    layout: ScreenLayout | None = None
+    complete: bool = False
+    build_panel: list[str] = field(default_factory=list)
+    dirty: bool = True
+
+
 def run_browser(args: argparse.Namespace) -> int:
     repo = git.repo_root()
     style = make_style(args.color, sys.stdout, args.links)
@@ -179,6 +187,7 @@ def run_browser(args: argparse.Namespace) -> int:
         _restore_browser_workspace_state(state, args, workspace_state)
     _show_commits_when_empty(state, args)
     raw_keys = _use_raw_keys()
+    frame = BrowserFrame()
     needs_redraw = True
 
     if not raw_keys:
@@ -187,8 +196,8 @@ def run_browser(args: argparse.Namespace) -> int:
         _poll_build(state.build)
         state.clamp_selection()
         visible = state.visible_changes
-        if raw_keys and needs_redraw:
-            _draw_browse_screen(state, args, style)
+        if raw_keys and (needs_redraw or frame.dirty):
+            _draw_browse_screen(state, args, style, frame)
             needs_redraw = False
         prompt = _browse_prompt(state.mode)
         if not raw_keys:
@@ -250,7 +259,9 @@ def run_browser(args: argparse.Namespace) -> int:
             tick_when_idle=state.build is not None and state.build.running,
         )
         if command_result == "__tick__":
-            _draw_build_panel_only(state.build, style)
+            _draw_build_panel_only(state.build, style, frame)
+            if frame.dirty:
+                needs_redraw = True
             continue
         if command_result == "__eof__":
             _save_browser_workspace_state_on_exit(state, args, repo)
@@ -262,13 +273,21 @@ def run_browser(args: argparse.Namespace) -> int:
 
         if command == "filter_prompt":
             query = _read_filter_query()
+            if raw_keys:
+                frame.dirty = True
             if query != "__interrupt__":
                 state.set_filter(query)
+                needs_redraw = True
+            elif raw_keys:
                 needs_redraw = True
             continue
         if command == "command_prompt":
             command = _normalize_command_query(_read_command_query())
+            if raw_keys:
+                frame.dirty = True
             if command == "__interrupt__":
+                if raw_keys:
+                    needs_redraw = True
                 continue
         if command.startswith("/") and not raw_keys:
             state.set_filter(command[1:])
@@ -936,6 +955,7 @@ def _draw_browse_screen(
     state: BrowserState,
     args: argparse.Namespace,
     style: TerminalStyle,
+    frame: BrowserFrame | None = None,
 ) -> None:
     state.clamp_selection()
     visible = state.visible_changes
@@ -1005,26 +1025,36 @@ def _draw_browse_screen(
         end="",
         flush=True,
     )
+    rendered_panel = _build_panel_lines(state.build, style, build_panel_height)
     if state.build is not None:
-        state.build.last_rendered_panel = _build_panel_lines(
-            state.build,
-            style,
-            build_panel_height,
-        )
+        state.build.last_rendered_panel = rendered_panel
+    if frame is not None:
+        frame.layout = layout
+        frame.complete = True
+        frame.build_panel = rendered_panel
+        frame.dirty = False
 
 
 def _draw_build_panel_only(
     build: BuildState | None,
     style: TerminalStyle,
-) -> None:
+    frame: BrowserFrame | None = None,
+) -> bool:
     if build is None:
-        return
+        return False
     layout = _screen_layout(build)
     height = layout.build_height
+    if frame is not None:
+        if not frame.complete or frame.layout != layout:
+            frame.dirty = True
+            return False
     lines = _build_panel_lines(build, style, height)
-    if lines == build.last_rendered_panel:
-        return
+    previous_panel = frame.build_panel if frame is not None else build.last_rendered_panel
+    if lines == previous_panel:
+        return False
     build.last_rendered_panel = lines
+    if frame is not None:
+        frame.build_panel = lines
     start_row = layout.build_start_row or 1
     output: list[str] = ["\0337", f"\033[{start_row};1H"]
     for index in range(height):
@@ -1036,6 +1066,7 @@ def _draw_build_panel_only(
     output.append("\0338")
     sys.stdout.write("".join(output))
     sys.stdout.flush()
+    return True
 
 
 def _fit_terminal_line(line: str) -> str:

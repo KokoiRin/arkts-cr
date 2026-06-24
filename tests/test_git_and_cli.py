@@ -13,6 +13,7 @@ from io import StringIO
 
 from cr.ui.browser import (
     BuildState,
+    BrowserFrame,
     BrowserState,
     _build_command,
     _build_panel_lines,
@@ -498,6 +499,150 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(output.getvalue(), "")
         process.wait(timeout=1)
+
+    def test_full_browser_redraw_primes_build_panel_frame_cache(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            build=BuildState(["true"], process, lines=["compile line"]),
+        )
+        frame = BrowserFrame()
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+                with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False), frame)
+
+                    output = StringIO()
+                    with redirect_stdout(output):
+                        refreshed = _draw_build_panel_only(
+                            state.build,
+                            TerminalStyle(False),
+                            frame,
+                        )
+
+        self.assertFalse(refreshed)
+        self.assertEqual(output.getvalue(), "")
+        process.wait(timeout=1)
+
+    def test_build_panel_partial_refresh_refuses_stale_frame_layout(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        build = BuildState(["true"], process, lines=["first line"])
+        frame = BrowserFrame(
+            layout=_screen_layout(build, rows=12),
+            complete=True,
+            build_panel=["old panel"],
+            dirty=False,
+        )
+        build.last_rendered_panel = ["old panel"]
+        build.lines.append("new line")
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 30)),
+        ):
+            with redirect_stdout(output):
+                refreshed = _draw_build_panel_only(build, TerminalStyle(False), frame)
+
+        self.assertFalse(refreshed)
+        self.assertEqual(output.getvalue(), "")
+        self.assertTrue(frame.dirty)
+        process.wait(timeout=1)
+
+    def test_command_prompt_cancel_forces_full_browser_redraw(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[FileChange("src/Sample.ts", 1, 1)],
+                    ):
+                        with patch("cr.ui.browser._show_commits_when_empty"):
+                            with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                with patch(
+                                    "cr.ui.browser._read_browse_command",
+                                    side_effect=["command_prompt", "q"],
+                                ):
+                                    with patch(
+                                        "cr.ui.browser._read_command_query",
+                                        return_value="__interrupt__",
+                                    ):
+                                        with patch(
+                                            "cr.ui.browser._draw_browse_screen"
+                                        ) as draw:
+                                            from cr.ui.browser import run_browser
+
+                                            result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        self.assertEqual(draw.call_count, 2)
+
+    def test_filter_prompt_cancel_forces_full_browser_redraw(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._should_restore_browser_workspace_state", return_value=False):
+                    with patch(
+                        "cr.ui.browser._load_browse_changes",
+                        return_value=[FileChange("src/Sample.ts", 1, 1)],
+                    ):
+                        with patch("cr.ui.browser._show_commits_when_empty"):
+                            with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                with patch(
+                                    "cr.ui.browser._read_browse_command",
+                                    side_effect=["filter_prompt", "q"],
+                                ):
+                                    with patch(
+                                        "cr.ui.browser._read_filter_query",
+                                        return_value="__interrupt__",
+                                    ):
+                                        with patch(
+                                            "cr.ui.browser._draw_browse_screen"
+                                        ) as draw:
+                                            from cr.ui.browser import run_browser
+
+                                            result = run_browser(args)
+
+        self.assertEqual(result, 0)
+        self.assertEqual(draw.call_count, 2)
 
     def test_screen_layout_reserves_prompt_and_build_panel_regions(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

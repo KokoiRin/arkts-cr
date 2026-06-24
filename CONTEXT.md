@@ -34,9 +34,10 @@ or draw the Browser Frame.
 `cr.ui.page_content` owns browser page main-content rendering: prompt labels,
 help lines, scope breadcrumbs/context, Scope Home entries and overview counts,
 Changed Files tree rows including local change source badges and summaries,
-Commit Picker rows, empty states, File Detail lines, and page scroll window
-calculations. It does not read raw input, draw the Browser Frame, run commands,
-switch review scopes, persist workspace state, or execute file actions.
+Commit Picker rows and change summaries, empty states, File Detail lines, and
+page scroll window calculations. It does not read raw input, draw the Browser
+Frame, run commands, switch review scopes, persist workspace state, or execute
+file actions.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
 loading, path/source filtering, progress markers, per-file review notes,
 selected-file state, and browser workspace-state data interpretation.
@@ -103,6 +104,10 @@ Product navigation terms:
   Worktree, Staged, All local changes, and Recent commits. Browser
   orchestration samples these counts when Scope Home opens or refreshes; Page
   Content renders them; workspace persistence does not store them.
+- `Commit Picker Change Summary`: per-commit file count and added/deleted line
+  totals shown in Recent commits rows. `cr.vcs.git` owns the facts; Page
+  Content owns row display; selecting a commit still enters the same
+  `commit <sha>` Review Scope.
 - `Change Source Badges`: lightweight local Git source labels shown in Changed
   Files rows, such as `staged`, `unstaged`, and `mixed`. `cr.vcs.git` owns the
   facts; `Page Content` owns row display.

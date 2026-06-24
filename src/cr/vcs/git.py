@@ -32,6 +32,9 @@ class CommitSummary:
     parent: str | None
     authored_at: str
     subject: str
+    files: int = 0
+    added: int = 0
+    deleted: int = 0
 
 
 class GitError(RuntimeError):
@@ -296,18 +299,49 @@ def recent_commits(limit: int = 20) -> list[CommitSummary]:
             "log",
             "-n",
             str(max(1, limit)),
-            "--pretty=format:%H%x1f%P%x1f%cs%x1f%s",
+            "--pretty=format:%x1e%H%x1f%P%x1f%cs%x1f%s",
+            "--numstat",
         ]
     ).stdout
     commits: list[CommitSummary] = []
-    for line in output.splitlines():
-        parts = line.split("\x1f", 3)
+    for block in output.split("\x1e"):
+        lines = [line for line in block.splitlines() if line]
+        if not lines:
+            continue
+        parts = lines[0].split("\x1f", 3)
         if len(parts) != 4:
             continue
         commit, parents, authored_at, subject = parts
         parent = parents.split()[0] if parents else None
-        commits.append(CommitSummary(commit, parent, authored_at, subject))
+        files, added, deleted = _commit_numstat_totals(lines[1:])
+        commits.append(
+            CommitSummary(
+                commit,
+                parent,
+                authored_at,
+                subject,
+                files=files,
+                added=added,
+                deleted=deleted,
+            )
+        )
     return commits
+
+
+def _commit_numstat_totals(lines: list[str]) -> tuple[int, int, int]:
+    files = 0
+    added = 0
+    deleted = 0
+    for line in lines:
+        parts = line.split("\t")
+        if len(parts) < 3:
+            continue
+        files += 1
+        if parts[0].isdigit():
+            added += int(parts[0])
+        if parts[1].isdigit():
+            deleted += int(parts[1])
+    return files, added, deleted
 
 
 def commit_ref_range(commit: CommitSummary) -> str:

@@ -50,6 +50,8 @@ Commit 不应该是和文件平铺在一起的普通 mode。它是 Review Scope 
 
 Scope Home counts 属于这一层的临时概览：它告诉用户 Worktree、Staged、All local changes、Recent commits 当前各有多少内容，但不改变 Review Scope，也不进入持久 workspace state。
 
+Commit Picker change summary 属于 Recent commits 这个一级选择器的行元信息：它告诉用户每个 commit 大概改了几个文件、多少增删行。选中后仍然进入同一个 `commit <sha>` Review Scope。
+
 ### 2. Changed Files
 
 Changed Files 是二级对象：它展示当前 Review Scope 里改动了哪些文件。
@@ -175,6 +177,7 @@ Change source badges are now explicit Changed Files metadata. `cr.vcs.git` annot
 Change source filtering is now explicit Changed Files view state. `ReviewWorkspace` owns `source_filter`, `BrowserCommandAction` parses `source staged` / `source unstaged` / `source mixed` / `source all`, and `cr.ui.page_content` renders the active filter context.
 Change source summary is now explicit Changed Files metadata. `cr.ui.page_content` derives visible `staged`, `unstaged`, and `mixed` counts from rendered `FileChange.source` facts and omits the summary for comparison scopes without local source facts.
 Scope Home counts are now explicit first-layer overview metadata. `browser.py` samples Worktree, Staged, All local changes, and Recent commits counts when Scope Home opens or refreshes; `cr.ui.page_content` renders those counts on Scope Home rows; persistence does not store them.
+Commit Picker change summary is now explicit first-layer row metadata. `cr.vcs.git.recent_commits()` parses Git numstat data into file count and added/deleted totals; `cr.ui.page_content` renders those facts in Recent commits rows without changing selected commit scope behavior.
 
 ## Implementation Rules
 
@@ -393,6 +396,12 @@ Status: implemented.
 
 Scope Home now shows live overview counts beside directly countable first-layer entries: Worktree, Staged, All local changes, and Recent commits. Counts are sampled by `browser.py` when Scope Home opens or refreshes, respect existing path/code/untracked filters for changed-file scopes, and stay out of workspace persistence.
 
+### P0: Commit Picker change summary
+
+Status: implemented.
+
+Recent commits rows now show each commit's changed-file count and line churn, for example `2 files, +10 -3`. These facts are parsed by `cr.vcs.git.recent_commits()` from Git numstat output and rendered by `cr.ui.page_content`, while selecting a commit still enters the same `commit <sha>` Review Scope and Changed Files layer.
+
 ## Architecture Check Cadence
 
 Use the architecture skill periodically, especially before changes that touch `src/cr/ui/browser.py`, `src/cr/review/changes.py`, or workspace persistence.
@@ -402,5 +411,5 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is still a large module that owns session orchestration, prompt-input interpretation, action routing, frame composition, and workspace startup/exit.
-- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules and path/source filtering, `Workspace Persistence` hides persisted workspace file I/O, `Browser Frame` hides screen-layer layout and Task Panel presentation, `Browser Input` hides terminal input protocol, `Page Content` hides product-page main content rendering plus Scope Home count display and source-badge/filter-context/summary display, `Selected File Actions` hides current-file workflows and local index-action gating, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, `cr.ui.file_actions` hides open/copy/reveal platform behavior, and `cr.vcs.git` hides Git index subprocess behavior plus local change source facts.
+- `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules and path/source filtering, `Workspace Persistence` hides persisted workspace file I/O, `Browser Frame` hides screen-layer layout and Task Panel presentation, `Browser Input` hides terminal input protocol, `Page Content` hides product-page main content rendering plus Scope Home count display, Commit Picker summary display, and source-badge/filter-context/summary display, `Selected File Actions` hides current-file workflows and local index-action gating, `BrowserCommandAction` hides command string parsing, `Command Catalog` hides command surface data/filtering/rendering, `BrowserCommandExecutor` hides action execution, `cr.ui.tasks` hides task runtime behavior, `cr.ui.file_actions` hides open/copy/reveal platform behavior, and `cr.vcs.git` hides Git index subprocess behavior plus local change source facts.
 - The next product opportunity should come from concrete usage friction around richer review handoff workflows or broader IDE-like file operations.

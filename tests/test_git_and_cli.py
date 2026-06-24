@@ -4273,6 +4273,32 @@ class CliTests(unittest.TestCase):
         self.assertIn("Scope: recent commits", text)
         self.assertNotIn("Scope: recent commits > Files", text)
 
+    def test_commit_picker_rows_show_change_summary(self):
+        state = BrowserState(
+            [],
+            commits=[
+                CommitSummary(
+                    commit="abcdef1234567890",
+                    parent="1234567890abcdef",
+                    authored_at="2026-06-24",
+                    subject="Example change",
+                    files=2,
+                    added=10,
+                    deleted=3,
+                )
+            ],
+            page=BrowserPage.COMMIT_PICKER,
+        )
+
+        lines = page_content.browse_commit_screen_lines(
+            state,
+            TerminalStyle(),
+            max_lines=10,
+        )
+
+        self.assertIn("2 files, +10 -3", "\n".join(lines))
+        self.assertIn("Example change", "\n".join(lines))
+
     def test_browse_screen_selected_commit_files_show_product_breadcrumb(self):
         args = argparse_namespace(
             staged=False,
@@ -6313,6 +6339,7 @@ struct SamplePage {
             self.assertEqual(session.returncode, 0, session.stderr)
             self.assertIn("Recent commits", session.stdout)
             self.assertIn("change sample", session.stdout)
+            self.assertIn("1 file, +1 -1", session.stdout)
             self.assertIn("cr:commits>", session.stdout)
             self.assertIn("Changed files", session.stdout)
             self.assertIn("Sample.ts", session.stdout)
@@ -7332,6 +7359,36 @@ struct SamplePage {
             {change.path: change.source for change in unstaged_changes},
             {"unstaged.ts": "unstaged"},
         )
+
+    def test_git_recent_commits_include_change_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "first.ts"
+            second = repo / "second.ts"
+            first.write_text("old\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            first.write_text("new\n", encoding="utf-8")
+            second.write_text("one\ntwo\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "change summary")
+
+            previous_cwd = Path.cwd()
+            try:
+                os.chdir(repo)
+                commits = git.recent_commits(limit=1)
+            finally:
+                os.chdir(previous_cwd)
+
+        self.assertEqual(len(commits), 1)
+        self.assertEqual(commits[0].subject, "change summary")
+        self.assertEqual(commits[0].files, 2)
+        self.assertEqual(commits[0].added, 3)
+        self.assertEqual(commits[0].deleted, 1)
 
     def test_git_comparison_scopes_do_not_mark_local_sources(self):
         with tempfile.TemporaryDirectory() as tmp:

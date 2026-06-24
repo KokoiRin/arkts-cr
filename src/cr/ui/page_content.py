@@ -475,9 +475,11 @@ def browse_commit_lines(
     for index, commit in enumerate(commits, start=1):
         marker = ">" if selected == index - 1 else " "
         short_hash = commit.commit[:8]
+        summary = commit_change_summary(commit, style)
         lines.append(
             f"{marker} {str(index).rjust(index_width)}  "
-            f"{style.dim(short_hash)}  {commit.authored_at}  {commit.subject}"
+            f"{style.dim(short_hash)}  {commit.authored_at}  "
+            f"{summary}  {commit.subject}"
         )
     lines.append("")
     return lines
@@ -503,15 +505,26 @@ def browse_commit_screen_lines(
     for index, commit in enumerate(commits[start:end], start=start + 1):
         marker = ">" if state.selected == index - 1 else " "
         short_hash = commit.commit[:8]
+        summary = commit_change_summary(commit, style)
         lines.append(
             f"{marker} {str(index).rjust(index_width)}  "
-            f"{style.dim(short_hash)}  {commit.authored_at}  {commit.subject}"
+            f"{style.dim(short_hash)}  {commit.authored_at}  "
+            f"{summary}  {commit.subject}"
         )
     if len(commits) > row_capacity:
         lines.append(style.dim(f"showing {start + 1}-{end}/{len(commits)}"))
     else:
         lines.append("")
     return lines[:max_lines]
+
+
+def commit_change_summary(commit: git.CommitSummary, style: TerminalStyle) -> str:
+    file_label = "file" if commit.files == 1 else "files"
+    return (
+        f"{commit.files} {file_label}, "
+        f"{style.added('+' + str(commit.added))} "
+        f"{style.deleted('-' + str(commit.deleted))}"
+    )
 
 
 def empty_browse_lines(

@@ -33,10 +33,10 @@ It does not parse browser commands, mutate browser state, save workspace state,
 or draw the Browser Frame.
 `cr.ui.page_content` owns browser page main-content rendering: prompt labels,
 help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree
-rows including local change source badges, Commit Picker rows, empty states,
-File Detail lines, and page scroll window calculations. It does not read raw
-input, draw the Browser Frame, run commands, switch review scopes, persist
-workspace state, or execute file actions.
+rows including local change source badges and summaries, Commit Picker rows,
+empty states, File Detail lines, and page scroll window calculations. It does
+not read raw input, draw the Browser Frame, run commands, switch review scopes,
+persist workspace state, or execute file actions.
 `cr.ui.workspace.ReviewWorkspace` owns active review scope state, changed-file
 loading, path/source filtering, progress markers, per-file review notes,
 selected-file state, and browser workspace-state data interpretation.
@@ -106,6 +106,10 @@ Product navigation terms:
   `source staged` / `source unstaged` / `source mixed` / `source all`. It is
   owned by Review Workspace and composes with path filters and remaining-only
   review progress.
+- `Change Source Summary`: a Changed Files metadata line that counts visible
+  `staged`, `unstaged`, and `mixed` local source facts. It is derived by Page
+  Content from the currently rendered changes and is not persisted workspace
+  state.
 - `Browser Navigation`: the internal module that moves between Scope Home,
   Commit Picker, Changed Files, File Detail, and Command Palette, including
   in-session back/forward page history, without loading Git data or rendering

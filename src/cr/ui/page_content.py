@@ -192,6 +192,9 @@ def browse_list_lines(
         f"{style.deleted('-' + str(total_deleted))})",
     ]
     lines = [line for line in lines if line]
+    source_summary = change_source_summary(changes)
+    if source_summary:
+        lines.append(source_summary)
     if filter_text:
         lines.append(
             f"Filter: {filter_text} ({len(changes)}/{total_changes} matches, c to clear)"
@@ -247,6 +250,9 @@ def browse_list_screen_lines(
         suffix = " remaining only" if state.remaining_only else ""
         header = f"{header}  Progress: {seen_count}/{len(state.changes)} seen{suffix}"
     lines = [header]
+    source_summary = change_source_summary(changes)
+    if source_summary:
+        lines.append(source_summary)
     if state.filter_text:
         lines.append(
             f"Filter: {state.filter_text} "
@@ -296,6 +302,17 @@ def browse_tree_rows(changes: list[git.FileChange]) -> list[BrowseTreeRow]:
     if root_label and rows:
         return [BrowseTreeRow(f"└─ {root_label}"), *rows]
     return rows
+
+
+def change_source_summary(changes: list[git.FileChange]) -> str:
+    counts: dict[str, int] = {"staged": 0, "unstaged": 0, "mixed": 0}
+    for change in changes:
+        if change.source in counts:
+            counts[change.source] += 1
+    parts = [f"{source} {count}" for source, count in counts.items() if count]
+    if not parts:
+        return ""
+    return f"Sources: {', '.join(parts)}"
 
 
 def insert_browse_tree(

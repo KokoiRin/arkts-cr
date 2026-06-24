@@ -4889,6 +4889,35 @@ class CliTests(unittest.TestCase):
         self.assertIn("modified", row)
         self.assertIn("note", row)
 
+    def test_page_content_changed_file_header_shows_source_summary(self):
+        lines = page_content.browse_list_lines(
+            [
+                FileChange("src/Staged.ts", 1, 0, source="staged"),
+                FileChange("src/Unstaged.ts", 2, 1, source="unstaged"),
+                FileChange("src/Mixed.ts", 3, 2, source="mixed"),
+            ],
+            argparse_namespace(),
+            TerminalStyle(),
+        )
+
+        self.assertIn("Sources: staged 1, unstaged 1, mixed 1", "\n".join(lines))
+
+    def test_page_content_source_summary_omits_zero_and_empty_sources(self):
+        staged_lines = page_content.browse_list_lines(
+            [FileChange("src/Staged.ts", 1, 0, source="staged")],
+            argparse_namespace(),
+            TerminalStyle(),
+        )
+        comparison_lines = page_content.browse_list_lines(
+            [FileChange("src/CommitOnly.ts", 1, 0)],
+            argparse_namespace(),
+            TerminalStyle(),
+        )
+
+        self.assertIn("Sources: staged 1", "\n".join(staged_lines))
+        self.assertNotIn("unstaged 0", "\n".join(staged_lines))
+        self.assertNotIn("Sources:", "\n".join(comparison_lines))
+
     def test_page_content_changed_file_header_shows_source_filter(self):
         state = BrowserState(
             [

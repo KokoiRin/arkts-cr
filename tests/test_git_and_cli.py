@@ -11,6 +11,7 @@ from io import StringIO
 
 from cr.ui.browser import (
     BrowserState,
+    _browse_file_screen_lines,
     _draw_browse_screen,
     _open_command,
     filter_changes_by_query,
@@ -113,6 +114,73 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.visible_changes, [])
         self.assertEqual(state.selected, 0)
         self.assertEqual(state.mode, "list")
+
+    def test_browse_screen_only_measures_visible_list_rows(self):
+        changes = [FileChange(f"src/File{index}.ts", 1, 0) for index in range(30)]
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        state = BrowserState(changes)
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with patch("cr.ui.browser.git.first_changed_line", return_value=1) as first_line:
+                with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/File0.ts")):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertLess(first_line.call_count, len(changes))
+        self.assertIn("showing 1-", text)
+        self.assertIn("src/File0.ts", text)
+        self.assertNotIn("src/File29.ts", text)
+
+    def test_browse_file_screen_scrolls_long_content(self):
+        args = argparse_namespace(
+            context=0,
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)], mode="file")
+        full_lines = ["File 1/1  src/Sample.ts"] + [
+            f"line {index}" for index in range(1, 21)
+        ]
+
+        with patch("cr.ui.browser._browse_file_lines", return_value=full_lines):
+            top = _browse_file_screen_lines(
+                state,
+                state.changes[0],
+                0,
+                1,
+                args,
+                TerminalStyle(False),
+                max_lines=6,
+            )
+            state.file_scroll = 10
+            lower = _browse_file_screen_lines(
+                state,
+                state.changes[0],
+                0,
+                1,
+                args,
+                TerminalStyle(False),
+                max_lines=6,
+            )
+
+        self.assertEqual(top[:2], ["File 1/1  src/Sample.ts", "line 1"])
+        self.assertIn("showing 1-4/20", top[-1])
+        self.assertIn("line 11", lower)
+        self.assertIn("showing 11-14/20", lower[-1])
 
     def test_cli_diff_outline_and_review_in_temp_repo(self):
         with tempfile.TemporaryDirectory() as tmp:

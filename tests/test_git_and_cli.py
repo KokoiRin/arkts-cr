@@ -85,7 +85,8 @@ class CliTests(unittest.TestCase):
         text = output.getvalue()
         self.assertTrue(text.startswith("\033[2J\033[H"))
         self.assertIn("> 1", text)
-        self.assertIn("src/Sample.ts", text)
+        self.assertIn("└─ src", text)
+        self.assertIn("└─ Sample.ts", text)
 
     def test_browse_filter_matches_paths_and_clamps_selection(self):
         changes = [
@@ -138,9 +139,10 @@ class CliTests(unittest.TestCase):
 
         text = output.getvalue()
         self.assertLess(first_line.call_count, len(changes))
-        self.assertIn("showing 1-", text)
-        self.assertIn("src/File0.ts", text)
-        self.assertNotIn("src/File29.ts", text)
+        self.assertIn("showing rows 1-", text)
+        self.assertIn("└─ src", text)
+        self.assertIn("File0.ts", text)
+        self.assertNotIn("File29.ts", text)
 
     def test_browse_file_screen_scrolls_long_content(self):
         args = argparse_namespace(

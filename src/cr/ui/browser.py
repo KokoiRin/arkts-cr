@@ -29,7 +29,12 @@ from ..review.changes import (
     sort_changes,
 )
 from ..review.risk import risk_hints
-from ..review.tree import format_change_summary, shorten_path
+from ..review.tree import (
+    DEFAULT_PATH_CONTEXT_DIRS,
+    format_change_summary,
+    shorten_path,
+    style_change_summary,
+)
 from ..source.purpose import describe_file
 from ..vcs import git
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
@@ -76,6 +81,21 @@ class BrowserState:
 
     def clear_filter(self) -> None:
         self.set_filter("")
+
+
+@dataclass
+class BrowseTreeRow:
+    label: str
+    change: git.FileChange | None = None
+    change_index: int | None = None
+
+
+@dataclass
+class _BrowseTreeNode:
+    name: str
+    children: dict[str, "_BrowseTreeNode"] = field(default_factory=dict)
+    change: git.FileChange | None = None
+    change_index: int | None = None
 
 
 def run_browser(args: argparse.Namespace) -> int:
@@ -465,23 +485,19 @@ def _browse_list_lines(
         lines.append(
             f"Filter: {filter_text} ({len(changes)}/{total_changes} matches, c to clear)"
         )
+    rows = _browse_tree_rows(changes)
+    label_width = max(len(row.label) for row in rows)
     index_width = len(str(len(changes)))
-    path_width = max(len(shorten_path(change.path)) for change in changes)
-    for index, change in enumerate(changes, start=1):
-        path = shorten_path(change.path)
-        marker = ">" if selected == index - 1 else " "
-        first_line = git.first_changed_line(
-            change.path,
-            staged=args.staged,
-            all_changes=args.all_changes,
-            base=args.base,
-            ref_range=args.ref_range,
-        )
+    for row in rows:
         lines.append(
-            f"{marker} {str(index).rjust(index_width)}  "
-            f"{style.path(path.ljust(path_width), _link_target(change.path, first_line, args))}  "
-            f"{_style_counts(change, style)}  "
-            f"{change.status}"
+            _format_browse_tree_row(
+                row,
+                selected,
+                index_width,
+                label_width,
+                args,
+                style,
+            )
         )
     lines.append("")
     return lines
@@ -514,28 +530,146 @@ def _browse_list_screen_lines(
         )
     if len(changes) > 1:
         lines.append("Enter: open file   PgUp/PgDn: page   Home/End: jump")
+    rows = _browse_tree_rows(changes)
+    selected_row = _selected_tree_row(rows, state.selected)
     row_capacity = max(1, max_lines - len(lines) - 1)
-    start = _ensure_window(state.list_scroll, state.selected, len(changes), row_capacity)
+    start = _ensure_window(state.list_scroll, selected_row, len(rows), row_capacity)
     state.list_scroll = start
-    end = min(len(changes), start + row_capacity)
-    visible_rows = changes[start:end]
+    end = min(len(rows), start + row_capacity)
+    visible_rows = rows[start:end]
     index_width = len(str(len(changes)))
-    path_width = max(len(shorten_path(change.path)) for change in visible_rows)
-    for index, change in enumerate(visible_rows, start=start + 1):
-        path = shorten_path(change.path)
-        marker = ">" if state.selected == index - 1 else " "
-        first_line = _cached_first_changed_line(state, change, args)
+    label_width = max(len(row.label) for row in visible_rows)
+    for row in visible_rows:
         lines.append(
-            f"{marker} {str(index).rjust(index_width)}  "
-            f"{style.path(path.ljust(path_width), _link_target(change.path, first_line, args))}  "
-            f"{_style_counts(change, style)}  "
-            f"{change.status}"
+            _format_browse_tree_row(
+                row,
+                state.selected,
+                index_width,
+                label_width,
+                args,
+                style,
+                state,
+            )
         )
-    if len(changes) > row_capacity:
-        lines.append(style.dim(f"showing {start + 1}-{end}/{len(changes)}"))
+    if len(rows) > row_capacity:
+        lines.append(style.dim(f"showing rows {start + 1}-{end}/{len(rows)}"))
     else:
         lines.append("")
     return lines[:max_lines]
+
+
+def _browse_tree_rows(changes: list[git.FileChange]) -> list[BrowseTreeRow]:
+    common_dir = _browser_common_changed_dir(changes)
+    root = _BrowseTreeNode("")
+    for index, change in enumerate(changes):
+        _insert_browse_tree(root, change, index, common_dir)
+
+    root_label = _browser_compact_root_label(common_dir)
+    child_prefix = "   " if root_label else ""
+    rows = _render_browse_tree_children(root, child_prefix)
+    if root_label and rows:
+        return [BrowseTreeRow(f"└─ {root_label}"), *rows]
+    return rows
+
+
+def _insert_browse_tree(
+    root: _BrowseTreeNode,
+    change: git.FileChange,
+    change_index: int,
+    common_dir: list[str],
+) -> None:
+    node = root
+    parts = [part for part in change.path.split("/") if part]
+    if common_dir and parts[: len(common_dir)] == common_dir:
+        parts = parts[len(common_dir) :]
+    for part in parts:
+        node = node.children.setdefault(part, _BrowseTreeNode(part))
+    node.change = change
+    node.change_index = change_index
+
+
+def _render_browse_tree_children(
+    node: _BrowseTreeNode,
+    prefix: str,
+) -> list[BrowseTreeRow]:
+    rows: list[BrowseTreeRow] = []
+    items = sorted(node.children.values(), key=lambda child: child.name)
+    for index, child in enumerate(items):
+        is_last = index == len(items) - 1
+        branch = "└─" if is_last else "├─"
+        rows.append(
+            BrowseTreeRow(
+                f"{prefix}{branch} {child.name}",
+                child.change,
+                child.change_index,
+            )
+        )
+        child_prefix = prefix + ("   " if is_last else "│  ")
+        rows.extend(_render_browse_tree_children(child, child_prefix))
+    return rows
+
+
+def _format_browse_tree_row(
+    row: BrowseTreeRow,
+    selected: int | None,
+    index_width: int,
+    label_width: int,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    state: BrowserState | None = None,
+) -> str:
+    if row.change is None or row.change_index is None:
+        return f"  {' ' * index_width}  {style.path(row.label)}"
+
+    marker = ">" if selected == row.change_index else " "
+    first_line = (
+        _cached_first_changed_line(state, row.change, args)
+        if state is not None
+        else git.first_changed_line(
+            row.change.path,
+            staged=args.staged,
+            all_changes=args.all_changes,
+            base=args.base,
+            ref_range=args.ref_range,
+        )
+    )
+    status = " modified" if row.change.status == "modified" else ""
+    return (
+        f"{marker} {str(row.change_index + 1).rjust(index_width)}  "
+        f"{style.path(row.label.ljust(label_width), _link_target(row.change.path, first_line, args))}  "
+        f"{style_change_summary(row.change, style)}"
+        f"{status}"
+    )
+
+
+def _selected_tree_row(rows: list[BrowseTreeRow], selected: int) -> int:
+    for index, row in enumerate(rows):
+        if row.change_index == selected:
+            return index
+    return 0
+
+
+def _browser_common_changed_dir(changes: list[git.FileChange]) -> list[str]:
+    dirs = [[part for part in change.path.split("/") if part][:-1] for change in changes]
+    if not dirs:
+        return []
+    common = dirs[0]
+    for directory in dirs[1:]:
+        index = 0
+        limit = min(len(common), len(directory))
+        while index < limit and common[index] == directory[index]:
+            index += 1
+        common = common[:index]
+        if not common:
+            return []
+    return common
+
+
+def _browser_compact_root_label(common_dir: list[str]) -> str:
+    if not common_dir:
+        return ""
+    prefix = ".../" if len(common_dir) > DEFAULT_PATH_CONTEXT_DIRS else ""
+    return prefix + "/".join(common_dir[-DEFAULT_PATH_CONTEXT_DIRS:])
 
 
 def _browse_commit_lines(
@@ -760,12 +894,6 @@ def _ensure_window(
     if selected >= start + capacity:
         return min(max_start, selected - capacity + 1)
     return start
-
-
-def _style_counts(change: git.FileChange, style: TerminalStyle) -> str:
-    added = "?" if change.added is None else str(change.added)
-    deleted = "?" if change.deleted is None else str(change.deleted)
-    return f"{style.added('+' + added)} {style.deleted('-' + deleted)}"
 
 
 def _use_raw_keys() -> bool:

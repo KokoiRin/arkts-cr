@@ -21,7 +21,9 @@ the four module groups before the CLI knows about it. In particular,
 `cr.review.changes` owns shared review-scope facts used by both `review` and
 `diff`. The interactive browser also reuses `cr.review.changes` for changed-file
 selection, sorting, code-file detection, hunk rendering, and modified-symbol
-facts; `cr.ui.browser` should only own interaction state and terminal behavior.
+facts; `cr.ui.browser` should own browse orchestration and terminal behavior,
+while `cr.ui.navigation.BrowserNavigation` owns page transition rules and their
+small local state resets.
 
 Product navigation terms:
 
@@ -35,3 +37,6 @@ Product navigation terms:
   hierarchy level.
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
   content, task panel, and prompt regions.
+- `Browser Navigation`: the internal module that moves between Scope Home,
+  Commit Picker, Changed Files, File Detail, and Command Palette without
+  loading Git data or rendering terminal output.

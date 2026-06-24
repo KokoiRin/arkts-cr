@@ -15,6 +15,7 @@ import cr.ui.browser as browser_module
 from cr.ui.browser import (
     TaskState,
     BrowserFrame,
+    BrowserNavigation,
     BrowserPage,
     BrowserState,
     TaskRecord,
@@ -92,8 +93,83 @@ class CliTests(unittest.TestCase):
         self.assertIn("BrowserPage.COMMIT_PICKER", source)
         self.assertIn("BrowserPage.SCOPE_HOME", source)
         self.assertIn("BrowserPage.COMMAND_PALETTE", source)
+        self.assertIn("BrowserNavigation.", source)
         self.assertNotIn('mode: str = "list"', source)
         self.assertNotIn("state.mode", source)
+        self.assertNotIn("state.page = BrowserPage", source)
+
+    def test_browser_navigation_opens_pages_and_resets_local_state(self):
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            selected=3,
+            list_scroll=4,
+            commit_scroll=5,
+            command_scroll=6,
+            file_scroll=7,
+            scope_selected=2,
+            command_selected=3,
+            page=BrowserPage.FILE_DETAIL,
+        )
+
+        BrowserNavigation.show_scope_home(state)
+        self.assertEqual(state.page, BrowserPage.SCOPE_HOME)
+        self.assertEqual(state.scope_selected, 0)
+
+        BrowserNavigation.show_command_palette(state)
+        self.assertEqual(state.page, BrowserPage.COMMAND_PALETTE)
+        self.assertEqual(state.command_selected, 0)
+        self.assertEqual(state.command_scroll, 0)
+
+        BrowserNavigation.show_commit_picker(state, clear_selected_commit=True)
+        self.assertEqual(state.page, BrowserPage.COMMIT_PICKER)
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(state.commit_scroll, 0)
+
+        BrowserNavigation.show_changed_files(state)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.file_scroll, 0)
+
+        state.file_scroll = 9
+        BrowserNavigation.open_file_detail(state)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 0)
+
+    def test_browser_navigation_back_preserves_existing_hierarchy_rules(self):
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            page=BrowserPage.COMMAND_PALETTE,
+            file_scroll=7,
+        )
+
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.file_scroll, 0)
+
+        state.page = BrowserPage.SCOPE_HOME
+        state.file_scroll = 8
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.file_scroll, 0)
+
+        state.page = BrowserPage.FILE_DETAIL
+        state.file_scroll = 9
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.file_scroll, 0)
+
+        commit = CommitSummary(
+            commit="abcdef1234567890",
+            parent=None,
+            authored_at="2026-06-24",
+            subject="Example",
+        )
+        state.selected_commit = commit
+        state.page = BrowserPage.CHANGED_FILES
+        state.file_scroll = 10
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.COMMIT_PICKER)
+        self.assertIs(state.selected_commit, commit)
+        self.assertEqual(state.file_scroll, 0)
 
     def test_background_task_runtime_uses_task_state_names(self):
         source = Path(browser_module.__file__).read_text(encoding="utf-8")

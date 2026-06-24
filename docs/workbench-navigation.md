@@ -125,10 +125,16 @@ Task Panel / Browser Frame
     TaskState
     TaskRecord history
     BrowserFrame
+
+Browser Navigation
+  current implementation:
+    BrowserNavigation owns page transitions and local reset rules
+    it does not load Git data, switch scopes, render output, or keep a page stack
 ```
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
+Navigation rules are now explicit without adding a true page stack. `BrowserNavigation` owns the current hierarchy-aware transitions such as back-to-files, open-file-detail, show-scope-home, show-command-palette, and show-commit-picker.
 
 ## Implementation Rules
 
@@ -183,6 +189,12 @@ Status: implemented.
 
 `build`, `test` / `tests`, and `lint` now extend Task Panel instead of creating new product navigation layers. `stop` / `cancel` operate on the current task, and `rerun` / `rebuild` repeat the most recent task kind.
 
+### P0: Navigation module deepening
+
+Status: implemented.
+
+`BrowserNavigation` now owns page transition intent and local reset rules. The browser main loop calls navigation actions rather than scattering raw `state.page = ...` assignments. This keeps current behavior stable while giving later page-stack or ReviewWorkspace work a clearer place to attach.
+
 ## Architecture Check Cadence
 
 Use the architecture skill periodically, especially before changes that touch `src/cr/ui/browser.py`, `src/cr/review/changes.py`, or workspace persistence.
@@ -192,5 +204,6 @@ Keep the product navigation terms language-neutral. `Review Scope`, `Changed Fil
 Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
-- The next deepening opportunity is a `BrowserNavigation` or `ReviewWorkspace` module whose interface hides scope/list/file transitions from the render loop.
+- `BrowserNavigation` now hides page transition rules, but `src/cr/ui/browser.py` still owns command dispatch, rendering, scope loading, task lifecycle, and editor handoff.
+- The next deepening opportunity is a `ReviewWorkspace` module whose interface hides review-scope loading and current changed-file state from the render loop.
 - A real page stack is still not implemented. Add it only when back/forward history needs behavior beyond the current product hierarchy.

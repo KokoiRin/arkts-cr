@@ -144,6 +144,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Reuse `src/cr/review/changes.py` for changed-file selection, sorting, code-file detection, hunk rendering, and modified-symbol facts so `browse`, `review`, and `diff` share one implementation of review-scope rules.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, page, and filter query.
   - Treat `BrowserPage` as the canonical internal page vocabulary for Scope Home, Commit Picker, Changed Files, File Detail, and Command Palette.
+  - Treat `BrowserNavigation` as the owner of page transition rules and small local state resets such as file scroll, command selection, scope selection, and commit picker selection resets.
   - Keep `BrowserState.mode` only as a compatibility property over `BrowserState.page`, preserving older tests, line-mode assumptions, and persisted workspace `mode` values.
   - Treat argparse scope fields as the source of truth for the active review scope; browser commands update those fields and reload through the shared review selection path.
   - Treat `commands` mode as the command palette layer: raw-key users can filter/select executable commands and run them with Enter, while parameterized commands remain available through `:` input.

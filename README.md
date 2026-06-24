@@ -14,6 +14,7 @@ cr
 
 ```text
 帮助/上下文区    当前按键、当前视图
+工作区上下文    当前 review scope，比如 worktree / staged / range
 主内容区        文件树、commit 列表、单文件 diff
 任务面板区      build 等后台任务的最近输出
 输入提示区      cr:list> / cr:file> / cr:commits>
@@ -115,6 +116,18 @@ cr --context 0
 
 工作区没有未提交改动，或者当前改动已经暂存时，直接运行 `cr` 会显示最近的 commit 列表。也可以在文件列表里按 `g`，手动切到最近 commit 列表；选中某个 commit 后会进入这个 commit 的 changed-file list。
 查看 commit 后，按 `b` 会回到最近 commit 列表，按 `w` 会回到原来的工作区改动范围。
+
+切换 review scope：
+
+```text
+: worktree          查看未暂存工作区改动
+: staged            查看暂存区改动
+: all               查看 staged + unstaged 的本地改动
+: base main         查看当前工作区/HEAD 相对 main 的改动
+: range main..HEAD  查看两个 ref 之间的改动
+```
+
+界面会显示 `Scope: ...`，这样你能一直知道当前是在看 worktree、staged、all、base、range、recent commits 还是某个 commit。
 
 打开编辑器：
 

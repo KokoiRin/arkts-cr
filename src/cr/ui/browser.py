@@ -158,7 +158,14 @@ def run_browser(args: argparse.Namespace) -> int:
         prompt = _browse_prompt(state.mode)
         if not raw_keys:
             if state.mode == "commits":
-                _print_lines(_browse_commit_lines(state.commits, style, selected=None))
+                _print_lines(
+                    _browse_commit_lines(
+                        state.commits,
+                        style,
+                        selected=None,
+                        scope_label=_scope_label(state, args),
+                    )
+                )
             elif state.mode == "list":
                 _print_lines(
                     _browse_list_lines(
@@ -168,6 +175,7 @@ def run_browser(args: argparse.Namespace) -> int:
                         selected=None,
                         total_changes=len(state.changes),
                         filter_text=state.filter_text,
+                        scope_label=_scope_label(state, args),
                     )
                 )
             elif visible:
@@ -179,6 +187,7 @@ def run_browser(args: argparse.Namespace) -> int:
                         len(visible),
                         args,
                         style,
+                        _scope_label(state, args),
                     )
                 )
             else:
@@ -187,6 +196,7 @@ def run_browser(args: argparse.Namespace) -> int:
                         args,
                         state.filter_text,
                         total_changes=len(state.changes),
+                        scope_label=_scope_label(state, args),
                     )
                 )
                 state.mode = "list"
@@ -232,14 +242,65 @@ def run_browser(args: argparse.Namespace) -> int:
         if command in {"g", "commits", "log"}:
             state.commits = _load_recent_commits()
             state.mode = "commits"
+            state.selected_commit = None
             state.selected = 0
             state.commit_scroll = 0
             state.clamp_selection()
             needs_redraw = True
             continue
-        if command in {"w", "worktree", "workspace"}:
+        if command == "worktree":
+            _switch_review_scope(
+                state,
+                args,
+                ReviewScope(False, False, None, None, _args_untracked(args)),
+            )
+            needs_redraw = True
+            continue
+        if command in {"w", "workspace"}:
             if state.previous_scope is not None:
                 _restore_previous_scope(state, args)
+            else:
+                _switch_review_scope(
+                    state,
+                    args,
+                    ReviewScope(False, False, None, None, _args_untracked(args)),
+                )
+            needs_redraw = True
+            continue
+        if command in {"staged", "index"}:
+            _switch_review_scope(
+                state,
+                args,
+                ReviewScope(True, False, None, None, False),
+            )
+            needs_redraw = True
+            continue
+        if command == "all":
+            _switch_review_scope(
+                state,
+                args,
+                ReviewScope(False, True, None, None, _args_untracked(args)),
+            )
+            needs_redraw = True
+            continue
+        if command.startswith("base "):
+            ref = command.removeprefix("base ").strip()
+            if ref:
+                _switch_review_scope(
+                    state,
+                    args,
+                    ReviewScope(False, False, ref, None, False),
+                )
+                needs_redraw = True
+            continue
+        if command.startswith("range "):
+            ref_range = command.removeprefix("range ").strip()
+            if ref_range:
+                _switch_review_scope(
+                    state,
+                    args,
+                    ReviewScope(False, False, None, ref_range, False),
+                )
                 needs_redraw = True
             continue
         if command in {"h", "?", "help"}:
@@ -395,7 +456,7 @@ def run_browser(args: argparse.Namespace) -> int:
         if command:
             print(
                 "Unknown command. Use arrows, Enter, /, c, a number, "
-                "o, n, p, b, g, r, h, build, stop, rerun, or q."
+                "o, n, p, b, g, r, h, build, stop, rerun, staged, all, base, range, or q."
             )
 
 
@@ -421,7 +482,7 @@ def _load_recent_commits() -> list[git.CommitSummary]:
 
 
 def _show_commits_when_empty(state: BrowserState, args: argparse.Namespace) -> None:
-    if state.changes or args.base or args.ref_range:
+    if state.changes or args.base or args.ref_range or args.staged or args.all_changes:
         return
     state.commits = _load_recent_commits()
     if state.commits:
@@ -449,6 +510,29 @@ def _select_commit(state: BrowserState, args: argparse.Namespace) -> None:
     state.mode = "list"
     state.selected = 0
     state.list_scroll = 0
+    state.clamp_selection()
+
+
+def _switch_review_scope(
+    state: BrowserState,
+    args: argparse.Namespace,
+    scope: ReviewScope,
+) -> None:
+    args.staged = scope.staged
+    args.all_changes = scope.all_changes
+    args.base = scope.base
+    args.ref_range = scope.ref_range
+    args.untracked = scope.untracked
+    state.selected_commit = None
+    state.previous_scope = None
+    state.filter_text = ""
+    state.changes = _load_browse_changes(args)
+    state.clear_render_cache()
+    state.mode = "list"
+    state.selected = 0
+    state.list_scroll = 0
+    state.commit_scroll = 0
+    _show_commits_when_empty(state, args)
     state.clamp_selection()
 
 
@@ -604,20 +688,22 @@ def _draw_browse_screen(
     if state.mode == "commits":
         lines = [
             *_browse_help_lines(style),
+            _scope_context_line(state, args, style),
             *_browse_commit_screen_lines(
                 state,
                 style,
-                max(1, content_lines - len(_browse_help_lines(style))),
+                max(1, content_lines - len(_browse_help_lines(style)) - 1),
             ),
         ]
     elif state.mode == "list":
         lines = [
             *_browse_help_lines(style),
+            _scope_context_line(state, args, style),
             *_browse_list_screen_lines(
                 state,
                 args,
                 style,
-                max(1, content_lines - len(_browse_help_lines(style))),
+                max(1, content_lines - len(_browse_help_lines(style)) - 1),
             ),
         ]
     elif visible:
@@ -635,6 +721,7 @@ def _draw_browse_screen(
             args,
             state.filter_text,
             total_changes=len(state.changes),
+            scope_label=_scope_label(state, args),
         )
     if build_panel_height:
         content_frame = lines[:content_lines]
@@ -716,6 +803,36 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
     ]
 
 
+def _scope_label(state: BrowserState, args: argparse.Namespace) -> str:
+    if state.mode == "commits":
+        return "recent commits"
+    if state.selected_commit is not None:
+        return f"commit {state.selected_commit.commit[:8]}"
+    if args.ref_range:
+        return f"range {args.ref_range}"
+    if args.base:
+        return f"base {args.base}"
+    if args.staged:
+        return "staged"
+    if args.all_changes:
+        return "all local changes"
+    if _args_untracked(args):
+        return "worktree + untracked"
+    return "worktree"
+
+
+def _args_untracked(args: argparse.Namespace) -> bool:
+    return bool(getattr(args, "untracked", False))
+
+
+def _scope_context_line(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    return style.dim(f"Scope: {_scope_label(state, args)}")
+
+
 def _browse_list_lines(
     changes: list[git.FileChange],
     args: argparse.Namespace,
@@ -723,6 +840,7 @@ def _browse_list_lines(
     selected: int | None = None,
     total_changes: int | None = None,
     filter_text: str = "",
+    scope_label: str = "",
 ) -> list[str]:
     total_changes = len(changes) if total_changes is None else total_changes
     if not changes:
@@ -730,10 +848,12 @@ def _browse_list_lines(
     total_added = sum(change.added or 0 for change in changes)
     total_deleted = sum(change.deleted or 0 for change in changes)
     lines = [
+        f"Scope: {scope_label}" if scope_label else "",
         f"{style.bold('Changed files')} "
         f"({len(changes)} files, {style.added('+' + str(total_added))} "
         f"{style.deleted('-' + str(total_deleted))})"
     ]
+    lines = [line for line in lines if line]
     if filter_text:
         lines.append(
             f"Filter: {filter_text} ({len(changes)}/{total_changes} matches, c to clear)"
@@ -780,7 +900,7 @@ def _browse_list_screen_lines(
             f"Filter: {state.filter_text} "
             f"({len(changes)}/{len(state.changes)} matches, c to clear)"
         )
-    if len(changes) > 1:
+    if len(changes) > 1 and max_lines >= 4:
         lines.append("Enter: open file   PgUp/PgDn: page   Home/End: jump")
     rows = _browse_tree_rows(changes)
     selected_row = _selected_tree_row(rows, state.selected)
@@ -940,16 +1060,20 @@ def _browse_commit_lines(
     commits: list[git.CommitSummary],
     style: TerminalStyle,
     selected: int | None = None,
+    scope_label: str = "",
 ) -> list[str]:
     if not commits:
         return [
+            f"Scope: {scope_label}" if scope_label else "",
             "No recent commits.",
             "",
-        ]
+        ] if scope_label else ["No recent commits.", ""]
     lines = [
+        f"Scope: {scope_label}" if scope_label else "",
         f"{style.bold('Recent commits')} ({len(commits)} shown)",
         "Choose a commit to review its files. Press w to return to worktree.",
     ]
+    lines = [line for line in lines if line]
     index_width = len(str(len(commits)))
     for index, commit in enumerate(commits, start=1):
         marker = ">" if selected == index - 1 else " "
@@ -997,14 +1121,17 @@ def _empty_browse_lines(
     args: argparse.Namespace,
     filter_text: str = "",
     total_changes: int = 0,
+    scope_label: str = "",
 ) -> list[str]:
+    prefix = [f"Scope: {scope_label}"] if scope_label else []
     if filter_text:
         return [
+            *prefix,
             f"No changes match filter: {filter_text} ({total_changes} total).",
             "Press c to clear the filter.",
             "",
         ]
-    return [empty_message(args)]
+    return [*prefix, empty_message(args)]
 
 
 def _browse_file_screen_lines(
@@ -1040,6 +1167,7 @@ def _browse_file_lines(
     total: int,
     args: argparse.Namespace,
     style: TerminalStyle,
+    scope_label: str = "",
 ) -> list[str]:
     first_line = git.first_changed_line(
         change.path,
@@ -1050,11 +1178,13 @@ def _browse_file_lines(
     )
     anchor = f":{first_line}" if first_line else ""
     lines = [
+        f"Scope: {scope_label}" if scope_label else "",
         f"{style.bold(f'File {index + 1}/{total}')}  "
         f"{style.path(shorten_path(change.path), _link_target(change.path, first_line, args))}"
         f"{style.dim(anchor)}  "
         f"{style.bold(format_change_summary(change))}"
     ]
+    lines = [line for line in lines if line]
     risks = risk_hints(change.path)
     if risks:
         lines.append(f"  {style.warning('risk: ' + ', '.join(risks))}")
@@ -1119,6 +1249,7 @@ def _cached_file_lines(
             total,
             args,
             style,
+            _scope_label(state, args),
         )
     return state.file_line_cache[key]
 

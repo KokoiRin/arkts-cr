@@ -51,6 +51,8 @@ Implement a terminal-first code review workbench named `cr`.
   - Shows a changed-file list first, then a focused per-file diff view.
   - Uses stable screen regions in interactive TTYs so navigation and background tasks do not append repeated output.
   - Renders four page layers: help/context, main content, background task panel, and input prompt.
+  - Displays the active review scope in the context area: worktree, staged, all local changes, base ref, explicit range, recent commits, or selected commit.
+  - Supports in-session review-scope switching with `worktree`, `staged`, `all`, `base REF`, and `range OLD..NEW`.
   - Keeps the input prompt on the final terminal row.
   - Shows build output in a 5-10 line bottom task panel above the prompt while the main content remains usable.
   - Updates build output by repainting only the task panel when the user is idle.
@@ -130,6 +132,7 @@ Implement a terminal-first code review workbench named `cr`.
   - Keep `src/cr/cli.py` as the command parser and delegate interactive browse execution to `src/cr/ui/browser.py`.
   - Reuse `src/cr/review/changes.py` for changed-file selection, sorting, code-file detection, hunk rendering, and modified-symbol facts so `browse`, `review`, and `diff` share one implementation of review-scope rules.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, mode, and filter query.
+  - Treat argparse scope fields as the source of truth for the active review scope; browser commands update those fields and reload through the shared review selection path.
   - Treat browser screen layout as one module-owned concept: content height, background task height, task panel start row, and prompt row are calculated together.
   - Keep build task lifecycle in `BuildState` until a second real background task exists; do not introduce a generic task manager prematurely.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.

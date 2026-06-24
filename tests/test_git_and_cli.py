@@ -26,7 +26,9 @@ from cr.ui.browser import (
     _screen_layout,
     _start_build,
     _stop_build,
+    _switch_review_scope,
     filter_changes_by_query,
+    ReviewScope,
 )
 from cr.review.changes import format_counts
 from cr.ui.terminal import TerminalStyle
@@ -280,6 +282,7 @@ class CliTests(unittest.TestCase):
 
         text = output.getvalue()
         self.assertTrue(text.startswith("\033[2J\033[H"))
+        self.assertIn("Scope: worktree", text)
         self.assertIn("> 1", text)
         self.assertIn("└─ src", text)
         self.assertIn("└─ Sample.ts", text)
@@ -402,6 +405,52 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.visible_changes, [])
         self.assertEqual(state.selected, 0)
         self.assertEqual(state.mode, "list")
+
+    def test_switch_review_scope_resets_view_state_but_keeps_build_panel(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+            code=False,
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        build = BuildState(["true"], process, returncode=0)
+        state = BrowserState(
+            [FileChange("src/Old.ts", 1, 1)],
+            build=build,
+            selected=3,
+            list_scroll=4,
+            commit_scroll=2,
+            file_scroll=9,
+            mode="file",
+            filter_text="Old",
+        )
+        state.first_line_cache["src/Old.ts"] = 1
+        state.file_line_cache["src/Old.ts"] = ["cached"]
+
+        with patch("cr.ui.browser._load_browse_changes", return_value=[FileChange("src/New.ts", 2, 0)]):
+            _switch_review_scope(
+                state,
+                args,
+                ReviewScope(True, False, None, None, False),
+            )
+
+        self.assertTrue(args.staged)
+        self.assertEqual(state.changes, [FileChange("src/New.ts", 2, 0)])
+        self.assertIs(state.build, build)
+        self.assertEqual(state.mode, "list")
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(state.list_scroll, 0)
+        self.assertEqual(state.commit_scroll, 0)
+        self.assertEqual(state.file_scroll, 0)
+        self.assertEqual(state.filter_text, "")
+        self.assertEqual(state.first_line_cache, {})
+        self.assertEqual(state.file_line_cache, {})
+        process.wait(timeout=1)
 
     def test_browse_screen_only_measures_visible_list_rows(self):
         changes = [FileChange(f"src/File{index}.ts", 1, 0) for index in range(30)]
@@ -719,12 +768,79 @@ struct SamplePage {
             self.assertEqual(session.returncode, 0, session.stderr)
             self.assertIn("Changed files", session.stdout)
             self.assertIn("Recent commits", session.stdout)
+            self.assertIn("Scope: recent commits", session.stdout)
+            self.assertIn("Scope: commit", session.stdout)
             self.assertIn("committed sample", session.stdout)
             self.assertIn("cr:commits>", session.stdout)
             self.assertIn("-export const sample = 'old'", session.stdout)
             self.assertIn("+export const sample = 'committed'", session.stdout)
             self.assertIn("-export const sample = 'committed'", session.stdout)
             self.assertIn("+export const sample = 'working tree'", session.stdout)
+
+    def test_cli_browser_can_switch_review_scopes_in_line_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("export const sample = 'staged'\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+            sample.write_text("export const sample = 'worktree'\n", encoding="utf-8")
+
+            session = self._cr_input(
+                repo,
+                "staged\n1\nb\nall\n1\nb\nworktree\n1\nq\n",
+                "browse",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Scope: staged", session.stdout)
+            self.assertIn("-export const sample = 'old'", session.stdout)
+            self.assertIn("+export const sample = 'staged'", session.stdout)
+            self.assertIn("Scope: all local changes", session.stdout)
+            self.assertIn("+export const sample = 'worktree'", session.stdout)
+            self.assertIn("Scope: worktree", session.stdout)
+            self.assertIn("-export const sample = 'staged'", session.stdout)
+
+    def test_cli_browser_can_switch_to_base_and_range_scopes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            sample = repo / "src" / "Sample.ts"
+            sample.parent.mkdir(parents=True)
+            sample.write_text("export const sample = 'old'\n", encoding="utf-8")
+            self._run(repo, "git", "init")
+            self._run(repo, "git", "config", "user.email", "cr@example.invalid")
+            self._run(repo, "git", "config", "user.name", "cr")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "init")
+
+            sample.write_text("export const sample = 'committed'\n", encoding="utf-8")
+            self._run(repo, "git", "add", ".")
+            self._run(repo, "git", "commit", "-m", "committed sample")
+
+            sample.write_text("export const sample = 'worktree'\n", encoding="utf-8")
+
+            session = self._cr_input(
+                repo,
+                "base HEAD~1\n1\nb\nrange HEAD~1..HEAD\n1\nq\n",
+                "browse",
+                "--context",
+                "0",
+            )
+
+            self.assertEqual(session.returncode, 0, session.stderr)
+            self.assertIn("Scope: base HEAD~1", session.stdout)
+            self.assertIn("+export const sample = 'worktree'", session.stdout)
+            self.assertIn("Scope: range HEAD~1..HEAD", session.stdout)
+            self.assertIn("+export const sample = 'committed'", session.stdout)
 
     def test_cli_interactive_browser_filters_files_in_line_mode(self):
         with tempfile.TemporaryDirectory() as tmp:

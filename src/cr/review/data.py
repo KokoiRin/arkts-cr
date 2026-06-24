@@ -24,8 +24,10 @@ def build_review_data(
     other_changes: dict[str, int] | None = None,
     context: int = 2,
     seen_paths: set[str] | None = None,
+    review_notes: dict[str, str] | None = None,
 ) -> dict[str, object]:
     seen_paths = seen_paths or set()
+    review_notes = review_notes or {}
     files = [
         _file_data(
             change,
@@ -36,6 +38,7 @@ def build_review_data(
             include_hunks=include_hunks,
             context=context,
             seen=change.path in seen_paths,
+            review_note=review_notes.get(change.path, ""),
         )
         for change in changes
     ]
@@ -59,6 +62,7 @@ def _file_data(
     include_hunks: bool,
     context: int,
     seen: bool,
+    review_note: str,
 ) -> dict[str, object]:
     first_changed_line = git.first_changed_line(
         change.path,
@@ -89,6 +93,9 @@ def _file_data(
             else []
         ),
     }
+    clean_note = review_note.strip()
+    if clean_note:
+        data["review_note"] = clean_note
 
     if change.status != "deleted" and _is_code_file(change.path):
         try:

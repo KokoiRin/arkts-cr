@@ -53,6 +53,9 @@ def _file_summary(index: int, file_data: dict[str, object]) -> list[str]:
         lines.append(f"   - risk: {', '.join(risks)}")
     if file_data.get("seen"):
         lines.append("   - state: seen")
+    review_note = file_data.get("review_note")
+    if review_note:
+        lines.append(f"   - review note: {review_note}")
     purpose = file_data.get("purpose")
     if purpose:
         lines.append(f"   - purpose: {purpose}")
@@ -70,6 +73,9 @@ def _file_detail(file_data: dict[str, object]) -> list[str]:
         lines.append(f"- risk: {', '.join(risks)}")
     if file_data.get("seen"):
         lines.append("- state: seen")
+    review_note = file_data.get("review_note")
+    if review_note:
+        lines.append(f"- review note: {review_note}")
     purpose = file_data.get("purpose")
     if purpose:
         lines.append(f"- purpose: {purpose}")

@@ -72,8 +72,8 @@ Product navigation terms:
   `copy notes` / `copy notes QUERY` and persisted with browse state.
 - `Prompt Handoff`: Markdown review context copied from the current browser
   Review Scope or selected file through `copy prompt` / `copy prompt file`.
-  It reuses `cr.review` prompt rendering instead of defining browser-specific
-  prompt text.
+  It reuses `cr.review` prompt rendering, including supplied review notes,
+  instead of defining browser-specific prompt text.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

@@ -57,6 +57,8 @@ from cr.ui.browser import (
     ReviewScope,
 )
 from cr.review.changes import format_counts
+from cr.review.data import build_review_data
+from cr.review.prompt import render_prompt_handoff
 from cr.ui import command_catalog
 from cr.ui.terminal import TerminalStyle
 from cr.vcs.git import CommitSummary, FileChange
@@ -76,6 +78,54 @@ def argparse_namespace(**kwargs):
 
 
 class CliTests(unittest.TestCase):
+    def test_prompt_handoff_renders_review_notes_in_summary_and_detail(self):
+        prompt = render_prompt_handoff(
+            {
+                "summary": {"files": 1, "added": 2, "deleted": 1},
+                "other_changes": {"staged": 0, "unstaged": 0},
+                "files": [
+                    {
+                        "path": "src/Sample.ts",
+                        "summary": "+2 -1",
+                        "status": "modified",
+                        "anchor": "src/Sample.ts:3",
+                        "risk_hints": [],
+                        "seen": False,
+                        "purpose": None,
+                        "modified_symbols": [],
+                        "review_note": "check lifecycle edge case",
+                        "hunks": ["@@ -1 +1 @@", "-old", "+new"],
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(prompt.count("review note: check lifecycle edge case"), 2)
+        self.assertIn("   - review note: check lifecycle edge case", prompt)
+        self.assertIn("- review note: check lifecycle edge case", prompt)
+
+    def test_build_review_data_attaches_matching_review_notes(self):
+        change = FileChange("src/Sample.ts", 2, 1)
+
+        with patch("cr.review.data.git.first_changed_line", return_value=3):
+            with patch(
+                "cr.review.data.git.file_diff",
+                return_value="@@ -1 +1 @@\n-old\n+new\n",
+            ):
+                data = build_review_data(
+                    [change],
+                    review_notes={
+                        "src/Sample.ts": "check lifecycle edge case",
+                        "docs/Other.md": "not in copied prompt",
+                    },
+                )
+
+        self.assertEqual(
+            data["files"][0]["review_note"],
+            "check lifecycle edge case",
+        )
+        self.assertNotIn("docs/Other.md", str(data))
+
     def test_command_catalog_module_groups_command_help_lines(self):
         groups = command_catalog.command_catalog()
         lines = command_catalog.command_list_lines(TerminalStyle(False), max_lines=80)
@@ -1097,7 +1147,10 @@ class CliTests(unittest.TestCase):
             page=BrowserPage.FILE_DETAIL,
             filter_text="src",
             seen_paths={"src/Sample.ts"},
-            review_notes={"src/Sample.ts": "check lifecycle"},
+            review_notes={
+                "src/Sample.ts": "check lifecycle",
+                "docs/Guide.md": "outside filtered handoff",
+            },
         )
         executor = BrowserCommandExecutor(
             state,
@@ -1133,7 +1186,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.selected, 0)
         self.assertEqual(state.filter_text, "src")
-        self.assertEqual(state.review_notes, {"src/Sample.ts": "check lifecycle"})
+        self.assertEqual(
+            state.review_notes,
+            {
+                "src/Sample.ts": "check lifecycle",
+                "docs/Guide.md": "outside filtered handoff",
+            },
+        )
         self.assertIsNone(state.task)
         build_data.assert_called_once_with(
             [src_change],
@@ -1145,6 +1204,7 @@ class CliTests(unittest.TestCase):
             other_changes={"staged": 0, "unstaged": 0},
             context=3,
             seen_paths={"src/Sample.ts"},
+            review_notes={"src/Sample.ts": "check lifecycle"},
         )
         render_prompt.assert_called_once()
         copy.assert_called_once_with(
@@ -1173,6 +1233,10 @@ class CliTests(unittest.TestCase):
             [first_change, second_change],
             selected=1,
             page=BrowserPage.CHANGED_FILES,
+            review_notes={
+                "src/First.ts": "not selected",
+                "src/Second.ts": "selected note",
+            },
         )
         executor = BrowserCommandExecutor(
             state,
@@ -1217,6 +1281,7 @@ class CliTests(unittest.TestCase):
             other_changes={"staged": 0, "unstaged": 3},
             context=2,
             seen_paths=set(),
+            review_notes={"src/Second.ts": "selected note"},
         )
         copy.assert_called_once_with(
             "# Code Review Handoff\n\nsrc/Second.ts",

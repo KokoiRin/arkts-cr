@@ -939,6 +939,12 @@ def _copy_prompt_handoff(
         return "No changed files to copy prompt."
     state.clamp_selection()
     changes = [visible[state.selected]] if selected_only else visible
+    copied_paths = {change.path for change in changes}
+    review_notes = {
+        path: note
+        for path, note in state.review_notes.items()
+        if path in copied_paths and note.strip()
+    }
     text = render_prompt_handoff(
         build_review_data(
             changes,
@@ -950,6 +956,7 @@ def _copy_prompt_handoff(
             other_changes=other_change_counts(args),
             context=args.context,
             seen_paths=state.seen_paths,
+            review_notes=review_notes,
         )
     )
     message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))

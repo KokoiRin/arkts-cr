@@ -73,7 +73,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
   - Supports lightweight per-file review notes with `note TEXT` to set a note, `note` to clear it, `notes` to summarize all current workspace notes, `notes QUERY` to filter notes by path/text, `copy notes` / `notes copy` to copy the full summary, and `copy notes QUERY` to copy a filtered summary; noted files are marked in Changed Files and shown in File Detail.
-  - Supports prompt handoff from inside the browser with `copy prompt` for the current visible Review Scope and `copy prompt file` for the selected File Detail / Changed Files item, reusing the same Markdown renderer as `cr review --prompt`.
+  - Supports prompt handoff from inside the browser with `copy prompt` for the current visible Review Scope and `copy prompt file` for the selected File Detail / Changed Files item, reusing the same Markdown renderer as `cr review --prompt` and including matching review notes.
   - Shows file action source diagnostics with `file actions`, covering open/copy/reveal CLI, environment, platform fallback, or missing sources.
   - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` / `test` / `lint` from the command prompt for repo tasks.
   - Persists the default browser workspace in `.git/cr/browse-state.json`, restoring scope, filter, selected file, review notes, and list/file layer unless the user passes an explicit scope or pathspec.
@@ -168,7 +168,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat `tasks` as a source diagnostic command, not a task runner. Treat `tasks help` as preset-format help, not a task runner. Source explanation, malformed preset reporting, and preset-format help belong in `cr.ui.tasks`.
   - Treat in-session review progress as browser workspace state: seen paths and remaining-only view belong in `BrowserState` and persist with `.git/cr/browse-state.json`.
   - Treat in-session review notes as browser workspace state: path-keyed notes belong in `ReviewWorkspace`, are edited through `note TEXT` / `note`, summarized/searched through `notes`, copied through `copy notes` / `copy notes QUERY`, and persist with `.git/cr/browse-state.json`.
-  - Treat prompt handoff as a `cr.review` output format reused by the browser: `copy prompt` / `copy prompt file` may choose current browser files, but Markdown structure stays owned by `cr.review.prompt`.
+  - Treat prompt handoff as a `cr.review` output format reused by the browser: `copy prompt` / `copy prompt file` may choose current browser files and pass matching review notes, but Markdown structure stays owned by `cr.review.prompt`.
   - Keep progress commands simple and reversible: `m`/`seen` marks the current file, `todo`/`unseen` clears it, `remaining` filters to unreviewed files, and `allfiles` returns to the full changed-file list.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
   - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.

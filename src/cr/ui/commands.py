@@ -142,6 +142,11 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         )
     if command in {"notes", "review notes"}:
         return BrowserCommand(BrowserCommandAction.SHOW_REVIEW_NOTES)
+    if command.startswith("notes "):
+        return BrowserCommand(
+            BrowserCommandAction.SHOW_REVIEW_NOTES,
+            command.removeprefix("notes ").strip(),
+        )
     if command in {"tasks help", "task help", "tasks schema", "task schema"}:
         return BrowserCommand(BrowserCommandAction.SHOW_TASK_SCHEMA_HELP)
     if command in {"tasks", "task sources"}:

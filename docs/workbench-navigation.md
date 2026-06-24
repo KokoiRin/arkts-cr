@@ -294,6 +294,8 @@ Status: implemented.
 
 `notes` summarizes the current workspace's review notes without changing the active page, selection, scope, or task state. Notes for files in the active changed-file list follow review order; persisted notes outside the active changes are still shown after that, sorted by path.
 
+`notes QUERY` filters that summary by path or note text with case-insensitive substring matching. The filter is command-local and does not change file filters, page state, selection, scope, or task state.
+
 `copy notes` / `notes copy` copies that same summary through the existing copy action configuration without changing the active page, selection, scope, or task state. Empty note sets report an empty state without launching a clipboard command.
 
 ### P0: Real page stack

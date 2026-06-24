@@ -464,7 +464,7 @@ class BrowserCommandExecutor:
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SHOW_REVIEW_NOTES:
-            lines = _review_note_lines(state)
+            lines = _review_note_lines(state, parsed_command.value)
             if raw_keys:
                 _show_browser_message(state, " | ".join(lines), raw_keys, frame)
                 return BrowserActionResult(needs_redraw=True)
@@ -877,24 +877,36 @@ def _set_selected_review_note(state: BrowserState, note: str) -> str:
     return f"Cleared note for {shorten_path(path)}"
 
 
-def _review_note_lines(state: BrowserState) -> list[str]:
+def _review_note_lines(state: BrowserState, query: str = "") -> list[str]:
     notes = {path: text.strip() for path, text in state.review_notes.items() if text.strip()}
     if not notes:
         return ["Review notes: none"]
 
-    lines = ["Review notes:"]
+    text_query = query.strip()
+    normalized_query = text_query.casefold()
+    filtered_notes = notes
+    if normalized_query:
+        filtered_notes = {
+            path: text
+            for path, text in notes.items()
+            if normalized_query in path.casefold() or normalized_query in text.casefold()
+        }
+        if not filtered_notes:
+            return [f'Review notes matching "{text_query}": none']
+
+    lines = [f'Review notes matching "{text_query}":' if text_query else "Review notes:"]
     seen_paths: set[str] = set()
     index = 1
     for change in state.changes:
-        note = notes.get(change.path)
+        note = filtered_notes.get(change.path)
         if note is None:
             continue
         lines.append(f"{index}. {shorten_path(change.path)}: {note}")
         seen_paths.add(change.path)
         index += 1
 
-    for path in sorted(path for path in notes if path not in seen_paths):
-        lines.append(f"{index}. {shorten_path(path)}: {notes[path]}")
+    for path in sorted(path for path in filtered_notes if path not in seen_paths):
+        lines.append(f"{index}. {shorten_path(path)}: {filtered_notes[path]}")
         index += 1
     return lines
 
@@ -1463,6 +1475,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("note TEXT", "set selected file review note"),
                 CommandEntry("note", "clear selected file review note"),
                 CommandEntry("notes", "show all review notes", "notes"),
+                CommandEntry("notes QUERY", "filter review notes by path or note text"),
                 CommandEntry("refresh", "reload current review scope", "refresh"),
             ),
         ),

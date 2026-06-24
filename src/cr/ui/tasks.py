@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
+import json
 import os
 import signal
 import shlex
@@ -26,6 +27,7 @@ TASK_LABELS = {
     "test": "Test",
     "lint": "Lint",
 }
+TASK_PRESET_KINDS = {"build", "test", "lint"}
 
 
 @dataclass(frozen=True)
@@ -87,6 +89,9 @@ def build_command(repo: Path, configured: str | None = None) -> list[str] | None
     template = configured or os.environ.get("CR_BUILD_CMD")
     if template:
         return shlex.split(template)
+    preset = task_presets(repo).get("build")
+    if preset:
+        return shlex.split(preset)
     if repo.name == "DouyinHarmony" and (repo / "remote").exists():
         return ["./remote", "buildEntry", "--app", "douyin"]
     return None
@@ -100,12 +105,36 @@ def task_command(
     if kind == "build":
         return build_command(repo, getattr(args, "build_cmd", None))
     if kind == "test":
-        template = getattr(args, "test_cmd", None) or os.environ.get("CR_TEST_CMD")
+        template = (
+            getattr(args, "test_cmd", None)
+            or os.environ.get("CR_TEST_CMD")
+            or task_presets(repo).get("test")
+        )
         return shlex.split(template) if template else None
     if kind == "lint":
-        template = getattr(args, "lint_cmd", None) or os.environ.get("CR_LINT_CMD")
+        template = (
+            getattr(args, "lint_cmd", None)
+            or os.environ.get("CR_LINT_CMD")
+            or task_presets(repo).get("lint")
+        )
         return shlex.split(template) if template else None
     return None
+
+
+def task_presets(repo: Path) -> dict[str, str]:
+    path = repo / ".cr" / "tasks.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    presets: dict[str, str] = {}
+    for kind in TASK_PRESET_KINDS:
+        value = data.get(kind)
+        if isinstance(value, str) and value.strip():
+            presets[kind] = value
+    return presets
 
 
 def task_status(task: TaskState) -> str:

@@ -552,6 +552,102 @@ class CliTests(unittest.TestCase):
             self.assertEqual(task_command(repo, args, "test"), ["npm", "test"])
             self.assertEqual(task_command(repo, args, "lint"), ["npm", "run", "lint"])
 
+    def test_task_runtime_uses_project_task_presets(self):
+        from cr.ui.tasks import task_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / ".cr").mkdir()
+            (repo / ".cr" / "tasks.json").write_text(
+                json.dumps(
+                    {
+                        "build": "./scripts/build.sh --fast",
+                        "test": "npm test",
+                        "lint": "npm run lint",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
+
+            self.assertEqual(
+                task_command(repo, args, "build"),
+                ["./scripts/build.sh", "--fast"],
+            )
+            self.assertEqual(task_command(repo, args, "test"), ["npm", "test"])
+            self.assertEqual(task_command(repo, args, "lint"), ["npm", "run", "lint"])
+
+    def test_task_runtime_command_precedence_uses_cli_env_then_preset(self):
+        from cr.ui.tasks import task_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "DouyinHarmony"
+            repo.mkdir()
+            (repo / "remote").write_text("#!/bin/sh\n", encoding="utf-8")
+            (repo / ".cr").mkdir()
+            (repo / ".cr" / "tasks.json").write_text(
+                json.dumps(
+                    {
+                        "build": "./preset-build",
+                        "test": "preset-test",
+                        "lint": "preset-lint",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            cli_args = argparse_namespace(
+                build_cmd="./cli-build",
+                test_cmd=None,
+                lint_cmd=None,
+            )
+            env_args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
+
+            with patch.dict(os.environ, {"CR_TEST_CMD": "env-test"}, clear=False):
+                self.assertEqual(task_command(repo, cli_args, "build"), ["./cli-build"])
+                self.assertEqual(task_command(repo, env_args, "test"), ["env-test"])
+                self.assertEqual(task_command(repo, env_args, "lint"), ["preset-lint"])
+                self.assertEqual(task_command(repo, env_args, "build"), ["./preset-build"])
+
+    def test_task_runtime_preserves_douyin_default_without_preset(self):
+        from cr.ui.tasks import task_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "DouyinHarmony"
+            repo.mkdir()
+            (repo / "remote").write_text("#!/bin/sh\n", encoding="utf-8")
+            args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
+
+            self.assertEqual(
+                task_command(repo, args, "build"),
+                ["./remote", "buildEntry", "--app", "douyin"],
+            )
+
+    def test_task_runtime_ignores_invalid_project_task_presets(self):
+        from cr.ui.tasks import task_command, task_presets
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            config_dir = repo / ".cr"
+            config_dir.mkdir()
+            args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
+
+            (config_dir / "tasks.json").write_text("{", encoding="utf-8")
+            self.assertEqual(task_presets(repo), {})
+            self.assertIsNone(task_command(repo, args, "test"))
+
+            (config_dir / "tasks.json").write_text("[\"npm test\"]", encoding="utf-8")
+            self.assertEqual(task_presets(repo), {})
+            self.assertIsNone(task_command(repo, args, "test"))
+
+            (config_dir / "tasks.json").write_text(
+                json.dumps({"test": ["npm", "test"], "lint": "npm run lint"}),
+                encoding="utf-8",
+            )
+            self.assertEqual(task_presets(repo), {"lint": "npm run lint"})
+            self.assertIsNone(task_command(repo, args, "test"))
+            self.assertEqual(task_command(repo, args, "lint"), ["npm", "run", "lint"])
+
     def test_task_runtime_module_runs_and_records_task(self):
         from cr.ui.tasks import poll_task, record_completed_task, start_task
 
@@ -575,6 +671,31 @@ class CliTests(unittest.TestCase):
         self.assertIn("runtime line", state.task.lines)
         self.assertEqual(len(state.task_history), 1)
         self.assertEqual(state.task_history[0].status, "succeeded")
+
+    def test_start_task_uses_project_task_preset(self):
+        from cr.ui.tasks import poll_task, start_task
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / ".cr").mkdir()
+            (repo / ".cr" / "tasks.json").write_text(
+                json.dumps({"test": f"{sys.executable} -c \"print('preset test')\""}),
+                encoding="utf-8",
+            )
+            args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
+            state = argparse_namespace(task=None, task_history=[])
+
+            start_task(state, args, "test", repo=repo)
+            for _ in range(100):
+                poll_task(state.task)
+                if state.task and state.task.returncode is not None:
+                    break
+                time.sleep(0.01)
+
+        self.assertIsNotNone(state.task)
+        self.assertEqual(state.task.kind, "test")
+        self.assertEqual(state.task.returncode, 0)
+        self.assertIn("preset test", state.task.lines)
 
     def test_task_runtime_module_owns_process_lifecycle_implementation(self):
         tasks_source = (ROOT / "src/cr/ui/tasks.py").read_text(encoding="utf-8")

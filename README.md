@@ -190,6 +190,18 @@ build
 cr --build-cmd './remote buildEntry --app douyin' --test-cmd 'npm test' --lint-cmd 'npm run lint'
 ```
 
+也可以在仓库根目录放 `.cr/tasks.json`，把常用任务随项目保存：
+
+```json
+{
+  "build": "./remote buildEntry --app douyin",
+  "test": "npm test",
+  "lint": "npm run lint"
+}
+```
+
+任务命令优先级是 CLI 参数、环境变量、`.cr/tasks.json`、DouyinHarmony build 默认。这样日常直接运行 `cr` 后输入 `: test` / `: lint` 就能使用项目预设。
+
 这些参数都作用在默认的 `cr browse` 上。一般先直接 `cr`，只有工作区很大或很乱时再加参数。
 
 ## 其他命令

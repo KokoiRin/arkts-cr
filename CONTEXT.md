@@ -37,7 +37,9 @@ workspace state.
 `cr.ui.tasks` owns Task Panel runtime behavior: task command resolution,
 background process lifecycle, output capture, stopping, rerun, foreground run,
 and completion history. It does not render terminal panels or manage browser
-pages.
+pages. `cr.ui.tasks` also owns project-local task preset discovery from
+`.cr/tasks.json`; CLI arguments and environment variables remain higher
+priority overrides.
 
 Product navigation terms:
 
@@ -66,3 +68,6 @@ Product navigation terms:
 - `Task Runtime`: the internal module behind Task Panel behavior. It owns
   process lifecycle and task history, while terminal layout and panel rendering
   stay with the browser frame.
+- `Task Presets`: project-local default build/test/lint commands read from
+  `.cr/tasks.json` by Task Runtime. Presets are defaults, not overrides for
+  explicit CLI arguments or environment variables.

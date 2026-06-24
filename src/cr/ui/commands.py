@@ -129,6 +129,11 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_ANCHOR)
     if command in {"copy notes", "notes copy"}:
         return BrowserCommand(BrowserCommandAction.COPY_REVIEW_NOTES)
+    if command.startswith("copy notes "):
+        return BrowserCommand(
+            BrowserCommandAction.COPY_REVIEW_NOTES,
+            command.removeprefix("copy notes ").strip(),
+        )
     if command in {"reveal", "show in finder"}:
         return BrowserCommand(BrowserCommandAction.REVEAL_FILE)
     if command in {"file actions", "actions", "action sources"}:

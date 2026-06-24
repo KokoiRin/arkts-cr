@@ -435,7 +435,7 @@ class BrowserCommandExecutor:
             _show_browser_message(state, "No changed file to copy.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_REVIEW_NOTES:
-            message = _copy_review_notes(state, args)
+            message = _copy_review_notes(state, args, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.REVEAL_FILE:
@@ -911,10 +911,17 @@ def _review_note_lines(state: BrowserState, query: str = "") -> list[str]:
     return lines
 
 
-def _copy_review_notes(state: BrowserState, args: argparse.Namespace) -> str:
-    lines = _review_note_lines(state)
+def _copy_review_notes(
+    state: BrowserState,
+    args: argparse.Namespace,
+    query: str = "",
+) -> str:
+    text_query = query.strip()
+    lines = _review_note_lines(state, text_query)
     note_count = len(lines) - 1
     if note_count == 0:
+        if text_query:
+            return "No matching review notes to copy."
         return "No review notes to copy."
     message = file_actions.copy_text(
         "\n".join(lines),
@@ -922,6 +929,8 @@ def _copy_review_notes(state: BrowserState, args: argparse.Namespace) -> str:
     )
     if message:
         return message
+    if text_query:
+        return f"Copied {note_count} matching review notes"
     return f"Copied {note_count} review notes"
 
 
@@ -1470,6 +1479,7 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("copy path", "copy selected file path", "copy path"),
                 CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
                 CommandEntry("copy notes", "copy review notes summary", "copy notes"),
+                CommandEntry("copy notes QUERY", "copy filtered review notes summary"),
                 CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
                 CommandEntry("file actions", "show open/copy/reveal command sources", "file actions"),
                 CommandEntry("note TEXT", "set selected file review note"),

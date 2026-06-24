@@ -66,7 +66,7 @@ Product navigation terms:
   previous scope, and persistence data mapping for `cr browse`.
 - `Review Notes`: lightweight per-file notes inside the current Review
   Workspace, surfaced by `note TEXT` / `note` / `notes` / `notes QUERY` /
-  `copy notes` and persisted with browse state.
+  `copy notes` / `copy notes QUERY` and persisted with browse state.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

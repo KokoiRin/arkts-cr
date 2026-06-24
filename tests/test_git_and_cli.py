@@ -11,10 +11,12 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 from cr.ui.browser import (
+    BuildState,
     BrowserState,
     _build_command,
     _build_panel_lines,
     _browse_file_screen_lines,
+    _draw_build_panel_only,
     _draw_browse_screen,
     _open_command,
     _poll_build,
@@ -115,6 +117,26 @@ class CliTests(unittest.TestCase):
             self.assertIn("Build succeeded.", text)
             self.assertIn("compile line 1", text)
             self.assertIn("compile line 2", text)
+
+    def test_build_panel_partial_refresh_does_not_clear_screen(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        build = BuildState(["true"], process, lines=["compile line"])
+        output = StringIO()
+
+        with redirect_stdout(output):
+            _draw_build_panel_only(build, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertNotIn("\033[2J", text)
+        self.assertIn("\0337", text)
+        self.assertIn("compile line", text)
+
+        output = StringIO()
+        with redirect_stdout(output):
+            _draw_build_panel_only(build, TerminalStyle(False))
+
+        self.assertEqual(output.getvalue(), "")
+        process.wait(timeout=1)
 
     def test_browse_screen_redraws_in_place(self):
         args = argparse_namespace(

@@ -105,6 +105,7 @@ class BuildState:
     command: list[str]
     process: subprocess.Popen[bytes]
     lines: list[str] = field(default_factory=list)
+    last_rendered_panel: list[str] = field(default_factory=list)
     partial: str = ""
     returncode: int | None = None
     start_error: str | None = None
@@ -119,6 +120,7 @@ def run_browser(args: argparse.Namespace) -> int:
     state = BrowserState(changes=_load_browse_changes(args))
     _show_commits_when_empty(state, args)
     raw_keys = _use_raw_keys()
+    needs_redraw = True
 
     if not raw_keys:
         _print_lines(_browse_help_lines(style))
@@ -126,8 +128,9 @@ def run_browser(args: argparse.Namespace) -> int:
         _poll_build(state.build)
         state.clamp_selection()
         visible = state.visible_changes
-        if raw_keys:
+        if raw_keys and needs_redraw:
             _draw_browse_screen(state, args, style)
+            needs_redraw = False
         prompt = _browse_prompt(state.mode)
         if not raw_keys:
             if state.mode == "commits":
@@ -170,6 +173,7 @@ def run_browser(args: argparse.Namespace) -> int:
             tick_when_idle=state.build is not None and state.build.running,
         )
         if command_result == "__tick__":
+            _draw_build_panel_only(state.build, style)
             continue
         if command_result == "__eof__":
             return 0
@@ -181,6 +185,7 @@ def run_browser(args: argparse.Namespace) -> int:
             query = _read_filter_query()
             if query != "__interrupt__":
                 state.set_filter(query)
+                needs_redraw = True
             continue
         if command == "command_prompt":
             command = _read_command_query()
@@ -188,12 +193,15 @@ def run_browser(args: argparse.Namespace) -> int:
                 continue
         if command.startswith("/") and not raw_keys:
             state.set_filter(command[1:])
+            needs_redraw = True
             continue
         if command.startswith("filter "):
             state.set_filter(command.removeprefix("filter "))
+            needs_redraw = True
             continue
         if command in {"c", "clear"}:
             state.clear_filter()
+            needs_redraw = True
             continue
         if command in {"q", "quit", "exit"}:
             return 0
@@ -203,10 +211,12 @@ def run_browser(args: argparse.Namespace) -> int:
             state.selected = 0
             state.commit_scroll = 0
             state.clamp_selection()
+            needs_redraw = True
             continue
         if command in {"h", "?", "help"}:
             if raw_keys:
                 state.mode = "list"
+                needs_redraw = True
             else:
                 _print_lines(_browse_help_lines(style))
             continue
@@ -221,6 +231,7 @@ def run_browser(args: argparse.Namespace) -> int:
         if command in {"build", "compile"}:
             if raw_keys:
                 _start_build(state, args)
+                needs_redraw = True
             else:
                 _run_build_foreground(args)
             continue
@@ -235,40 +246,47 @@ def run_browser(args: argparse.Namespace) -> int:
                 state.list_scroll = 0
                 _show_commits_when_empty(state, args)
             state.clamp_selection()
+            needs_redraw = True
             continue
         if command in {"s", "summary", "list", "ls", "b", "back"}:
             state.mode = "list"
             state.file_scroll = 0
+            needs_redraw = True
             continue
         if command in {"down", "j"}:
             if state.mode == "file":
                 _scroll_file(state, 1, args, style)
             else:
                 _move_selection(state, 1)
+            needs_redraw = True
             continue
         if command in {"up", "k"}:
             if state.mode == "file":
                 _scroll_file(state, -1, args, style)
             else:
                 _move_selection(state, -1)
+            needs_redraw = True
             continue
         if command in {"pagedown", "space", "d"}:
             if state.mode == "file":
                 _scroll_file(state, _page_step(), args, style)
             else:
                 _move_selection(state, _page_step())
+            needs_redraw = True
             continue
         if command in {"pageup", "u"}:
             if state.mode == "file":
                 _scroll_file(state, -_page_step(), args, style)
             else:
                 _move_selection(state, -_page_step())
+            needs_redraw = True
             continue
         if command in {"home", "0"}:
             if state.mode == "file":
                 state.file_scroll = 0
             else:
                 state.selected = 0
+            needs_redraw = True
             continue
         if command in {"end", "$"}:
             if state.mode == "file":
@@ -277,17 +295,21 @@ def run_browser(args: argparse.Namespace) -> int:
                 total = len(state.commits) if state.mode == "commits" else len(state.visible_changes)
                 if total:
                     state.selected = total - 1
+            needs_redraw = True
             continue
         if command in {"enter", "right", "l"}:
             if state.mode == "commits":
                 _select_commit(state, args)
+                needs_redraw = True
             elif state.visible_changes:
                 state.mode = "file"
                 state.file_scroll = 0
+                needs_redraw = True
             continue
         if command in {"left", "h"}:
             state.mode = "list"
             state.file_scroll = 0
+            needs_redraw = True
             continue
         if command in {"n", "next"}:
             visible = state.visible_changes
@@ -295,12 +317,14 @@ def run_browser(args: argparse.Namespace) -> int:
                 state.selected = min(state.selected + 1, len(visible) - 1)
                 state.mode = "file"
                 state.file_scroll = 0
+                needs_redraw = True
             continue
         if command in {"p", "prev", "previous"}:
             if state.visible_changes:
                 state.selected = max(state.selected - 1, 0)
                 state.mode = "file"
                 state.file_scroll = 0
+                needs_redraw = True
             continue
         if command.isdigit():
             choice = int(command)
@@ -308,6 +332,7 @@ def run_browser(args: argparse.Namespace) -> int:
                 if 1 <= choice <= len(state.commits):
                     state.selected = choice - 1
                     _select_commit(state, args)
+                    needs_redraw = True
                 else:
                     print(f"Choose 1-{len(state.commits)}.")
                 continue
@@ -315,6 +340,7 @@ def run_browser(args: argparse.Namespace) -> int:
             if 1 <= choice <= len(visible):
                 state.selected = choice - 1
                 state.mode = "file"
+                needs_redraw = True
             else:
                 print(f"Choose 1-{len(visible)}.")
             continue
@@ -514,6 +540,46 @@ def _draw_browse_screen(
         ]
     print("\033[2J\033[H", end="")
     _print_lines(lines[:max_lines])
+    print(_browse_prompt(state.mode), end="", flush=True)
+    if state.build is not None:
+        state.build.last_rendered_panel = _build_panel_lines(
+            state.build,
+            style,
+            build_panel_height,
+        )
+
+
+def _draw_build_panel_only(
+    build: BuildState | None,
+    style: TerminalStyle,
+) -> None:
+    if build is None:
+        return
+    rows = _screen_height()
+    max_lines = rows - 1
+    height = _build_panel_height(build, max_lines)
+    lines = _build_panel_lines(build, style, height)
+    if lines == build.last_rendered_panel:
+        return
+    build.last_rendered_panel = lines
+    start_row = max(1, rows - height)
+    output: list[str] = ["\0337", f"\033[{start_row};1H"]
+    for index in range(height):
+        output.append("\033[2K")
+        if index < len(lines):
+            output.append(_fit_terminal_line(lines[index]))
+        if index != height - 1:
+            output.append("\n")
+    output.append("\0338")
+    sys.stdout.write("".join(output))
+    sys.stdout.flush()
+
+
+def _fit_terminal_line(line: str) -> str:
+    if "\033[" in line:
+        return line
+    width = shutil.get_terminal_size((100, 30)).columns
+    return line[: max(0, width - 1)]
 
 
 def _browse_prompt(mode: str) -> str:
@@ -1009,7 +1075,6 @@ def _read_browse_command(
             print()
             return "__interrupt__"
 
-    print(prompt, end="", flush=True)
     try:
         key = _read_raw_key(timeout=0.2 if tick_when_idle else None)
     except KeyboardInterrupt:

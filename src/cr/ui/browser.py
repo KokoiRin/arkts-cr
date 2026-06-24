@@ -25,8 +25,11 @@ from ..review.changes import (
     empty_message,
     is_code_file,
     modified_names,
+    other_change_counts,
     parse_change_symbols,
 )
+from ..review.data import build_review_data
+from ..review.prompt import render_prompt_handoff
 from ..review.risk import risk_hints
 from ..review.tree import (
     DEFAULT_PATH_CONTEXT_DIRS,
@@ -436,6 +439,14 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_REVIEW_NOTES:
             message = _copy_review_notes(state, args, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_PROMPT:
+            message = _copy_prompt_handoff(state, args, selected_only=False)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_FILE_PROMPT:
+            message = _copy_prompt_handoff(state, args, selected_only=True)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.REVEAL_FILE:
@@ -934,6 +945,40 @@ def _copy_review_notes(
     return f"Copied {note_count} review notes"
 
 
+def _copy_prompt_handoff(
+    state: BrowserState,
+    args: argparse.Namespace,
+    *,
+    selected_only: bool,
+) -> str:
+    visible = state.visible_changes
+    if not visible:
+        if selected_only:
+            return "No changed file to copy prompt."
+        return "No changed files to copy prompt."
+    state.clamp_selection()
+    changes = [visible[state.selected]] if selected_only else visible
+    text = render_prompt_handoff(
+        build_review_data(
+            changes,
+            staged=args.staged,
+            all_changes=args.all_changes,
+            base=args.base,
+            ref_range=args.ref_range,
+            include_hunks=True,
+            other_changes=other_change_counts(args),
+            context=args.context,
+            seen_paths=state.seen_paths,
+        )
+    )
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    file_count = len(changes)
+    suffix = "file" if file_count == 1 else "files"
+    return f"Copied prompt for {file_count} {suffix}"
+
+
 def _file_action_diagnostic_lines(args: argparse.Namespace) -> list[str]:
     repo = git.repo_root()
     sample_file = repo / "{selected-file}"
@@ -1424,7 +1469,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks help    note/notes/copy notes/actions",
+        "  : command prompt    build/test/lint/tasks help    note/notes/copy prompt/actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1480,6 +1525,8 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
                 CommandEntry("copy notes", "copy review notes summary", "copy notes"),
                 CommandEntry("copy notes QUERY", "copy filtered review notes summary"),
+                CommandEntry("copy prompt", "copy current review prompt", "copy prompt"),
+                CommandEntry("copy prompt file", "copy selected file review prompt", "copy prompt file"),
                 CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
                 CommandEntry("file actions", "show open/copy/reveal command sources", "file actions"),
                 CommandEntry("note TEXT", "set selected file review note"),

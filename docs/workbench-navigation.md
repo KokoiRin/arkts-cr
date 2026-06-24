@@ -298,6 +298,14 @@ Status: implemented.
 
 `copy notes` / `notes copy` copies the full summary through the existing copy action configuration, while `copy notes QUERY` copies the same filtered summary that `notes QUERY` would show. Empty note sets or empty filtered matches report an empty state without launching a clipboard command.
 
+### P0: Browser prompt handoff
+
+Status: implemented.
+
+`copy prompt` copies prompt-ready Markdown for the current visible changed files through the existing copy action configuration. This is a browser-side entry point to the same handoff format as `cr review --prompt`.
+
+`copy prompt file` copies prompt-ready Markdown for only the selected visible changed file. Both commands preserve the active page, selection, Review Scope, file filter, progress markers, review notes, and task state. Empty visible scopes report an empty state without launching a clipboard command.
+
 ### P0: Real page stack
 
 Status: implemented.

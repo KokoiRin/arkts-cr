@@ -67,6 +67,10 @@ Product navigation terms:
 - `Review Notes`: lightweight per-file notes inside the current Review
   Workspace, surfaced by `note TEXT` / `note` / `notes` / `notes QUERY` /
   `copy notes` / `copy notes QUERY` and persisted with browse state.
+- `Prompt Handoff`: Markdown review context copied from the current browser
+  Review Scope or selected file through `copy prompt` / `copy prompt file`.
+  It reuses `cr.review` prompt rendering instead of defining browser-specific
+  prompt text.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.
@@ -74,9 +78,9 @@ Product navigation terms:
   browser actions and returns loop control. It does not read prompt input or
   own browser session shutdown.
 - `File Actions`: selected-file workbench operations such as `open`,
-  `copy path`, `copy anchor`, and `reveal`. They act within the current
-  Changed Files selection, support CLI/env command configuration, and do not
-  create a new review hierarchy level.
+  `copy path`, `copy anchor`, `copy prompt file`, and `reveal`. They act within
+  the current Changed Files selection, support CLI/env command configuration,
+  and do not create a new review hierarchy level.
 - `File Action Diagnostics`: source explanations for `open`, `copy`, and
   `reveal`, surfaced by `file actions` and failure messages without executing
   diagnostics commands.

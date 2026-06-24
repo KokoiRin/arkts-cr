@@ -8,6 +8,8 @@ browser command execution decides where returned messages are displayed.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from ..review.data import build_review_data
 from ..review.changes import other_change_counts
 from ..review.prompt import render_prompt_handoff
@@ -15,6 +17,17 @@ from ..review.tree import shorten_path
 from ..vcs import git
 from . import file_actions
 from . import handoff as handoff_module
+
+
+READ_ONLY_INDEX_ACTION_MESSAGE = (
+    "Index actions are only available for local worktree/index scopes."
+)
+
+
+@dataclass(frozen=True)
+class SelectedFileActionResult:
+    message: str
+    changed: bool = False
 
 
 def open_selected_change(
@@ -98,6 +111,83 @@ def reveal_selected_path(
     if message:
         return message
     return f"Revealed {shorten_path(path)}"
+
+
+def stage_selected_path(
+    path: str,
+    args,
+    *,
+    stage_path=None,
+) -> str:
+    return stage_selected_path_result(
+        path,
+        args,
+        stage_path=stage_path,
+    ).message
+
+
+def stage_selected_path_result(
+    path: str,
+    args,
+    *,
+    stage_path=None,
+) -> SelectedFileActionResult:
+    return _run_index_action(
+        path,
+        args,
+        operation=git.stage_path if stage_path is None else stage_path,
+        success_verb="Staged",
+        failure_label="Stage",
+    )
+
+
+def unstage_selected_path(
+    path: str,
+    args,
+    *,
+    unstage_path=None,
+) -> str:
+    return unstage_selected_path_result(
+        path,
+        args,
+        unstage_path=unstage_path,
+    ).message
+
+
+def unstage_selected_path_result(
+    path: str,
+    args,
+    *,
+    unstage_path=None,
+) -> SelectedFileActionResult:
+    return _run_index_action(
+        path,
+        args,
+        operation=git.unstage_path if unstage_path is None else unstage_path,
+        success_verb="Unstaged",
+        failure_label="Unstage",
+    )
+
+
+def _run_index_action(
+    path: str,
+    args,
+    *,
+    operation,
+    success_verb: str,
+    failure_label: str,
+) -> SelectedFileActionResult:
+    if _is_read_only_scope(args):
+        return SelectedFileActionResult(READ_ONLY_INDEX_ACTION_MESSAGE)
+    try:
+        operation(path)
+    except git.GitError as error:
+        return SelectedFileActionResult(f"{failure_label} failed: {error}")
+    return SelectedFileActionResult(f"{success_verb} {shorten_path(path)}", changed=True)
+
+
+def _is_read_only_scope(args) -> bool:
+    return bool(getattr(args, "base", None) or getattr(args, "ref_range", None))
 
 
 def set_selected_review_note(state, note: str) -> str:

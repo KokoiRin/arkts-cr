@@ -276,6 +276,14 @@ def commit_ref_range(commit: CommitSummary) -> str:
     return f"{left}..{commit.commit}"
 
 
+def stage_path(path: str) -> None:
+    _git(["add", "--", path])
+
+
+def unstage_path(path: str) -> None:
+    _git(["restore", "--staged", "--", path])
+
+
 def _with_paths(args: list[str], paths: list[str] | None) -> list[str]:
     if not paths:
         return args

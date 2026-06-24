@@ -106,6 +106,8 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "save prompt file",
                 ),
                 CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
+                CommandEntry("stage", "stage selected file", "stage"),
+                CommandEntry("unstage", "unstage selected file", "unstage"),
                 CommandEntry(
                     "file actions",
                     "show open/copy/reveal command sources",

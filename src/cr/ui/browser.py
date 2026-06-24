@@ -416,6 +416,32 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to reveal.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.STAGE_FILE:
+            return _run_selected_index_action(
+                state,
+                args,
+                raw_keys,
+                frame,
+                empty_message="No changed file to stage.",
+                action_result=lambda path: selected_file_actions.stage_selected_path_result(
+                    path,
+                    args,
+                    stage_path=git.stage_path,
+                ),
+            )
+        if action == BrowserCommandAction.UNSTAGE_FILE:
+            return _run_selected_index_action(
+                state,
+                args,
+                raw_keys,
+                frame,
+                empty_message="No changed file to unstage.",
+                action_result=lambda path: selected_file_actions.unstage_selected_path_result(
+                    path,
+                    args,
+                    unstage_path=git.unstage_path,
+                ),
+            )
         if action == BrowserCommandAction.SHOW_FILE_ACTION_DIAGNOSTICS:
             lines = _file_action_diagnostic_lines(args)
             if raw_keys:
@@ -480,13 +506,7 @@ class BrowserCommandExecutor:
                 state.commits = _load_recent_commits()
                 state.commit_scroll = 0
             else:
-                state.changes = _load_browse_changes(args)
-                state.clear_render_cache()
-                BrowserNavigation.reset_history(state)
-                BrowserNavigation.show_changed_files(state)
-                state.list_scroll = 0
-                _show_commits_when_empty(state, args)
-            state.clamp_selection()
+                _refresh_changed_files_after_action(state, args)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SHOW_CHANGED_FILES:
             BrowserNavigation.show_changed_files(state)
@@ -588,8 +608,8 @@ class BrowserCommandExecutor:
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
                     "copy anchor, copy notes, copy prompt, save prompt, reveal, "
-                    "note, notes, tasks, build, stop, rerun, test, lint, staged, "
-                    "all, base, range, or q."
+                    "stage, unstage, note, notes, tasks, build, stop, rerun, "
+                    "test, lint, staged, all, base, range, or q."
                 )
             )
             _show_browser_message(
@@ -1035,6 +1055,41 @@ def _load_recent_commits() -> list[git.CommitSummary]:
         return git.recent_commits()
     except git.GitError:
         return []
+
+
+def _refresh_changed_files_after_action(
+    state: BrowserState,
+    args: argparse.Namespace,
+) -> None:
+    state.changes = _load_browse_changes(args)
+    state.clear_render_cache()
+    BrowserNavigation.reset_history(state)
+    BrowserNavigation.show_changed_files(state)
+    state.list_scroll = 0
+    _show_commits_when_empty(state, args)
+    state.clamp_selection()
+
+
+def _run_selected_index_action(
+    state: BrowserState,
+    args: argparse.Namespace,
+    raw_keys: bool,
+    frame: BrowserFrame,
+    *,
+    empty_message: str,
+    action_result,
+) -> BrowserActionResult:
+    visible = state.visible_changes
+    if visible:
+        state.clamp_selection()
+        path = visible[state.selected].path
+        index_result = action_result(path)
+        if index_result.changed:
+            _refresh_changed_files_after_action(state, args)
+        _show_browser_message(state, index_result.message, raw_keys, frame)
+        return BrowserActionResult(needs_redraw=raw_keys)
+    _show_browser_message(state, empty_message, raw_keys, frame)
+    return BrowserActionResult(needs_redraw=raw_keys)
 
 
 def _show_commits_when_empty(state: BrowserState, args: argparse.Namespace) -> None:

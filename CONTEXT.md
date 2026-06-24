@@ -55,9 +55,10 @@ commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
 workspace state.
 `cr.ui.selected_file_actions` owns selected-file action workflow: open selected
-file, copy path/anchor, reveal, set/clear selected-file note, prompt handoff
-selection, and copy/save prompt handoff messages. It does not parse commands,
-place status messages in the Browser Frame, or own platform subprocess details.
+file, copy path/anchor, reveal, stage/unstage selected files, set/clear
+selected-file note, prompt handoff selection, and copy/save prompt handoff
+messages. It does not parse commands, place status messages in the Browser
+Frame, or own platform subprocess details.
 `cr.ui.file_actions` owns configured and platform fallback open/copy/reveal
 helpers, subprocess launches, and source diagnostics for browser file actions.
 It does not parse browser commands or choose the selected review file.
@@ -126,13 +127,17 @@ Product navigation terms:
   own browser session shutdown.
 - `Selected File Actions`: the internal module that owns workflows acting on
   the current Changed Files selection, including open, copy path, copy anchor,
-  reveal, selected-file notes, and selected/scope prompt handoff selection.
-  Platform subprocess details stay in File Actions.
+  reveal, stage/unstage, selected-file notes, and selected/scope prompt handoff
+  selection. Platform subprocess details stay in File Actions; Git index
+  mutations stay in `cr.vcs.git`.
 - `File Actions`: selected-file workbench operations such as `open`,
   `copy path`, `copy anchor`, `copy prompt file`, `save prompt file`, and
   `reveal`. They act within the current Changed Files selection, support
   CLI/env command configuration where applicable, and do not create a new
   review hierarchy level.
+- `Index Actions`: selected-file workbench operations such as `stage` and
+  `unstage`. They mutate the local Git index only for mutable local review
+  scopes, then refresh Changed Files without creating a new product layer.
 - `File Action Diagnostics`: source explanations for `open`, `copy`, and
   `reveal`, surfaced by `file actions` and failure messages without executing
   diagnostics commands.

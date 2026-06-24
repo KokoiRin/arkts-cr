@@ -41,6 +41,8 @@ class BrowserCommandAction:
     SAVE_PROMPT = "save_prompt"
     SAVE_FILE_PROMPT = "save_file_prompt"
     REVEAL_FILE = "reveal_file"
+    STAGE_FILE = "stage_file"
+    UNSTAGE_FILE = "unstage_file"
     SHOW_FILE_ACTION_DIAGNOSTICS = "show_file_action_diagnostics"
     SET_REVIEW_NOTE = "set_review_note"
     SHOW_REVIEW_NOTES = "show_review_notes"
@@ -158,6 +160,10 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         )
     if command in {"reveal", "show in finder"}:
         return BrowserCommand(BrowserCommandAction.REVEAL_FILE)
+    if command in {"stage", "add"}:
+        return BrowserCommand(BrowserCommandAction.STAGE_FILE)
+    if command in {"unstage", "reset"}:
+        return BrowserCommand(BrowserCommandAction.UNSTAGE_FILE)
     if command in {"file actions", "actions", "action sources"}:
         return BrowserCommand(BrowserCommandAction.SHOW_FILE_ACTION_DIAGNOSTICS)
     if command == "note":

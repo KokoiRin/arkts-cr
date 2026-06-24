@@ -111,6 +111,26 @@ class CliTests(unittest.TestCase):
             self.assertEqual(absolute.display_path, "tmp/absolute.md")
             self.assertEqual(absolute.path.read_text(encoding="utf-8"), "file prompt")
 
+    def test_handoff_module_saves_diff_text_default_and_requested_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            default = handoff_module.save_diff_text("default diff", repo)
+            requested = handoff_module.save_diff_text(
+                "requested diff",
+                repo,
+                "tmp/current-file.md",
+            )
+
+            self.assertIsNone(default.error)
+            self.assertEqual(default.display_path, ".cr/handoff/review-diff.md")
+            self.assertEqual(default.path.read_text(encoding="utf-8"), "default diff")
+            self.assertIsNone(requested.error)
+            self.assertEqual(requested.display_path, "tmp/current-file.md")
+            self.assertEqual(
+                requested.path.read_text(encoding="utf-8"),
+                "requested diff",
+            )
+
     def test_browser_frame_module_renders_task_panel_lines(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
@@ -390,6 +410,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Commands", text)
         self.assertIn("Review scope", text)
         self.assertIn("copy prompt file", text)
+        self.assertIn("save diff", text)
         self.assertIn("save prompt file", text)
 
     def test_command_catalog_module_filters_executable_palette_entries(self):
@@ -405,6 +426,7 @@ class CliTests(unittest.TestCase):
 
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
+        self.assertIn("save diff", commands)
         self.assertIn("save prompt", commands)
         self.assertIn("save prompt file", commands)
         self.assertNotIn("base REF", commands)
@@ -613,6 +635,12 @@ class CliTests(unittest.TestCase):
             parse_browser_command("copy diff").action,
             BrowserCommandAction.COPY_DIFF,
         )
+        save_diff = parse_browser_command("save diff")
+        self.assertEqual(save_diff.action, BrowserCommandAction.SAVE_DIFF)
+        self.assertEqual(save_diff.value, "")
+        save_diff_path = parse_browser_command("save diff tmp/diff.md")
+        self.assertEqual(save_diff_path.action, BrowserCommandAction.SAVE_DIFF)
+        self.assertEqual(save_diff_path.value, "tmp/diff.md")
         self.assertEqual(
             parse_browser_command("reveal").action,
             BrowserCommandAction.REVEAL_FILE,
@@ -1062,6 +1090,69 @@ class CliTests(unittest.TestCase):
         self.assertEqual(message, "No changed file to copy diff.")
         copy.assert_not_called()
 
+    def test_selected_file_actions_saves_selected_diff_snippet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            args = argparse_namespace()
+            state = BrowserState([FileChange("docs/Second.md", 2, 1)])
+
+            message = selected_file_actions.save_selected_diff_snippet(
+                state,
+                args,
+                repo_root=lambda: repo,
+                snippet_text=lambda _state, _args: (
+                    "# File Diff: docs/Second.md\n\n```diff\n+new\n```",
+                    "docs/Second.md",
+                ),
+            )
+
+            target = repo / ".cr" / "handoff" / "review-diff.md"
+            self.assertEqual(
+                message,
+                "Saved diff for docs/Second.md to .cr/handoff/review-diff.md",
+            )
+            self.assertEqual(
+                target.read_text(encoding="utf-8"),
+                "# File Diff: docs/Second.md\n\n```diff\n+new\n```",
+            )
+
+    def test_selected_file_actions_save_diff_snippet_reports_empty_selection(self):
+        args = argparse_namespace()
+        state = BrowserState([])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            message = selected_file_actions.save_selected_diff_snippet(
+                state,
+                args,
+                repo_root=lambda: repo,
+            )
+
+            self.assertEqual(message, "No changed file to save diff.")
+            self.assertFalse((repo / ".cr").exists())
+
+    def test_selected_file_actions_save_diff_snippet_reports_write_failure(self):
+        args = argparse_namespace()
+        state = BrowserState([FileChange("docs/Second.md", 2, 1)])
+
+        message = selected_file_actions.save_selected_diff_snippet(
+            state,
+            args,
+            "blocked/diff.md",
+            repo_root=lambda: Path("/repo"),
+            snippet_text=lambda _state, _args: (
+                "# File Diff: docs/Second.md",
+                "docs/Second.md",
+            ),
+            save_diff_text=lambda _text, _repo, _path: handoff_module.HandoffSaveResult(
+                Path("/repo/blocked/diff.md"),
+                "blocked/diff.md",
+                "Could not save diff to blocked/diff.md: denied",
+            ),
+        )
+
+        self.assertEqual(message, "Could not save diff to blocked/diff.md: denied")
+
     def test_browser_command_executor_copies_selected_diff_snippet(self):
         from cr.ui.browser import parse_browser_command
 
@@ -1110,6 +1201,60 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertTrue(result.needs_redraw)
         self.assertIn("Copied diff for src/Sample.ts", state.status_message)
+
+    def test_browser_command_executor_saves_selected_diff_snippet(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.selected_file_actions.save_selected_diff_snippet",
+            return_value="Saved diff for src/Sample.ts to tmp/current.md",
+        ) as save_diff:
+            with redirect_stdout(output):
+                result = executor.execute(
+                    parse_browser_command("save diff tmp/current.md")
+                )
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        save_diff.assert_called_once_with(state, args, "tmp/current.md")
+        self.assertIn(
+            "Saved diff for src/Sample.ts to tmp/current.md",
+            output.getvalue(),
+        )
+
+    def test_browser_command_executor_saves_selected_diff_in_raw_status(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch(
+            "cr.ui.browser.selected_file_actions.save_selected_diff_snippet",
+            return_value="Saved diff for src/Sample.ts to .cr/handoff/review-diff.md",
+        ):
+            result = executor.execute(parse_browser_command("save diff", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("Saved diff for src/Sample.ts", state.status_message)
 
     def test_selected_file_actions_stage_selected_path_returns_status_message(self):
         args = argparse_namespace(
@@ -5799,6 +5944,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy notes QUERY", text)
         self.assertIn("copy prompt", text)
         self.assertIn("copy prompt file", text)
+        self.assertIn("save diff", text)
         self.assertIn("save prompt", text)
         self.assertIn("save prompt file", text)
 
@@ -5820,6 +5966,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
         self.assertIn("copy diff", commands)
+        self.assertIn("save diff", commands)
         self.assertIn("save prompt", commands)
         self.assertIn("save prompt file", commands)
         self.assertIn("staged", commands)

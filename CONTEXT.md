@@ -65,17 +65,18 @@ commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
 workspace state.
 `cr.ui.selected_file_actions` owns selected-file action workflow: open selected
-file, copy path/anchor/diff, reveal, stage/unstage selected files, set/clear
-selected-file note, prompt handoff selection, and copy/save prompt handoff
-messages. It does not summarize/search/copy all review notes, parse commands,
-place status messages in the Browser Frame, or own platform subprocess details.
+file, copy path/anchor/diff, save diff, reveal, stage/unstage selected files,
+set/clear selected-file note, prompt handoff selection, and copy/save prompt
+handoff messages. It does not summarize/search/copy all review notes, parse
+commands, place status messages in the Browser Frame, or own platform
+subprocess details.
 `cr.ui.file_actions` owns configured and platform fallback open/copy/reveal
 helpers, subprocess launches, and source diagnostics for browser file actions.
 It does not parse browser commands or choose the selected review file.
 `cr.ui.handoff` owns UI-side handoff file output: default save paths,
 repo-relative and absolute path resolution, UTF-8 writes, parent directory
-creation, and write-error messages. It does not render prompt Markdown or
-choose browser files.
+creation, and write-error messages. It does not render prompt/snippet Markdown
+or choose browser files.
 `cr.ui.frame` owns Browser Frame screen-layer behavior: terminal height and line
 fitting, content/task/prompt region layout, Task Panel line presentation, and
 Task Panel-only refresh output. It does not generate page-specific review
@@ -154,9 +155,9 @@ Product navigation terms:
   `cr.review` prompt rendering, including supplied review notes, instead of
   defining browser-specific prompt text.
 - `File Diff Snippet`: compact Markdown review context for one selected file,
-  copied through `copy diff`. It reuses structured review data and
-  `cr.review.snippet` rendering, includes selected-file hunks and metadata, and
-  is not the full AI prompt handoff format.
+  copied through `copy diff` or saved through `save diff`. It reuses structured
+  review data and `cr.review.snippet` rendering, includes selected-file hunks
+  and metadata, and is not the full AI prompt handoff format.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.
@@ -172,12 +173,12 @@ Product navigation terms:
   own browser session shutdown.
 - `Selected File Actions`: the internal module that owns workflows acting on
   the current Changed Files selection, including open, copy path, copy anchor,
-  copy diff snippet, reveal, stage/unstage, selected-file notes, and
+  copy/save diff snippet, reveal, stage/unstage, selected-file notes, and
   selected/scope prompt handoff selection. All-note summary/search/copy behavior
   stays in Review Notes Module; platform subprocess details stay in File
   Actions; Git index mutations stay in `cr.vcs.git`.
 - `File Actions`: selected-file workbench operations such as `open`,
-  `copy path`, `copy anchor`, `copy diff`, `copy prompt file`,
+  `copy path`, `copy anchor`, `copy diff`, `save diff`, `copy prompt file`,
   `save prompt file`, and `reveal`. They act within the current Changed Files
   selection, support CLI/env command configuration where applicable, and do not
   create a new review hierarchy level.

@@ -158,6 +158,33 @@ def copy_selected_diff_snippet(
     return f"Copied diff for {shorten_path(path)}"
 
 
+def save_selected_diff_snippet(
+    state,
+    args,
+    requested_path: str = "",
+    *,
+    repo_root=None,
+    save_diff_text=None,
+    snippet_text=None,
+    other_counts=None,
+) -> str:
+    repo_root = git.repo_root if repo_root is None else repo_root
+    save_diff_text = (
+        handoff_module.save_diff_text if save_diff_text is None else save_diff_text
+    )
+    if snippet_text is None:
+        snippet = selected_diff_snippet_text(state, args, other_counts=other_counts)
+    else:
+        snippet = snippet_text(state, args)
+    if snippet is None:
+        return "No changed file to save diff."
+    text, path = snippet
+    result = save_diff_text(text, repo_root(), requested_path)
+    if result.error:
+        return result.error
+    return f"Saved diff for {shorten_path(path)} to {result.display_path}"
+
+
 def reveal_selected_path(
     path: str,
     reveal_cmd: str | None = None,

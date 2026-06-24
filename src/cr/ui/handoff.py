@@ -13,6 +13,7 @@ from pathlib import Path
 
 DEFAULT_PROMPT_PATH = Path(".cr") / "handoff" / "review-prompt.md"
 DEFAULT_FILE_PROMPT_PATH = Path(".cr") / "handoff" / "review-prompt-file.md"
+DEFAULT_DIFF_SNIPPET_PATH = Path(".cr") / "handoff" / "review-diff.md"
 
 
 @dataclass(frozen=True)
@@ -30,17 +31,16 @@ def save_prompt_text(
     selected_only: bool,
 ) -> HandoffSaveResult:
     path = prompt_save_path(repo, requested_path, selected_only=selected_only)
-    display = display_save_path(path, repo)
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    except OSError as exc:
-        return HandoffSaveResult(
-            path,
-            display,
-            f"Could not save prompt to {display}: {exc}",
-        )
-    return HandoffSaveResult(path, display)
+    return _save_text(text, path, repo, label="prompt")
+
+
+def save_diff_text(
+    text: str,
+    repo: Path,
+    requested_path: str = "",
+) -> HandoffSaveResult:
+    path = diff_save_path(repo, requested_path)
+    return _save_text(text, path, repo, label="diff")
 
 
 def prompt_save_path(
@@ -64,8 +64,30 @@ def default_prompt_path(*, selected_only: bool) -> Path:
     return DEFAULT_FILE_PROMPT_PATH if selected_only else DEFAULT_PROMPT_PATH
 
 
+def diff_save_path(repo: Path, requested_path: str = "") -> Path:
+    text_path = requested_path.strip()
+    path = Path(text_path) if text_path else DEFAULT_DIFF_SNIPPET_PATH
+    if path.is_absolute():
+        return path
+    return repo / path
+
+
 def display_save_path(path: Path, repo: Path) -> str:
     try:
         return path.relative_to(repo).as_posix()
     except ValueError:
         return str(path)
+
+
+def _save_text(text: str, path: Path, repo: Path, *, label: str) -> HandoffSaveResult:
+    display = display_save_path(path, repo)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    except OSError as exc:
+        return HandoffSaveResult(
+            path,
+            display,
+            f"Could not save {label} to {display}: {exc}",
+        )
+    return HandoffSaveResult(path, display)

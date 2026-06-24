@@ -41,6 +41,7 @@ class BrowserCommandAction:
     COPY_REVIEW_NOTES = "copy_review_notes"
     COPY_PROMPT = "copy_prompt"
     COPY_FILE_PROMPT = "copy_file_prompt"
+    SAVE_DIFF = "save_diff"
     SAVE_PROMPT = "save_prompt"
     SAVE_FILE_PROMPT = "save_file_prompt"
     REVEAL_FILE = "reveal_file"
@@ -154,6 +155,13 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_PROMPT)
     if command in {"copy prompt file", "copy file prompt"}:
         return BrowserCommand(BrowserCommandAction.COPY_FILE_PROMPT)
+    if command == "save diff":
+        return BrowserCommand(BrowserCommandAction.SAVE_DIFF)
+    if command.startswith("save diff "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_DIFF,
+            command.removeprefix("save diff ").strip(),
+        )
     if command == "save prompt":
         return BrowserCommand(BrowserCommandAction.SAVE_PROMPT)
     if command.startswith("save prompt file "):

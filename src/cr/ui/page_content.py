@@ -68,7 +68,7 @@ def browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks help    note/notes/copy/save prompt/actions",
+        "  : command prompt    build/test/lint/tasks help    note/notes/copy/save/actions",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",

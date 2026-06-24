@@ -1251,6 +1251,74 @@ class CliTests(unittest.TestCase):
         self.assertEqual(message, "No changed file to copy diff.")
         copy.assert_not_called()
 
+    def test_selected_file_actions_opens_selected_hunk(self):
+        args = argparse_namespace(open_cmd="editor {fileline}")
+        change = FileChange("src/Sample.ts", 1, 0)
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1 +3 @@",
+            "  +first",
+            "  @@ -20,2 +31,3 @@",
+            "  +second",
+        ]
+
+        with patch(
+            "cr.ui.selected_file_actions.git.repo_path",
+            return_value=Path("/repo/src/Sample.ts"),
+        ):
+            with patch(
+                "cr.ui.selected_file_actions.file_actions.open_path",
+                return_value=None,
+            ) as open_path:
+                message = selected_file_actions.open_selected_hunk(
+                    change,
+                    lines,
+                    3,
+                    args,
+                )
+
+        open_path.assert_called_once_with(
+            Path("/repo/src/Sample.ts"),
+            31,
+            "editor {fileline}",
+        )
+        self.assertEqual(message, "Opened hunk src/Sample.ts:31")
+
+    def test_selected_file_actions_copies_selected_hunk(self):
+        args = argparse_namespace(copy_cmd="copy-tool")
+        change = FileChange("src/Sample.ts", 1, 0)
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1 +3 @@",
+            "  +first",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch(
+            "cr.ui.selected_file_actions.file_actions.copy_text",
+            return_value=None,
+        ) as copy_text:
+            message = selected_file_actions.copy_selected_hunk(
+                change,
+                lines,
+                3,
+                args,
+            )
+
+        copied = copy_text.call_args.args[0]
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertEqual(message, "Copied hunk 2/2 for src/Sample.ts:31")
+        self.assertIn("# Hunk Diff: src/Sample.ts", copied)
+        self.assertIn("- anchor: src/Sample.ts:31", copied)
+        self.assertIn("- hunk: 2/2", copied)
+        self.assertIn("```text", copied)
+        self.assertIn("@@ -20,2 +31,3 @@", copied)
+        self.assertIn("  20   31 | context", copied)
+        self.assertIn("        32 | +second", copied)
+        self.assertNotIn("+first", copied)
+
     def test_selected_file_actions_saves_selected_diff_snippet(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)

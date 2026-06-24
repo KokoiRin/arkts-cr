@@ -330,7 +330,7 @@ Status: implemented.
 
 Status: implemented.
 
-`next hunk` / `]` and `prev hunk` / `[` now move within the current File Detail diff by jumping between rendered hunk headers. `open hunk` opens the active hunk's new-file line in the editor through the existing open command configuration. `copy hunk` copies the active rendered hunk as line-numbered Markdown review context. These commands stay inside the selected file and preserve Review Scope, filters, notes, progress, and task state. `cr.ui.file_detail_navigation` owns hunk header detection, target scroll calculation, active hunk line resolution, and active hunk extraction, while `BrowserCommandExecutor` applies the result.
+`next hunk` / `]` and `prev hunk` / `[` now move within the current File Detail diff by jumping between rendered hunk headers. `open hunk` opens the active hunk's new-file line in the editor through the existing open command configuration. `copy hunk` copies the active rendered hunk as line-numbered Markdown review context. These commands stay inside the selected file and preserve Review Scope, filters, notes, progress, and task state. `cr.ui.file_detail_navigation` owns hunk header detection, target scroll calculation, active hunk line resolution, and active hunk extraction. `cr.ui.selected_file_actions` owns selected hunk open/copy workflows, while `BrowserCommandExecutor` keeps page checks, cached File Detail line retrieval, status feedback, and redraw control.
 
 ### P0: File action configuration
 

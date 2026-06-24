@@ -70,11 +70,11 @@ commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
 workspace state.
 `cr.ui.selected_file_actions` owns selected-file action workflow: open selected
-file, copy path/anchor/diff, save diff, reveal, stage/unstage selected files,
-set/clear selected-file note, prompt handoff selection, and copy/save prompt
-handoff messages. It does not summarize/search/copy all review notes, parse
-commands, place status messages in the Browser Frame, or own platform
-subprocess details.
+file, open/copy selected hunk, copy path/anchor/diff, save diff, reveal,
+stage/unstage selected files, set/clear selected-file note, prompt handoff
+selection, and copy/save prompt handoff messages. It does not
+summarize/search/copy all review notes, parse commands, place status messages
+in the Browser Frame, or own platform subprocess details.
 `cr.ui.file_actions` owns configured and platform fallback open/copy/reveal
 helpers, subprocess launches, and source diagnostics for browser file actions.
 It does not parse browser commands or choose the selected review file.
@@ -183,11 +183,12 @@ Product navigation terms:
   browser actions and returns loop control. It does not read prompt input or
   own browser session shutdown.
 - `Selected File Actions`: the internal module that owns workflows acting on
-  the current Changed Files selection, including open, copy path, copy anchor,
-  copy/save diff snippet, reveal, stage/unstage, selected-file notes, and
-  selected/scope prompt handoff selection. All-note summary/search/copy behavior
-  stays in Review Notes Module; platform subprocess details stay in File
-  Actions; Git index mutations stay in `cr.vcs.git`.
+  the current Changed Files selection, including open, open/copy hunk, copy
+  path, copy anchor, copy/save diff snippet, reveal, stage/unstage,
+  selected-file notes, and selected/scope prompt handoff selection. All-note
+  summary/search/copy behavior stays in Review Notes Module; platform
+  subprocess details stay in File Actions; Git index mutations stay in
+  `cr.vcs.git`.
 - `File Actions`: selected-file workbench operations such as `open`,
   `copy path`, `copy anchor`, `copy diff`, `copy hunk`, `save diff`,
   `copy prompt file`, `save prompt file`, and `reveal`. They act within the

@@ -1317,14 +1317,12 @@ def _open_current_hunk(
         args,
         style,
     )
-    line = file_detail_navigation.active_hunk_new_line(lines, state.file_scroll)
-    if line is None:
-        return "No diff hunks in current file."
-    repo_file = git.repo_path(change.path)
-    message = file_actions.open_path(repo_file, line, getattr(args, "open_cmd", None))
-    if message:
-        return message
-    return f"Opened hunk {shorten_path(change.path)}:{line}"
+    return selected_file_actions.open_selected_hunk(
+        change,
+        lines,
+        state.file_scroll,
+        args,
+    )
 
 
 def _copy_current_hunk(
@@ -1347,29 +1345,11 @@ def _copy_current_hunk(
         args,
         style,
     )
-    hunk = file_detail_navigation.active_hunk(lines, state.file_scroll)
-    if hunk is None:
-        return "No diff hunks in current file."
-    text = _render_hunk_copy_text(change.path, hunk)
-    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
-    if message:
-        return message
-    return f"Copied hunk {hunk.index}/{hunk.total} for {shorten_path(change.path)}:{hunk.new_line}"
-
-
-def _render_hunk_copy_text(path: str, hunk: file_detail_navigation.ActiveHunk) -> str:
-    return "\n".join(
-        [
-            f"# Hunk Diff: {path}",
-            "",
-            f"- anchor: {path}:{hunk.new_line}",
-            f"- hunk: {hunk.index}/{hunk.total}",
-            "",
-            "```text",
-            *hunk.lines,
-            "```",
-            "",
-        ]
+    return selected_file_actions.copy_selected_hunk(
+        change,
+        lines,
+        state.file_scroll,
+        args,
     )
 
 

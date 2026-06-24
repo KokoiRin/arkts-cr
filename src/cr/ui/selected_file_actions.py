@@ -1,10 +1,10 @@
 """Selected-file workflows for the interactive browser.
 
 This module owns action workflows that depend on the current changed-file
-selection: path/anchor/diff copy, editor/reveal handoff, selected-file notes,
-and prompt handoff selection. Platform subprocess details stay in
-`cr.ui.file_actions`; browser command execution decides where returned messages
-are displayed.
+selection: path/anchor/diff/hunk copy, editor/reveal/hunk handoff,
+selected-file notes, and prompt handoff selection. Platform subprocess details
+stay in `cr.ui.file_actions`; browser command execution decides where returned
+messages are displayed.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from ..review.prompt import render_prompt_handoff
 from ..review.snippet import render_file_diff_snippet
 from ..review.tree import shorten_path
 from ..vcs import git
+from . import file_detail_navigation
 from . import file_actions
 from . import handoff as handoff_module
 
@@ -156,6 +157,62 @@ def copy_selected_diff_snippet(
     if message:
         return message
     return f"Copied diff for {shorten_path(path)}"
+
+
+def open_selected_hunk(
+    change,
+    lines: list[str],
+    current_scroll: int,
+    args,
+    *,
+    repo_path=None,
+    open_path=None,
+) -> str:
+    repo_path = git.repo_path if repo_path is None else repo_path
+    open_path = file_actions.open_path if open_path is None else open_path
+    line = file_detail_navigation.active_hunk_new_line(lines, current_scroll)
+    if line is None:
+        return "No diff hunks in current file."
+    repo_file = repo_path(change.path)
+    message = open_path(repo_file, line, getattr(args, "open_cmd", None))
+    if message:
+        return message
+    return f"Opened hunk {shorten_path(change.path)}:{line}"
+
+
+def copy_selected_hunk(
+    change,
+    lines: list[str],
+    current_scroll: int,
+    args,
+    *,
+    copy_text=None,
+) -> str:
+    copy_text = file_actions.copy_text if copy_text is None else copy_text
+    hunk = file_detail_navigation.active_hunk(lines, current_scroll)
+    if hunk is None:
+        return "No diff hunks in current file."
+    text = _render_hunk_copy_text(change.path, hunk)
+    message = copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return f"Copied hunk {hunk.index}/{hunk.total} for {shorten_path(change.path)}:{hunk.new_line}"
+
+
+def _render_hunk_copy_text(path: str, hunk: file_detail_navigation.ActiveHunk) -> str:
+    return "\n".join(
+        [
+            f"# Hunk Diff: {path}",
+            "",
+            f"- anchor: {path}:{hunk.new_line}",
+            f"- hunk: {hunk.index}/{hunk.total}",
+            "",
+            "```text",
+            *hunk.lines,
+            "```",
+            "",
+        ]
+    )
 
 
 def save_selected_diff_snippet(

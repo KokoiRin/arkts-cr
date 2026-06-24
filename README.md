@@ -142,9 +142,11 @@ m / seen / done        把当前文件标记为已看
 todo / unseen / unmark 取消已看标记
 remaining              只显示还没看的文件
 allfiles / show all    回到全部改动文件
+note TEXT              给当前文件写一条 review 备注
+note                   清除当前文件的 review 备注
 ```
 
-文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`。
+文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。有备注的文件行会显示 `note` 标记；单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`，并在有备注时显示完整 `note: ...`。
 
 切换 review scope：
 
@@ -158,7 +160,7 @@ allfiles / show all    回到全部改动文件
 
 界面会显示 `Scope: ...`，这样你能一直知道当前是在看 worktree、staged、all、base、range、recent commits 还是某个 commit。
 
-默认 `cr browse` 会在退出时把当前 scope、filter、选中文件、list/file 层级和 review 进度保存到 `.git/cr/browse-state.json`；下次直接运行 `cr` 会恢复这个 review workspace。显式传入 `--staged`、`--all`、`--base`、`--range`、`--untracked` 或路径参数时，本次命令优先，不会被历史状态覆盖。
+默认 `cr browse` 会在退出时把当前 scope、filter、选中文件、list/file 层级、review 进度和 per-file note 保存到 `.git/cr/browse-state.json`；下次直接运行 `cr` 会恢复这个 review workspace。显式传入 `--staged`、`--all`、`--base`、`--range`、`--untracked` 或路径参数时，本次命令优先，不会被历史状态覆盖。
 
 打开编辑器：
 

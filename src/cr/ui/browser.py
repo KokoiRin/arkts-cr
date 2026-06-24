@@ -74,6 +74,7 @@ class BrowserState:
     filter_text: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
+    review_notes: dict[str, str] = field(default_factory=dict)
     scope_selected: int = 0
     command_selected: int = 0
     command_filter_text: str = ""
@@ -93,6 +94,7 @@ class BrowserState:
                 filter_text=self.filter_text,
                 seen_paths=self.seen_paths,
                 remaining_only=self.remaining_only,
+                review_notes=self.review_notes,
             )
         self._sync_from_workspace()
 
@@ -108,6 +110,7 @@ class BrowserState:
         self.filter_text = workspace.filter_text
         self.seen_paths = workspace.seen_paths
         self.remaining_only = workspace.remaining_only
+        self.review_notes = workspace.review_notes
 
     def _sync_to_workspace(self) -> ReviewWorkspace:
         workspace = self.workspace
@@ -122,6 +125,7 @@ class BrowserState:
         workspace.filter_text = self.filter_text
         workspace.seen_paths = self.seen_paths
         workspace.remaining_only = self.remaining_only
+        workspace.review_notes = self.review_notes
         return workspace
 
     @property
@@ -446,6 +450,10 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=raw_keys)
             _show_browser_message(state, "No changed file to reveal.", raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SET_REVIEW_NOTE:
+            message = _set_selected_review_note(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SHOW_TASK_DIAGNOSTICS:
             lines = task_runtime.task_diagnostic_lines(git.repo_root(), args)
             if raw_keys:
@@ -599,7 +607,7 @@ class BrowserCommandExecutor:
                 else (
                     "Unknown command. Use arrows, Enter, /, c, a number, "
                     "o, n, p, b, g, r, h, m, remaining, copy path, "
-                    "copy anchor, reveal, tasks, build, stop, rerun, test, "
+                    "copy anchor, reveal, note, tasks, build, stop, rerun, test, "
                     "lint, staged, all, base, range, or q."
                 )
             )
@@ -715,6 +723,7 @@ def run_browser(args: argparse.Namespace) -> int:
                             1 for change in state.changes if change.path in state.seen_paths
                         ),
                         remaining_only=state.remaining_only,
+                        review_notes=state.review_notes,
                     )
                 )
             elif visible:
@@ -728,6 +737,7 @@ def run_browser(args: argparse.Namespace) -> int:
                         style,
                         _scope_label(state, args),
                         visible[state.selected].path in state.seen_paths,
+                        state.review_notes.get(visible[state.selected].path, ""),
                     )
                 )
             else:
@@ -831,6 +841,24 @@ def _unmark_selected_seen(state: BrowserState) -> None:
     state.clamp_selection()
     state.seen_paths.discard(visible[state.selected].path)
     state.clamp_selection()
+
+
+def _set_selected_review_note(state: BrowserState, note: str) -> str:
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to note."
+    state.clamp_selection()
+    path = visible[state.selected].path
+    text = note.strip()
+    if text:
+        state.review_notes[path] = text
+        state._sync_to_workspace()
+        state.file_line_cache.clear()
+        return f"Noted {shorten_path(path)}"
+    state.review_notes.pop(path, None)
+    state._sync_to_workspace()
+    state.file_line_cache.clear()
+    return f"Cleared note for {shorten_path(path)}"
 
 
 def _browser_workspace_state_path(repo: Path) -> Path:
@@ -1299,7 +1327,7 @@ def _browse_help_lines(style: TerminalStyle) -> list[str]:
         style.bold("Interactive review"),
         "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
         "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks help    copy path/anchor/reveal: file actions",
+        "  : command prompt    build/test/lint/tasks help    note TEXT    copy path/anchor/reveal",
         "  PgUp/PgDn or u/d: page    Home/End: jump",
         "  n/p: next/prev    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
         "",
@@ -1354,6 +1382,8 @@ def _command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("copy path", "copy selected file path", "copy path"),
                 CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
                 CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
+                CommandEntry("note TEXT", "set selected file review note"),
+                CommandEntry("note", "clear selected file review note"),
                 CommandEntry("refresh", "reload current review scope", "refresh"),
             ),
         ),
@@ -1620,8 +1650,10 @@ def _browse_list_lines(
     seen_paths: set[str] | None = None,
     seen_count: int | None = None,
     remaining_only: bool = False,
+    review_notes: dict[str, str] | None = None,
 ) -> list[str]:
     seen_paths = seen_paths or set()
+    review_notes = review_notes or {}
     total_changes = len(changes) if total_changes is None else total_changes
     if not changes:
         return _empty_browse_lines(args, filter_text, total_changes=total_changes)
@@ -1655,6 +1687,7 @@ def _browse_list_lines(
                 label_width,
                 style,
                 seen_paths,
+                review_notes,
             )
         )
     lines.append("")
@@ -1711,6 +1744,7 @@ def _browse_list_screen_lines(
                 label_width,
                 style,
                 state.seen_paths,
+                state.review_notes,
             )
         )
     if len(rows) > row_capacity:
@@ -1778,6 +1812,7 @@ def _format_browse_tree_row(
     label_width: int,
     style: TerminalStyle,
     seen_paths: set[str] | None = None,
+    review_notes: dict[str, str] | None = None,
 ) -> str:
     if row.change is None or row.change_index is None:
         return f"  {' ' * index_width}  {_style_tree_directory(row.label, style)}"
@@ -1785,6 +1820,7 @@ def _format_browse_tree_row(
     marker = ">" if selected == row.change_index else " "
     progress = "[x]" if row.change.path in (seen_paths or set()) else "[ ]"
     status = " modified" if row.change.status == "modified" else ""
+    note = " note" if row.change.path in (review_notes or {}) else ""
     styled_label = _style_tree_file(
         row.label,
         label_width,
@@ -1795,6 +1831,7 @@ def _format_browse_tree_row(
         f"{styled_label}  "
         f"{style_change_summary(row.change, style)}"
         f"{status}"
+        f"{note}"
     )
 
 
@@ -1963,6 +2000,7 @@ def _browse_file_lines(
     style: TerminalStyle,
     scope_label: str = "",
     seen: bool = False,
+    review_note: str = "",
 ) -> list[str]:
     first_line = git.first_changed_line(
         change.path,
@@ -1982,6 +2020,8 @@ def _browse_file_lines(
     ]
     lines = [line for line in lines if line]
     risks = risk_hints(change.path)
+    if review_note:
+        lines.append(f"  note: {review_note}")
     if risks:
         lines.append(f"  {style.warning('risk: ' + ', '.join(risks))}")
     if change.status != "deleted" and is_code_file(change.path):
@@ -2038,8 +2078,9 @@ def _cached_file_lines(
     style: TerminalStyle,
 ) -> list[str]:
     seen = change.path in state.seen_paths
+    review_note = state.review_notes.get(change.path, "")
     scope_label = _product_breadcrumb(state, args)
-    key = _file_cache_key(change, index, total, args, seen, scope_label)
+    key = _file_cache_key(change, index, total, args, seen, scope_label, review_note)
     if key not in state.file_line_cache:
         state.file_line_cache[key] = _browse_file_lines(
             change,
@@ -2049,6 +2090,7 @@ def _cached_file_lines(
             style,
             scope_label,
             seen,
+            review_note,
         )
     return state.file_line_cache[key]
 
@@ -2060,12 +2102,14 @@ def _file_cache_key(
     args: argparse.Namespace,
     seen: bool = False,
     scope_label: str = "",
+    review_note: str = "",
 ) -> str:
     return "\x1f".join(
         [
             change.path,
             scope_label,
             "seen" if seen else "todo",
+            review_note,
             str(index),
             str(total),
             str(args.context),

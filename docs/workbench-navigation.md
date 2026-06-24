@@ -58,6 +58,7 @@ Changed Files 是二级对象：它展示当前 Review Scope 里改动了哪些�
 - 每个文件的 added/deleted 统计。
 - 文件状态：modified、added、deleted、renamed、untracked。
 - 轻量 review 进度：seen/todo、remaining。
+- 轻量 per-file note 标记。
 - 路径过滤和排序。
 
 这层不负责展示完整 diff。它的目标是帮助用户理解“这个 scope 改了哪些地方，以及我下一步应该进哪个文件”。
@@ -73,6 +74,7 @@ File Detail 是三级对象：它展示某个文件在当前 Review Scope 中的
 - first changed line anchor。
 - changed symbols。
 - purpose hint。
+- review note。
 - 打开外部编辑器。
 - 在当前 scope 的文件之间 next/previous。
 
@@ -106,7 +108,7 @@ Changed Files
     BrowserPage.CHANGED_FILES -> "list"
     visible_changes
     browse tree rows
-    seen_paths / remaining_only
+    seen_paths / remaining_only / review_notes
 
 File Detail
   current implementation:
@@ -133,7 +135,7 @@ Browser Navigation
 
 Review Workspace
   current implementation:
-    ReviewWorkspace owns active scope, changed files, filter/progress state, selected file, selected commit, previous scope, and workspace-state data mapping
+    ReviewWorkspace owns active scope, changed files, filter/progress/note state, selected file, selected commit, previous scope, and workspace-state data mapping
 
 Browser Command Dispatch
   current implementation:
@@ -148,7 +150,7 @@ Browser Action Execution
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
-Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress state, selected file state, and workspace-state data mapping.
+Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
 Browser command dispatch is now explicit without changing user-visible commands. `BrowserCommandAction` and `parse_browser_command` map raw key aliases, line-mode commands, parameterized commands, and numeric selections to product actions before `browser.py` executes them.
 Browser action execution is now explicit without changing user-visible behavior. `BrowserCommandExecutor` executes parsed actions and returns `BrowserActionResult`, while `run_browser` keeps prompt input, sentinels, workspace save-on-exit, and redraw scheduling.
 Task runtime is now explicit without changing Task Panel behavior. `cr.ui.tasks` owns command resolution, process lifecycle, output capture, stop/rerun, foreground execution, and history records; `browser.py` keeps terminal layout and panel rendering.
@@ -221,7 +223,7 @@ Status: implemented.
 
 Status: implemented.
 
-`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns terminal rendering, command dispatch, background tasks, editor handoff, and file I/O for `.git/cr/browse-state.json`.
+`ReviewWorkspace` now owns active Review Scope state, changed-file loading, filter/progress/note state, selected file state, selected commit, previous scope, and workspace-state data mapping. `browser.py` still owns terminal rendering, command dispatch, background tasks, editor handoff, and file I/O for `.git/cr/browse-state.json`.
 
 ### P0: Command dispatch deepening
 
@@ -271,6 +273,12 @@ Status: implemented.
 
 `tasks help` now shows the expected `.cr/tasks.json` shape, supported build/test/lint string commands, task command precedence, and a compact JSON example. Malformed preset diagnostics point to this help without making preset parsing fatal.
 
+### P0: Review notes
+
+Status: implemented.
+
+`note TEXT` now sets a lightweight per-file note for the selected changed file, and `note` clears it. Changed Files shows a compact note marker, File Detail shows the full note text, and `.git/cr/browse-state.json` persists notes with the default review workspace.
+
 ### P0: Real page stack
 
 Status: implemented.
@@ -287,4 +295,4 @@ Current architecture risk:
 
 - `src/cr/ui/browser.py` is becoming a large module that owns session state, navigation, rendering, command handling, task lifecycle, and editor handoff.
 - `BrowserNavigation` hides page transition rules, `ReviewWorkspace` hides active review workspace rules, `BrowserCommandAction` hides command string parsing, `BrowserCommandExecutor` hides action execution, and `cr.ui.tasks` hides task runtime behavior, but `src/cr/ui/browser.py` still owns rendering, task panel presentation, editor handoff helpers, prompt input, and persistence file I/O.
-- The next product opportunity should come from concrete usage friction around review notes, editor handoff diagnostics, or command palette organization.
+- The next product opportunity should come from concrete usage friction around editor handoff diagnostics, command palette organization, or richer review-note workflows.

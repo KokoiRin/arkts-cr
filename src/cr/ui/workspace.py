@@ -1,8 +1,8 @@
 """Review workspace state for the interactive browser.
 
 This module owns active Review Scope data, changed files, review filtering,
-progress markers, and selected-file state. It does not render terminal output,
-handle keys, manage background tasks, or open editors.
+progress markers, per-file review notes, and selected-file state. It does not
+render terminal output, handle keys, manage background tasks, or open editors.
 """
 
 from __future__ import annotations
@@ -59,6 +59,7 @@ class ReviewWorkspace:
     filter_text: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
+    review_notes: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def load(
@@ -158,6 +159,7 @@ class ReviewWorkspace:
             "mode": mode,
             "seen_paths": sorted(self.seen_paths),
             "remaining_only": self.remaining_only,
+            "review_notes": clean_review_notes(self.review_notes),
         }
 
     def restore_state(
@@ -170,6 +172,7 @@ class ReviewWorkspace:
         self.filter_text = filter_text if isinstance(filter_text, str) else ""
         self.seen_paths = string_set(workspace_state.get("seen_paths"))
         self.remaining_only = workspace_state.get("remaining_only") is True
+        self.review_notes = clean_review_notes(workspace_state.get("review_notes"))
         self._restore_selection(workspace_state)
         return workspace_state.get("mode")
 
@@ -223,3 +226,16 @@ def string_set(value: object) -> set[str]:
     if not isinstance(value, list):
         return set()
     return {item for item in value if isinstance(item, str)}
+
+
+def clean_review_notes(value: object) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    notes: dict[str, str] = {}
+    for path, note in value.items():
+        if not isinstance(path, str) or not isinstance(note, str):
+            continue
+        text = note.strip()
+        if text:
+            notes[path] = text
+    return notes

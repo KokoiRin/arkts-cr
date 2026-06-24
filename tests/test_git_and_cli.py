@@ -31,6 +31,8 @@ from cr.ui.browser import (
     _filtered_command_palette_entries,
     _browse_file_lines,
     _browse_file_screen_lines,
+    _browse_list_lines,
+    _browse_list_screen_lines,
     _browser_workspace_state_path,
     _save_browser_workspace_state,
     _load_browser_workspace_state,
@@ -258,6 +260,12 @@ class CliTests(unittest.TestCase):
             parse_browser_command("reveal").action,
             BrowserCommandAction.REVEAL_FILE,
         )
+        note = parse_browser_command("note check lifecycle edge case")
+        self.assertEqual(note.action, BrowserCommandAction.SET_REVIEW_NOTE)
+        self.assertEqual(note.value, "check lifecycle edge case")
+        clear_note = parse_browser_command("note")
+        self.assertEqual(clear_note.action, BrowserCommandAction.SET_REVIEW_NOTE)
+        self.assertEqual(clear_note.value, "")
         self.assertEqual(
             parse_browser_command("tasks").action,
             BrowserCommandAction.SHOW_TASK_DIAGNOSTICS,
@@ -553,6 +561,41 @@ class CliTests(unittest.TestCase):
         help_lines.assert_called_once_with()
         self.assertIn("Task preset file: .cr/tasks.json", output.getvalue())
 
+    def test_browser_command_executor_sets_and_clears_selected_file_note(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 2, 1),
+            ],
+            selected=1,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with redirect_stdout(output):
+            set_result = executor.execute(
+                parse_browser_command("note check lifecycle edge case")
+            )
+            clear_result = executor.execute(parse_browser_command("note"))
+
+        self.assertTrue(set_result.handled)
+        self.assertFalse(set_result.needs_redraw)
+        self.assertTrue(clear_result.handled)
+        self.assertFalse(clear_result.needs_redraw)
+        self.assertEqual(state.review_notes, {})
+        self.assertIsNone(state.task)
+        self.assertIn("Noted src/Second.ts", output.getvalue())
+        self.assertIn("Cleared note for src/Second.ts", output.getvalue())
+
     def test_browser_command_executor_runs_forward_navigation(self):
         from cr.ui.browser import parse_browser_command
 
@@ -765,6 +808,7 @@ class CliTests(unittest.TestCase):
             filter_text="src/",
             seen_paths={"src/First.ts"},
             remaining_only=True,
+            review_notes={"src/Second.ts": "check lifecycle edge case"},
         )
 
         data = workspace.state_data(args, mode=BrowserPage.FILE_DETAIL)
@@ -775,6 +819,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(data["mode"], "file")
         self.assertEqual(data["seen_paths"], ["src/First.ts"])
         self.assertEqual(data["remaining_only"], True)
+        self.assertEqual(
+            data["review_notes"],
+            {"src/Second.ts": "check lifecycle edge case"},
+        )
 
         restored_args = argparse_namespace(
             staged=False,
@@ -797,6 +845,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(restored.selected, 0)
         self.assertEqual(restored.seen_paths, {"src/First.ts"})
         self.assertTrue(restored.remaining_only)
+        self.assertEqual(
+            restored.review_notes,
+            {"src/Second.ts": "check lifecycle edge case"},
+        )
         self.assertEqual(mode, "file")
 
     def test_background_task_runtime_uses_task_state_names(self):
@@ -2779,6 +2831,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Session", text)
         self.assertIn("staged", text)
         self.assertIn("build", text)
+        self.assertIn("note TEXT", text)
 
     def test_command_palette_entries_include_only_executable_commands(self):
         entries = _command_palette_entries()
@@ -2799,6 +2852,7 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("n", commands)
         self.assertNotIn("base REF", commands)
         self.assertNotIn("range OLD..NEW", commands)
+        self.assertNotIn("note TEXT", commands)
         self.assertNotIn("Enter / 1..N", commands)
 
     def test_command_palette_filter_matches_command_group_and_description(self):
@@ -3226,6 +3280,48 @@ class CliTests(unittest.TestCase):
         self.assertIn("todo", todo_lines[0])
         self.assertIn("seen", seen_lines[0])
 
+    def test_browse_lines_show_review_notes(self):
+        args = argparse_namespace(
+            context=0,
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        change = FileChange("src/Sample.ts", 1, 1)
+        review_notes = {"src/Sample.ts": "check lifecycle edge case"}
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=1):
+            with patch("cr.ui.browser.risk_hints", return_value=[]):
+                with patch("cr.ui.browser.is_code_file", return_value=False):
+                    with patch("cr.ui.browser.change_hunk_lines", return_value=[]):
+                        list_lines = _browse_list_lines(
+                            [change],
+                            args,
+                            TerminalStyle(False),
+                            selected=0,
+                            review_notes=review_notes,
+                        )
+                        screen_lines = _browse_list_screen_lines(
+                            BrowserState([change], review_notes=review_notes),
+                            args,
+                            TerminalStyle(False),
+                            max_lines=8,
+                        )
+                        detail_lines = _browse_file_lines(
+                            change,
+                            0,
+                            1,
+                            args,
+                            TerminalStyle(False),
+                            review_note=review_notes["src/Sample.ts"],
+                        )
+
+        self.assertIn("note", "\n".join(list_lines))
+        self.assertIn("note", "\n".join(screen_lines))
+        self.assertIn("note: check lifecycle edge case", "\n".join(detail_lines))
+
     def test_browser_workspace_state_saves_under_git_dir(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -3329,6 +3425,41 @@ class CliTests(unittest.TestCase):
             self.assertEqual(
                 [change.path for change in restored.visible_changes],
                 ["src/Second.ts"],
+            )
+
+    def test_browser_workspace_state_saves_and_restores_review_notes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / ".git").mkdir()
+            state = BrowserState(
+                [
+                    FileChange("src/First.ts", 1, 0),
+                    FileChange("src/Second.ts", 2, 1),
+                ],
+                review_notes={"src/Second.ts": "check lifecycle edge case"},
+            )
+            args = argparse_namespace(
+                staged=False,
+                all_changes=False,
+                base=None,
+                ref_range=None,
+                untracked=False,
+                paths=[],
+            )
+
+            _save_browser_workspace_state(state, args, repo)
+            workspace_state = _load_browser_workspace_state(repo)
+            restored = BrowserState(
+                [
+                    FileChange("src/First.ts", 1, 0),
+                    FileChange("src/Second.ts", 2, 1),
+                ]
+            )
+            _restore_browser_workspace_state(restored, args, workspace_state)
+
+            self.assertEqual(
+                restored.review_notes,
+                {"src/Second.ts": "check lifecycle edge case"},
             )
 
     def test_browser_workspace_state_restores_scope_filter_and_selected_path(self):

@@ -2,7 +2,9 @@
 
 ## Requirement card
 
-Implement a lightweight terminal-first code reading tool named `cr`.
+Implement a terminal-first code review workbench named `cr`.
+
+`cr` started as a lightweight Git change reader, but its product direction is now a small terminal workbench for daily code-review and repository operations. It is allowed to grow toward IDE replacement for high-frequency workflows, while keeping the current boundary clear: review, navigation, commit/range selection, build, editor handoff, and scriptable non-interactive output.
 
 ## Expected behavior
 
@@ -47,16 +49,21 @@ Implement a lightweight terminal-first code reading tool named `cr`.
   - Opens the interactive review browser by default when running `cr` without a subcommand.
   - Treats leading options such as `cr --code` or `cr --context 0` as `cr browse --code` and `cr browse --context 0`.
   - Shows a changed-file list first, then a focused per-file diff view.
-  - Uses a fixed redraw area in interactive TTYs so navigation does not append repeated output.
+  - Uses stable screen regions in interactive TTYs so navigation and background tasks do not append repeated output.
+  - Renders four page layers: help/context, main content, background task panel, and input prompt.
+  - Keeps the input prompt on the final terminal row.
+  - Shows build output in a 5-10 line bottom task panel above the prompt while the main content remains usable.
+  - Updates build output by repainting only the task panel when the user is idle.
   - Supports keyboard navigation with arrows or `j/k`, Enter or right arrow to open a file, `n/p` for next/previous, `b` or left arrow to return, `r` to refresh, and `q` to quit.
   - Supports path filtering inside the session: `/` opens filter input in raw-key mode, `/query` and `filter query` work in line mode, and `c` / `clear` clears the filter.
   - Applies filtering to list rendering, numeric selection, next/previous navigation, editor opening, and refresh selection clamping.
+  - Supports `g` for recent commits, `w` to return to the previous worktree/staged/range scope, and `build` from the command prompt for repo builds.
 
 ## Not doing
 
 - No tree-sitter or language server integration.
 - No perfect TypeScript or ArkTS syntax model.
-- No IDE UI, pager, third-party TUI framework, or mouse interaction.
+- No full IDE language service, debugger, refactoring engine, third-party TUI framework, or mouse interaction yet.
 
 ## Design
 
@@ -121,8 +128,10 @@ Implement a lightweight terminal-first code reading tool named `cr`.
   - Keep `src/cr/cli.py` as the command parser and delegate interactive browse execution to `src/cr/ui/browser.py`.
   - Reuse `src/cr/review/changes.py` for changed-file selection, sorting, code-file detection, hunk rendering, and modified-symbol facts so `browse`, `review`, and `diff` share one implementation of review-scope rules.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, mode, and filter query.
+  - Treat browser screen layout as one module-owned concept: content height, background task height, task panel start row, and prompt row are calculated together.
   - Match filters as case-insensitive substrings against full Git paths, while continuing to render shortened display paths for readability.
   - Keep raw-key TTY support standard-library only: read one command key at a time, and use a simple `filter> ` line prompt after `/`.
+  - Treat raw-key navigation as command events, not text output; normal key reads must not emit an extra newline.
   - Preserve non-TTY line mode for tests, pipes, and terminals where raw-key mode is unavailable.
 - File tree:
   - Build a display-only path tree from changed file paths.

@@ -20,6 +20,8 @@ from cr.ui.browser import (
     _draw_browse_screen,
     _open_command,
     _poll_build,
+    _read_browse_command,
+    _screen_layout,
     _start_build,
     filter_changes_by_query,
 )
@@ -123,19 +125,46 @@ class CliTests(unittest.TestCase):
         build = BuildState(["true"], process, lines=["compile line"])
         output = StringIO()
 
-        with redirect_stdout(output):
-            _draw_build_panel_only(build, TerminalStyle(False))
+        with patch(
+            "cr.ui.browser.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with redirect_stdout(output):
+                _draw_build_panel_only(build, TerminalStyle(False))
 
         text = output.getvalue()
         self.assertNotIn("\033[2J", text)
         self.assertIn("\0337", text)
+        self.assertIn("\033[7;1H", text)
+        self.assertIn("\0338", text)
         self.assertIn("compile line", text)
 
         output = StringIO()
-        with redirect_stdout(output):
-            _draw_build_panel_only(build, TerminalStyle(False))
+        with patch(
+            "cr.ui.browser.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with redirect_stdout(output):
+                _draw_build_panel_only(build, TerminalStyle(False))
 
         self.assertEqual(output.getvalue(), "")
+        process.wait(timeout=1)
+
+    def test_screen_layout_reserves_prompt_and_build_panel_regions(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        build = BuildState(["true"], process, lines=["compile line"])
+
+        plain = _screen_layout(None, rows=12)
+        with_build = _screen_layout(build, rows=12)
+
+        self.assertEqual(plain.prompt_row, 12)
+        self.assertEqual(plain.content_height, 11)
+        self.assertEqual(plain.build_height, 0)
+        self.assertIsNone(plain.build_start_row)
+        self.assertEqual(with_build.prompt_row, 12)
+        self.assertEqual(with_build.build_start_row, 7)
+        self.assertEqual(with_build.build_height, 5)
+        self.assertEqual(with_build.content_height, 6)
         process.wait(timeout=1)
 
     def test_browse_screen_redraws_in_place(self):
@@ -159,6 +188,74 @@ class CliTests(unittest.TestCase):
         self.assertIn("> 1", text)
         self.assertIn("└─ src", text)
         self.assertIn("└─ Sample.ts", text)
+
+    def test_browse_screen_places_build_panel_above_prompt(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            build=BuildState(["true"], process, lines=["compile line"]),
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+                with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("compile line", text)
+        self.assertIn("\033[12;1H\033[2Kcr:list> ", text)
+        process.wait(timeout=1)
+
+    def test_browse_screen_pads_short_content_before_build_panel(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            build=BuildState(["true"], process, lines=["compile line"]),
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.browser.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 30)),
+        ):
+            with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+                with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        before_panel = text.split("Build running", 1)[0]
+        process.wait(timeout=1)
+        self.assertEqual(before_panel.count("\n"), 23)
+
+    def test_raw_key_command_read_does_not_print_newline(self):
+        output = StringIO()
+
+        with patch("cr.ui.browser._read_raw_key", return_value="down"):
+            with redirect_stdout(output):
+                command = _read_browse_command("cr:list> ", raw_keys=True)
+
+        self.assertEqual(command, "down")
+        self.assertEqual(output.getvalue(), "")
 
     def test_browse_tree_highlights_guides_and_uses_plain_white_file_names(self):
         args = argparse_namespace(

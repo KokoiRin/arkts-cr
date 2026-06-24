@@ -1,6 +1,6 @@
 # cr
 
-`cr` 是一个轻量的命令行代码 review 工具，用来快速查看本地 Git 改动。它适合 AI 写完代码后，人再做一次扫描、定位和确认。
+`cr` 是一个面向代码 review 和常用仓库操作的 terminal workbench / lightweight TUI。它的长期目标是把日常 IDE 里的高频动作收进一个舒服的终端界面：看改动、切 commit、跑 build、打开编辑器，以及后续更多仓库操作。
 
 日常使用时不用记很多命令：进入有改动的 Git 仓库，直接运行：
 
@@ -9,6 +9,17 @@ cr
 ```
 
 这会打开交互式 review browser。后续大部分操作都在里面完成。
+
+当前页面分四层：
+
+```text
+帮助/上下文区    当前按键、当前视图
+主内容区        文件树、commit 列表、单文件 diff
+任务面板区      build 等后台任务的最近输出
+输入提示区      cr:list> / cr:file> / cr:commits>
+```
+
+build 运行时只更新底部任务面板；主内容区仍然可以继续浏览，最底下的输入提示不会被日志挤走。
 
 ## 安装
 
@@ -118,7 +129,7 @@ cr --open-cmd 'code -g {fileline}'
 build
 ```
 
-编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
+编译会在底部打开一个 5-10 行的小日志面板，主区域仍然可以继续浏览文件树和 diff。后台日志更新只重画这个面板，不会滚动主内容。`DouyinHarmony` 仓会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置：
 
 ```bash
 cr --build-cmd './remote buildEntry --app douyin'

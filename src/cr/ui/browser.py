@@ -126,6 +126,18 @@ class BuildState:
         return self.returncode is None and self.start_error is None
 
 
+@dataclass(frozen=True)
+class ScreenLayout:
+    content_height: int
+    build_height: int
+    prompt_row: int
+    build_start_row: int | None
+
+    @property
+    def max_render_lines(self) -> int:
+        return max(0, self.prompt_row - 1)
+
+
 def run_browser(args: argparse.Namespace) -> int:
     style = make_style(args.color, sys.stdout, args.links)
     state = BrowserState(changes=_load_browse_changes(args))
@@ -515,6 +527,20 @@ def _build_panel_height(build: BuildState | None, available_lines: int) -> int:
     return max(3, min(10, max(5, available_lines // 4), max(3, available_lines - 6)))
 
 
+def _screen_layout(build: BuildState | None, rows: int | None = None) -> ScreenLayout:
+    terminal_rows = _screen_height() if rows is None else max(8, rows)
+    max_render_lines = max(1, terminal_rows - 1)
+    build_height = _build_panel_height(build, max_render_lines)
+    content_height = max(1, max_render_lines - build_height)
+    build_start_row = content_height + 1 if build_height else None
+    return ScreenLayout(
+        content_height=content_height,
+        build_height=build_height,
+        prompt_row=terminal_rows,
+        build_start_row=build_start_row,
+    )
+
+
 def _build_panel_lines(
     build: BuildState | None,
     style: TerminalStyle,
@@ -553,9 +579,10 @@ def _draw_browse_screen(
 ) -> None:
     state.clamp_selection()
     visible = state.visible_changes
-    max_lines = _screen_height() - 1
-    build_panel_height = _build_panel_height(state.build, max_lines)
-    content_lines = max(1, max_lines - build_panel_height)
+    layout = _screen_layout(state.build)
+    max_lines = layout.max_render_lines
+    content_lines = layout.content_height
+    build_panel_height = layout.build_height
     if state.mode == "commits":
         lines = [
             *_browse_help_lines(style),
@@ -592,13 +619,20 @@ def _draw_browse_screen(
             total_changes=len(state.changes),
         )
     if build_panel_height:
+        content_frame = lines[:content_lines]
+        if len(content_frame) < content_lines:
+            content_frame.extend([""] * (content_lines - len(content_frame)))
         lines = [
-            *lines[:content_lines],
+            *content_frame,
             *_build_panel_lines(state.build, style, build_panel_height),
         ]
     print("\033[2J\033[H", end="")
     _print_lines(lines[:max_lines])
-    print(_browse_prompt(state.mode), end="", flush=True)
+    print(
+        f"\033[{layout.prompt_row};1H\033[2K{_browse_prompt(state.mode)}",
+        end="",
+        flush=True,
+    )
     if state.build is not None:
         state.build.last_rendered_panel = _build_panel_lines(
             state.build,
@@ -613,14 +647,13 @@ def _draw_build_panel_only(
 ) -> None:
     if build is None:
         return
-    rows = _screen_height()
-    max_lines = rows - 1
-    height = _build_panel_height(build, max_lines)
+    layout = _screen_layout(build)
+    height = layout.build_height
     lines = _build_panel_lines(build, style, height)
     if lines == build.last_rendered_panel:
         return
     build.last_rendered_panel = lines
-    start_row = max(1, rows - height)
+    start_row = layout.build_start_row or 1
     output: list[str] = ["\0337", f"\033[{start_row};1H"]
     for index in range(height):
         output.append("\033[2K")
@@ -1140,7 +1173,6 @@ def _read_browse_command(
         return "__interrupt__"
     if key == "__tick__":
         return key
-    print()
     return key
 
 

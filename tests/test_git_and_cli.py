@@ -1402,6 +1402,9 @@ class CliTests(unittest.TestCase):
             )
         )
         self.assertIn("Task Output 帮助", task_output_text)
+        self.assertIn("view problem", task_output_text)
+        self.assertIn("copy problem context", task_output_text)
+        self.assertIn("save problem context", task_output_text)
         self.assertIn("copy task tail", task_output_text)
         self.assertIn("save task tail", task_output_text)
 
@@ -1468,6 +1471,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy task tail 复制尾部", task_output)
         self.assertIn("copy task 复制任务", task_output)
         self.assertIn("save task 保存任务", task_output)
+        self.assertIn("view problem 查看首个问题", task_output)
+        self.assertIn("copy context 复制首个问题", task_output)
+        self.assertIn("save context 保存首个问题", task_output)
         self.assertIn("find 查找", task_output)
         self.assertIn("next match 下个匹配", task_output)
         self.assertIn("stop", task_output)
@@ -6079,6 +6085,96 @@ class CliTests(unittest.TestCase):
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied problem context src/Foo.ets:5", state.status_message)
 
+    def test_browser_command_executor_copies_task_output_first_problem_context(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "One.ets"
+            second = repo / "src" / "Two.ets"
+            first.parent.mkdir(parents=True)
+            first.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            second.write_text("alpha\nbeta\ngamma\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_OUTPUT,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:2:1 error TS1: first bad",
+                        "src/Two.ets:2:1 error TS2: second bad",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(
+                        parse_browser_command("copy problem context")
+                    )
+
+        self.assertTrue(result.handled)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("# Problem Context: src/One.ets:2", copied)
+        self.assertIn("first bad", copied)
+        self.assertIn("> 2  two", copied)
+        self.assertNotIn("second bad", copied)
+        self.assertIn("Copied problem context src/One.ets:2", state.status_message)
+
+    def test_browser_command_executor_saves_task_output_first_problem_context(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_OUTPUT,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Foo.ets:2:1 error TS1: bad"],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(
+                    parse_browser_command("save problem context tmp/task-first.md")
+                )
+
+            saved = repo / "tmp" / "task-first.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertIn("# Problem Context: src/Foo.ets:2", text)
+        self.assertIn("bad", text)
+        self.assertIn("Saved problem context to tmp/task-first.md", state.status_message)
+
     def test_browser_command_executor_copies_source_page_problem_context(self):
         from cr.ui.browser import parse_browser_command
 
@@ -6217,6 +6313,76 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.handled)
         copy_text.assert_not_called()
         self.assertIn("Source file not found.", state.status_message)
+
+    def test_browser_command_executor_views_first_task_output_problem_source(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "One.ets"
+            second = repo / "src" / "Two.ets"
+            first.parent.mkdir(parents=True)
+            first.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            second.write_text("alpha\nbeta\ngamma\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_OUTPUT,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:2:1 error",
+                        "src/Two.ets:2:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("view problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_path, "src/One.ets")
+        self.assertEqual(state.source_file_line, 2)
+        self.assertEqual(state.problem_selected, 1)
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+
+    def test_browser_command_executor_reports_task_output_view_without_problem(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_OUTPUT,
+            task=TaskState(["./build.sh"], process, lines=["plain failure"]),
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("view problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+        self.assertIn("No task problem to view.", state.status_message)
 
     def test_browser_command_executor_saves_task_problem_context(self):
         from cr.ui.browser import parse_browser_command

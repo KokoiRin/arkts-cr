@@ -1453,12 +1453,10 @@ def _problem_context_text(
 
 
 def _problem_context_target(state: BrowserState) -> tuple[str, int, str, int] | None:
-    if state.page == BrowserPage.TASK_PROBLEMS:
-        problems = _current_task_problems(state)
-        if not problems:
+    if state.page in {BrowserPage.TASK_OUTPUT, BrowserPage.TASK_PROBLEMS}:
+        problem = _current_task_problem_for_action(state)
+        if problem is None:
             return None
-        selected = max(0, min(state.problem_selected, len(problems) - 1))
-        problem = problems[selected]
         return (
             problem.path,
             problem.line,
@@ -2498,11 +2496,9 @@ def _open_selected_task_problem(state: BrowserState, args: argparse.Namespace) -
 
 
 def _view_selected_task_problem(state: BrowserState) -> str:
-    problems = _current_task_problems(state)
-    if not problems:
+    problem = _current_task_problem_for_action(state)
+    if problem is None:
         return "No task problem to view."
-    selected = max(0, min(state.problem_selected, len(problems) - 1))
-    problem = problems[selected]
     BrowserNavigation.show_source_file(state, problem.path, problem.line)
     return ""
 
@@ -3119,6 +3115,18 @@ def _current_task_problems(state: BrowserState) -> list[task_problems_module.Tas
         state.problem_query,
     )
     return task_problems_module.sort_task_problems(visible, state.problem_sort)
+
+
+def _current_task_problem_for_action(
+    state: BrowserState,
+) -> task_problems_module.TaskProblem | None:
+    problems = _current_task_problems(state)
+    if not problems:
+        return None
+    if state.page == BrowserPage.TASK_OUTPUT:
+        return problems[0]
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    return problems[selected]
 
 
 def _current_source_file_view(

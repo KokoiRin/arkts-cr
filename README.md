@@ -140,6 +140,9 @@ task output              打开当前任务输出
 find TEXT                在任务输出里查找
 next match               下一个匹配
 problems                 从输出进入 Problems 页
+view problem             直接查看首个解析出的问题源码
+copy problem context     复制首个问题 + 源码 + diff 上下文
+save problem context     保存首个问题 + 源码 + diff 上下文
 copy task                复制完整任务输出
 copy task tail           复制最后 40 行任务输出
 copy task tail 80        复制最后 80 行任务输出

@@ -187,6 +187,7 @@ P0 必须服务上面的主线。优先级判断：
    - 目标是接近 IDE 的“主编辑区 + 底部变更列表”形态。
 
 2. Build -> Problems -> Source 闭环
+   - Status: first slice implemented for Task Output first-problem view/copy/save handoff.
    - 编译失败后更快进入问题、跳源码、复制上下文。
 
 3. Source/File Detail 阅读体验

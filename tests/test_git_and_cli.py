@@ -1111,6 +1111,32 @@ class CliTests(unittest.TestCase):
                 "requested problem diff",
             )
 
+    def test_handoff_module_saves_review_notes_default_and_requested_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            default = handoff_module.save_review_notes_text(
+                "default review notes",
+                repo,
+            )
+            requested = handoff_module.save_review_notes_text(
+                "requested review notes",
+                repo,
+                "tmp/notes.md",
+            )
+
+            self.assertIsNone(default.error)
+            self.assertEqual(default.display_path, ".cr/handoff/review-notes.md")
+            self.assertEqual(
+                default.path.read_text(encoding="utf-8"),
+                "default review notes",
+            )
+            self.assertIsNone(requested.error)
+            self.assertEqual(requested.display_path, "tmp/notes.md")
+            self.assertEqual(
+                requested.path.read_text(encoding="utf-8"),
+                "requested review notes",
+            )
+
     def test_browser_frame_module_renders_task_panel_lines(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
@@ -1459,6 +1485,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("save task match", text)
         self.assertIn("save task tail", text)
         self.assertIn("copy change", text)
+        self.assertIn("save notes", text)
         self.assertIn("source context N", text)
         self.assertIn("source select START END", text)
         self.assertIn("source select symbol", text)
@@ -1509,6 +1536,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("task output", commands)
         self.assertIn("problems", commands)
         self.assertIn("save problem", commands)
+        self.assertIn("save notes", commands)
         self.assertIn("copy problem diff", commands)
         self.assertIn("save problem diff", commands)
         self.assertIn("problems errors", commands)
@@ -2732,6 +2760,15 @@ class CliTests(unittest.TestCase):
             parse_browser_command("notes copy").action,
             BrowserCommandAction.COPY_REVIEW_NOTES,
         )
+        save_notes = parse_browser_command("save notes")
+        self.assertEqual(save_notes.action, BrowserCommandAction.SAVE_REVIEW_NOTES)
+        self.assertEqual(save_notes.value, "")
+        save_notes_path = parse_browser_command("save notes tmp/notes.md")
+        self.assertEqual(
+            save_notes_path.action,
+            BrowserCommandAction.SAVE_REVIEW_NOTES,
+        )
+        self.assertEqual(save_notes_path.value, "tmp/notes.md")
         self.assertEqual(
             parse_browser_command("copy prompt").action,
             BrowserCommandAction.COPY_PROMPT,
@@ -10660,6 +10697,153 @@ class CliTests(unittest.TestCase):
         self.assertTrue(frame.dirty)
         self.assertIn("Copied 1 matching review notes", state.status_message)
 
+    def test_browser_command_executor_saves_review_notes_default_path(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            state = BrowserState(
+                [
+                    FileChange("src/Second.ts", 2, 1),
+                    FileChange("src/First.ts", 1, 0),
+                ],
+                selected=1,
+                page=BrowserPage.FILE_DETAIL,
+                review_notes={
+                    "src/First.ts": "first current note",
+                    "src/Second.ts": "second current note",
+                    "docs/Old.md": "stale follow-up",
+                },
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("save notes"))
+
+            saved = repo / ".cr" / "handoff" / "review-notes.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(
+            text,
+            "\n".join(
+                [
+                    "Review notes:",
+                    "1. src/Second.ts: second current note",
+                    "2. src/First.ts: first current note",
+                    "3. docs/Old.md: stale follow-up",
+                ]
+            ),
+        )
+        self.assertIn(
+            "Saved 3 review notes to .cr/handoff/review-notes.md.",
+            state.status_message,
+        )
+
+    def test_browser_command_executor_saves_review_notes_requested_path(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            state = BrowserState(
+                [FileChange("src/Sample.ts", 1, 0)],
+                review_notes={"src/Sample.ts": "check lifecycle edge case"},
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(
+                    parse_browser_command("save notes tmp/review-notes.md")
+                )
+
+            saved = repo / "tmp" / "review-notes.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(
+            text,
+            "Review notes:\n1. src/Sample.ts: check lifecycle edge case",
+        )
+        self.assertIn(
+            "Saved 1 review notes to tmp/review-notes.md.",
+            state.status_message,
+        )
+
+    def test_browser_command_executor_does_not_save_empty_review_notes(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("save notes"))
+
+            target = repo / ".cr" / "handoff" / "review-notes.md"
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertFalse(target.exists())
+        self.assertIn("No review notes to save.", state.status_message)
+
+    def test_browser_command_executor_reports_save_review_notes_failures(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            review_notes={"src/Sample.ts": "check lifecycle edge case"},
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.git.repo_root", return_value=Path("/repo")):
+            with patch(
+                "cr.ui.browser.handoff_module.save_review_notes_text",
+                return_value=handoff_module.HandoffSaveResult(
+                    Path("/repo/blocked/notes.md"),
+                    "blocked/notes.md",
+                    "Could not save review notes to blocked/notes.md: denied",
+                ),
+            ):
+                result = executor.execute(
+                    parse_browser_command("save notes blocked/notes.md")
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn(
+            "Could not save review notes to blocked/notes.md: denied",
+            state.status_message,
+        )
+
     def test_browser_command_executor_copies_visible_scope_prompt(self):
         from cr.ui.browser import parse_browser_command
 
@@ -15013,6 +15197,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("note change TEXT", text)
         self.assertIn("notes QUERY", text)
         self.assertIn("copy notes QUERY", text)
+        self.assertIn("save notes", text)
         self.assertIn("copy prompt", text)
         self.assertIn("copy prompt file", text)
         self.assertIn("open hunk", text)
@@ -15046,6 +15231,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("tasks help", commands)
         self.assertIn("notes", commands)
         self.assertIn("copy notes", commands)
+        self.assertIn("save notes", commands)
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
         self.assertIn("done next", commands)

@@ -575,6 +575,10 @@ class BrowserCommandExecutor:
             message = _copy_prompt_handoff(state, args, selected_only=True)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_REVIEW_NOTES:
+            message = _save_review_notes(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_TASK_OUTPUT:
             message = _copy_task_output(state, args)
             _show_browser_message(state, message, raw_keys, frame)
@@ -1372,6 +1376,21 @@ def _copy_review_notes(
         getattr(args, "copy_cmd", None),
         copy_text=file_actions.copy_text,
     )
+
+
+def _save_review_notes(state: BrowserState, requested_path: str = "") -> str:
+    lines = review_notes_module.review_note_lines(state.changes, state.review_notes)
+    note_count = len(lines) - 1
+    if note_count == 0:
+        return "No review notes to save."
+    result = handoff_module.save_review_notes_text(
+        "\n".join(lines),
+        git.repo_root(),
+        requested_path,
+    )
+    if result.error:
+        return result.error
+    return f"Saved {note_count} review notes to {result.display_path}."
 
 
 def _copy_prompt_handoff(

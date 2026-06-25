@@ -84,6 +84,7 @@ class BrowserCommandAction:
     SAVE_DIFF = "save_diff"
     SAVE_PROMPT = "save_prompt"
     SAVE_FILE_PROMPT = "save_file_prompt"
+    SAVE_REVIEW_NOTES = "save_review_notes"
     SAVE_TASK_OUTPUT = "save_task_output"
     SAVE_TASK_OUTPUT_TAIL = "save_task_output_tail"
     SAVE_TASK_OUTPUT_MATCH = "save_task_output_match"
@@ -257,6 +258,13 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(
             BrowserCommandAction.COPY_REVIEW_NOTES,
             command.removeprefix("copy notes ").strip(),
+        )
+    if command == "save notes":
+        return BrowserCommand(BrowserCommandAction.SAVE_REVIEW_NOTES)
+    if command.startswith("save notes "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_REVIEW_NOTES,
+            command.removeprefix("save notes ").strip(),
         )
     if command == "copy prompt":
         return BrowserCommand(BrowserCommandAction.COPY_PROMPT)

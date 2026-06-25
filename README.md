@@ -363,6 +363,7 @@ copy source symbol     复制当前函数或方法范围
 copy prompt            复制当前可见改动的 AI review handoff
 copy prompt file       复制当前文件的 AI review handoff
 copy notes             复制 review 备注汇总
+save notes             保存 review 备注汇总
 copy problem           复制当前问题
 save problem           保存当前问题
 copy problem diff      复制当前问题对应的文件 diff
@@ -474,6 +475,7 @@ notes                  显示全部备注
 notes QUERY            过滤备注
 copy notes             复制备注汇总
 copy notes QUERY       复制过滤后的备注汇总
+save notes             保存备注汇总到 .cr/handoff/review-notes.md
 ```
 
 `cr` 会在退出时保存当前 workspace 状态到：

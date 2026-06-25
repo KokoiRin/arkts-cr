@@ -282,6 +282,7 @@ def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
                 "copy line / copy hunk / copy change：复制当前上下文",
                 "底部 Changed files：查看当前文件附近的审查队列",
                 "note change TEXT：给当前改动行追加备注",
+                "notes / copy notes / save notes：查看、复制或保存审查备注汇总",
             ),
         ),
         BrowserPage.SCOPE_HOME: (

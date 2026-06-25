@@ -299,7 +299,7 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 ),
                 CommandEntry("next hunk", "跳到下一个 diff hunk", "next hunk"),
                 CommandEntry("prev hunk", "跳到上一个 diff hunk", "prev hunk"),
-                CommandEntry("copy notes", "复制审查备注汇总", "copy notes"),
+                CommandEntry("copy notes", "复制审查备注汇总；save notes 保存", "copy notes"),
                 CommandEntry("copy notes QUERY", "复制过滤后的审查备注汇总"),
                 CommandEntry("copy prompt", "复制当前审查提示", "copy prompt"),
                 CommandEntry(
@@ -385,6 +385,14 @@ def command_palette_entries() -> list[PaletteCommand]:
             label="save problem diff",
             command="save problem diff",
             description="保存选中问题对应的文件 diff",
+        )
+    )
+    entries.append(
+        PaletteCommand(
+            group="文件",
+            label="save notes",
+            command="save notes",
+            description="保存审查备注汇总",
         )
     )
     return entries

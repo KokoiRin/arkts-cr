@@ -601,7 +601,7 @@ class BrowserCommandExecutor:
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_TASK_PROBLEM:
-            message = _copy_selected_task_problem(state, args)
+            message = _copy_selected_task_problem(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_TASK_PROBLEMS:
@@ -745,7 +745,12 @@ class BrowserCommandExecutor:
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_TASK_PROBLEM:
-            message = _save_selected_task_problem(state, parsed_command.value)
+            message = _save_selected_task_problem(
+                state,
+                args,
+                style,
+                parsed_command.value,
+            )
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_PROBLEM_DIFF:
@@ -1472,7 +1477,11 @@ def _task_output_tail_line_count(raw_value: str, default: int = 40) -> int | Non
     return min(parsed, 500)
 
 
-def _copy_selected_task_problem(state: BrowserState, args: argparse.Namespace) -> str:
+def _copy_selected_task_problem(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
     if state.page == BrowserPage.SOURCE_FILE:
         current = _source_file_task_problem(state)
         if current is None:
@@ -1483,6 +1492,15 @@ def _copy_selected_task_problem(state: BrowserState, args: argparse.Namespace) -
         if message:
             return message
         return "Copied source problem."
+    if state.page == BrowserPage.FILE_DETAIL:
+        current = _file_detail_task_problem(state, args, style, action="copy")
+        if isinstance(current, str):
+            return current
+        text = task_problems_module.problem_handoff_text(current)
+        message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+        if message:
+            return message
+        return f"Copied file problem {current.path}:{current.line}."
     problems = _current_task_problems(state)
     if not problems:
         return "No task problem to copy."
@@ -1494,7 +1512,12 @@ def _copy_selected_task_problem(state: BrowserState, args: argparse.Namespace) -
     return "Copied task problem."
 
 
-def _save_selected_task_problem(state: BrowserState, requested_path: str = "") -> str:
+def _save_selected_task_problem(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    requested_path: str = "",
+) -> str:
     if state.page == BrowserPage.SOURCE_FILE:
         current = _source_file_task_problem(state)
         if current is None:
@@ -1508,6 +1531,18 @@ def _save_selected_task_problem(state: BrowserState, requested_path: str = "") -
         if result.error:
             return result.error
         return f"Saved source problem to {result.display_path}."
+    if state.page == BrowserPage.FILE_DETAIL:
+        current = _file_detail_task_problem(state, args, style, action="save")
+        if isinstance(current, str):
+            return current
+        result = handoff_module.save_task_problem_text(
+            task_problems_module.problem_handoff_text(current),
+            git.repo_root(),
+            requested_path,
+        )
+        if result.error:
+            return result.error
+        return f"Saved file problem {current.path}:{current.line} to {result.display_path}."
     problem = _current_task_problem_for_action(state)
     if problem is None:
         return "No task problem to save."
@@ -3990,6 +4025,28 @@ def _source_file_task_problem(
     if problem.line != max(1, state.source_file_line):
         return None
     return problem, selected, len(problems)
+
+
+def _file_detail_task_problem(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    *,
+    action: str,
+) -> task_problems_module.TaskProblem | str:
+    target = _file_detail_source_target(
+        state,
+        args,
+        style,
+        no_file_message=f"No changed file to {action} problem.",
+    )
+    if isinstance(target, str):
+        return target
+    path, line = target
+    for problem in _current_task_problems(state):
+        if problem.path == path and problem.line == line:
+            return problem
+    return f"No current file problem to {action}."
 
 
 def _current_task_problems(state: BrowserState) -> list[task_problems_module.TaskProblem]:

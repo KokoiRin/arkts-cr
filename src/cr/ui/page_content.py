@@ -282,6 +282,7 @@ def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
                 "copy source：复制当前源码行附近上下文",
                 "copy source symbol：复制当前函数或方法范围",
                 "save source / save source symbol：保存源码上下文或当前函数范围",
+                "copy problem / save problem：复制或保存当前 diff 行对应的任务问题",
                 "copy problem context / save problem context：复制或保存当前源码行和 diff 上下文",
                 "copy file problems / save file problems：复制或保存当前文件的任务问题列表",
                 "copy line / copy hunk / copy change：复制当前上下文",

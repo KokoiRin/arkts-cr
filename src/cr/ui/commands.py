@@ -67,6 +67,7 @@ class BrowserCommandAction:
     SAVE_PROMPT = "save_prompt"
     SAVE_FILE_PROMPT = "save_file_prompt"
     SAVE_TASK_OUTPUT = "save_task_output"
+    SAVE_PROBLEM_CONTEXT = "save_problem_context"
     REVEAL_FILE = "reveal_file"
     STAGE_FILE = "stage_file"
     UNSTAGE_FILE = "unstage_file"
@@ -291,6 +292,13 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(
             BrowserCommandAction.SAVE_TASK_OUTPUT,
             command.removeprefix("save task ").strip(),
+        )
+    if command == "save problem context":
+        return BrowserCommand(BrowserCommandAction.SAVE_PROBLEM_CONTEXT)
+    if command.startswith("save problem context "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_PROBLEM_CONTEXT,
+            command.removeprefix("save problem context ").strip(),
         )
     if command in {"reveal", "show in finder"}:
         return BrowserCommand(BrowserCommandAction.REVEAL_FILE)

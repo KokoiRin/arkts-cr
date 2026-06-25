@@ -537,6 +537,10 @@ class BrowserCommandExecutor:
             message = _copy_problem_context(state, args)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_PROBLEM_CONTEXT:
+            message = _save_problem_context(state, args, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SHOW_TASK_OUTPUT:
             BrowserNavigation.show_task_output(state)
             return BrowserActionResult(needs_redraw=True)
@@ -1278,13 +1282,54 @@ def _copy_task_problems(state: BrowserState, args: argparse.Namespace) -> str:
 
 
 def _copy_problem_context(state: BrowserState, args: argparse.Namespace) -> str:
+    text, anchor, error = _problem_context_text(
+        state,
+        args,
+        empty_message="No problem context to copy.",
+    )
+    if error:
+        return error
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return f"Copied problem context {anchor}."
+
+
+def _save_problem_context(
+    state: BrowserState,
+    args: argparse.Namespace,
+    requested_path: str = "",
+) -> str:
+    text, _anchor, error = _problem_context_text(
+        state,
+        args,
+        empty_message="No problem context to save.",
+    )
+    if error:
+        return error
+    result = handoff_module.save_problem_context_text(
+        text,
+        git.repo_root(),
+        requested_path,
+    )
+    if result.error:
+        return result.error
+    return f"Saved problem context to {result.display_path}."
+
+
+def _problem_context_text(
+    state: BrowserState,
+    args: argparse.Namespace,
+    *,
+    empty_message: str,
+) -> tuple[str, str, str]:
     target = _problem_context_target(state)
     if target is None:
-        return "No problem context to copy."
+        return "", "", empty_message
     path, line, problem_text, context_lines = target
     content = source_file_module.load_source_file_content(git.repo_root(), path)
     if content.error:
-        return content.error
+        return "", "", content.error
     source_text = source_file_module.source_context_markdown(
         content,
         target_line=line,
@@ -1297,10 +1342,7 @@ def _copy_problem_context(state: BrowserState, args: argparse.Namespace) -> str:
         source_text=source_text,
         diff_text=_problem_context_diff(state, args, content.path),
     )
-    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
-    if message:
-        return message
-    return f"Copied problem context {anchor}."
+    return text, anchor, ""
 
 
 def _problem_context_target(state: BrowserState) -> tuple[str, int, str, int] | None:

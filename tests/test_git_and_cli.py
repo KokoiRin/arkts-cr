@@ -852,6 +852,32 @@ class CliTests(unittest.TestCase):
                 "requested task",
             )
 
+    def test_handoff_module_saves_problem_context_default_and_requested_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            default = handoff_module.save_problem_context_text(
+                "default problem context",
+                repo,
+            )
+            requested = handoff_module.save_problem_context_text(
+                "requested problem context",
+                repo,
+                "tmp/problem.md",
+            )
+
+            self.assertIsNone(default.error)
+            self.assertEqual(default.display_path, ".cr/handoff/problem-context.md")
+            self.assertEqual(
+                default.path.read_text(encoding="utf-8"),
+                "default problem context",
+            )
+            self.assertIsNone(requested.error)
+            self.assertEqual(requested.display_path, "tmp/problem.md")
+            self.assertEqual(
+                requested.path.read_text(encoding="utf-8"),
+                "requested problem context",
+            )
+
     def test_browser_frame_module_renders_task_panel_lines(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
@@ -1185,6 +1211,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("save prompt file", text)
         self.assertIn("copy task", text)
         self.assertIn("save task", text)
+        self.assertIn("save problem context", text)
         self.assertIn("task output", text)
         self.assertIn("problems errors", text)
         self.assertIn("problems all", text)
@@ -1220,6 +1247,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy problem", commands)
         self.assertIn("copy problems", commands)
         self.assertIn("copy problem context", commands)
+        self.assertIn("save problem context", commands)
         self.assertIn("view problem", commands)
         self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
@@ -1322,6 +1350,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy problem", task_problems)
         self.assertIn("copy problems", task_problems)
         self.assertIn("copy context", task_problems)
+        self.assertIn("save context", task_problems)
         self.assertIn("view problem", task_problems)
         self.assertIn("b back", task_problems)
         source_file_bar = page_content.contextual_action_bar(
@@ -1335,6 +1364,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy line", source_file_bar)
         self.assertIn("copy source", source_file_bar)
         self.assertIn("copy context", source_file_bar)
+        self.assertIn("save context", source_file_bar)
         self.assertIn("source context", source_file_bar)
         self.assertIn("select range", source_file_bar)
         self.assertIn("b back", source_file_bar)
@@ -2046,6 +2076,20 @@ class CliTests(unittest.TestCase):
             parse_browser_command("copy problem context").action,
             BrowserCommandAction.COPY_PROBLEM_CONTEXT,
         )
+        save_problem_context = parse_browser_command("save problem context")
+        self.assertEqual(
+            save_problem_context.action,
+            BrowserCommandAction.SAVE_PROBLEM_CONTEXT,
+        )
+        self.assertEqual(save_problem_context.value, "")
+        save_problem_context_path = parse_browser_command(
+            "save problem context tmp/problem.md"
+        )
+        self.assertEqual(
+            save_problem_context_path.action,
+            BrowserCommandAction.SAVE_PROBLEM_CONTEXT,
+        )
+        self.assertEqual(save_problem_context_path.value, "tmp/problem.md")
         problem_query = parse_browser_command("problems find Foo")
         self.assertEqual(
             problem_query.action,
@@ -5346,6 +5390,165 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.handled)
         copy_text.assert_not_called()
         self.assertIn("Source file not found.", state.status_message)
+
+    def test_browser_command_executor_saves_task_problem_context(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 10)),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 2, 1)],
+                page=BrowserPage.TASK_PROBLEMS,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Foo.ets:5:1 error TS2322: bad call"],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.build_review_data",
+                    return_value={"files": [{"path": "src/Foo.ets"}]},
+                ):
+                    with patch(
+                        "cr.ui.browser.render_file_diff_snippet",
+                        return_value="# File Diff: src/Foo.ets",
+                    ):
+                        result = executor.execute(
+                            parse_browser_command("save problem context tmp/problem.md")
+                        )
+
+            saved = repo / "tmp" / "problem.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("# Problem Context: src/Foo.ets:5", text)
+        self.assertIn("Severity: error", text)
+        self.assertIn("> 5  line 5", text)
+        self.assertIn("# File Diff: src/Foo.ets", text)
+        self.assertIn("Saved problem context to tmp/problem.md.", state.status_message)
+
+    def test_browser_command_executor_saves_source_page_problem_context_default_path(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=2,
+                source_context_lines=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("save problem context"))
+
+            saved = repo / ".cr" / "handoff" / "problem-context.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertIn("# Problem Context: src/Foo.ets:2", text)
+        self.assertIn("> 2  two", text)
+        self.assertIn("No diff in current review scope.", text)
+        self.assertIn(
+            "Saved problem context to .cr/handoff/problem-context.md.",
+            state.status_message,
+        )
+
+    def test_browser_command_executor_reports_empty_problem_context_save(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.handoff_module.save_problem_context_text") as save_text:
+            result = executor.execute(parse_browser_command("save problem context"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        save_text.assert_not_called()
+        self.assertIn("No problem context to save.", state.status_message)
+
+    def test_browser_command_executor_reports_problem_context_save_failure(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=2,
+                source_file_scroll=4,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            failure = handoff_module.HandoffSaveResult(
+                repo / "blocked" / "problem.md",
+                "blocked/problem.md",
+                "Could not save problem context to blocked/problem.md: denied",
+            )
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.handoff_module.save_problem_context_text",
+                    return_value=failure,
+                ):
+                    result = executor.execute(
+                        parse_browser_command("save problem context blocked/problem.md")
+                    )
+
+        self.assertTrue(result.handled)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_path, "src/Foo.ets")
+        self.assertEqual(state.source_file_line, 2)
+        self.assertEqual(state.source_file_scroll, 4)
+        self.assertIn(
+            "Could not save problem context to blocked/problem.md: denied",
+            state.status_message,
+        )
 
     def test_browser_command_executor_views_selected_task_problem_source(self):
         from cr.ui.browser import parse_browser_command

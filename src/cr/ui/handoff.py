@@ -15,6 +15,7 @@ DEFAULT_PROMPT_PATH = Path(".cr") / "handoff" / "review-prompt.md"
 DEFAULT_FILE_PROMPT_PATH = Path(".cr") / "handoff" / "review-prompt-file.md"
 DEFAULT_DIFF_SNIPPET_PATH = Path(".cr") / "handoff" / "review-diff.md"
 DEFAULT_TASK_OUTPUT_PATH = Path(".cr") / "handoff" / "task-output.md"
+DEFAULT_PROBLEM_CONTEXT_PATH = Path(".cr") / "handoff" / "problem-context.md"
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,15 @@ def save_task_output_text(
     return _save_text(text, path, repo, label="task output")
 
 
+def save_problem_context_text(
+    text: str,
+    repo: Path,
+    requested_path: str = "",
+) -> HandoffSaveResult:
+    path = problem_context_save_path(repo, requested_path)
+    return _save_text(text, path, repo, label="problem context")
+
+
 def prompt_save_path(
     repo: Path,
     requested_path: str = "",
@@ -85,6 +95,14 @@ def diff_save_path(repo: Path, requested_path: str = "") -> Path:
 def task_output_save_path(repo: Path, requested_path: str = "") -> Path:
     text_path = requested_path.strip()
     path = Path(text_path) if text_path else DEFAULT_TASK_OUTPUT_PATH
+    if path.is_absolute():
+        return path
+    return repo / path
+
+
+def problem_context_save_path(repo: Path, requested_path: str = "") -> Path:
+    text_path = requested_path.strip()
+    path = Path(text_path) if text_path else DEFAULT_PROBLEM_CONTEXT_PATH
     if path.is_absolute():
         return path
     return repo / path

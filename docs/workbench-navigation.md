@@ -492,7 +492,13 @@ Source File Page supports `source select START END` to select an exact repo-loca
 
 Status: implemented.
 
-`copy problem context` copies focused Markdown for the selected Task Problems entry or current Source File Page target. The package includes problem facts when available, source context around the target line, and same-file diff from the current Review Scope when that file is changed; otherwise it includes `No diff in current review scope.`. `cr.ui.problem_context` owns Markdown assembly only, while Browser Action Execution gathers source/problem/diff facts and uses existing clipboard handling. This deliberately avoids save commands, cross-file dependency collection, full prompt templates, task transcripts, diagnostics persistence, and source editing.
+`copy problem context` copies focused Markdown for the selected Task Problems entry or current Source File Page target. The package includes problem facts when available, source context around the target line, and same-file diff from the current Review Scope when that file is changed; otherwise it includes `No diff in current review scope.`. `cr.ui.problem_context` owns Markdown assembly only, while Browser Action Execution gathers source/problem/diff facts and uses existing clipboard handling. This deliberately avoids cross-file dependency collection, full prompt templates, task transcripts, diagnostics persistence, and source editing.
+
+### P0: Problem Context save
+
+Status: implemented.
+
+`save problem context [PATH]` writes the same Markdown produced by `copy problem context` to disk, defaulting to `.cr/handoff/problem-context.md`. It works from Task Problems and Source File Page, reports empty-context, unreadable-source, and write-failure states, and preserves current page, selection, Review Scope, and task state. `cr.ui.handoff` owns default path resolution and UTF-8 writes. This intentionally avoids batch saving, task transcript persistence, prompt templates, cross-file dependency discovery, and workspace-state persistence.
 
 Task output handoff remains output-panel handoff, not diagnostics. `cr.ui.tasks` owns the task output text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 

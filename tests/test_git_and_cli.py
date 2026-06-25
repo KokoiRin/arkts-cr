@@ -691,6 +691,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Commands", text)
         self.assertIn("Review scope", text)
         self.assertIn("copy prompt file", text)
+        self.assertIn("done next", text)
         self.assertIn("note change TEXT", text)
         self.assertIn("open hunk", text)
         self.assertIn("open line", text)
@@ -720,6 +721,7 @@ class CliTests(unittest.TestCase):
 
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
+        self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
         self.assertIn("copy hunk", commands)
@@ -960,6 +962,14 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("compile").action,
             BrowserCommandAction.RUN_BUILD,
+        )
+        self.assertEqual(
+            parse_browser_command("done next").action,
+            BrowserCommandAction.MARK_SEEN_AND_NEXT,
+        )
+        self.assertEqual(
+            parse_browser_command("seen next").action,
+            BrowserCommandAction.MARK_SEEN_AND_NEXT,
         )
         self.assertEqual(
             parse_browser_command("copy path").action,
@@ -1836,6 +1846,154 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertTrue(result.needs_redraw)
         self.assertIn("Saved diff for src/Sample.ts", state.status_message)
+
+    def test_browser_command_executor_marks_done_and_moves_next_in_changed_files(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 1, 0),
+                FileChange("src/Third.ts", 1, 0),
+            ],
+            page=BrowserPage.CHANGED_FILES,
+            selected=0,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("done next", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(state.seen_paths, {"src/First.ts"})
+        self.assertIn("Moved to src/Second.ts", state.status_message)
+
+    def test_browser_command_executor_marks_done_and_opens_next_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 1, 0),
+            ],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=8,
+            review_notes={"src/First.ts": "keep note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("seen next", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(state.file_scroll, 0)
+        self.assertEqual(state.seen_paths, {"src/First.ts"})
+        self.assertEqual(state.review_notes["src/First.ts"], "keep note")
+        self.assertIsNotNone(state.task)
+        self.assertIn("Moved to src/Second.ts", state.status_message)
+
+    def test_browser_command_executor_done_next_does_not_skip_remaining_file(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 1, 0),
+                FileChange("src/Third.ts", 1, 0),
+            ],
+            page=BrowserPage.CHANGED_FILES,
+            selected=0,
+            remaining_only=True,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("done next", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.seen_paths, {"src/First.ts"})
+        self.assertEqual(
+            [change.path for change in state.visible_changes],
+            ["src/Second.ts", "src/Third.ts"],
+        )
+        self.assertEqual(state.selected, 0)
+        self.assertIn("Moved to src/Second.ts", state.status_message)
+
+    def test_browser_command_executor_done_next_reports_last_visible_file(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 1, 0),
+            ],
+            page=BrowserPage.CHANGED_FILES,
+            selected=1,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("done next", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(state.seen_paths, {"src/Second.ts"})
+        self.assertIn("No next file after src/Second.ts", state.status_message)
+
+    def test_browser_command_executor_done_next_reports_empty_visible_files(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("done next", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.seen_paths, set())
+        self.assertIn("No changed file to mark seen.", state.status_message)
 
     def test_browser_command_executor_jumps_to_next_hunk_in_file_detail(self):
         from cr.ui.browser import parse_browser_command
@@ -7769,6 +7927,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Session", text)
         self.assertIn("staged", text)
         self.assertIn("build", text)
+        self.assertIn("done next", text)
         self.assertIn("note TEXT", text)
         self.assertIn("note change TEXT", text)
         self.assertIn("notes QUERY", text)
@@ -7808,6 +7967,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy notes", commands)
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
+        self.assertIn("done next", commands)
         self.assertIn("copy diff", commands)
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)

@@ -151,6 +151,9 @@ Browser Navigation
 Review Workspace
   current implementation:
     ReviewWorkspace owns active scope, changed files, filter/progress/note state, selected file, selected commit, previous scope, and workspace-state data mapping
+    seen_paths stores per-file review progress
+    remaining_only filters visible changes to files not marked seen
+    done next / seen next is executed by BrowserCommandExecutor because it composes progress state with page-aware file navigation
 
 Browser Command Dispatch
   current implementation:
@@ -356,6 +359,12 @@ Status: implemented.
 Status: implemented.
 
 `tasks help` now shows the expected `.cr/tasks.json` shape, supported build/test/lint string commands, task command precedence, and a compact JSON example. Malformed preset diagnostics point to this help without making preset parsing fatal.
+
+### P0: Review progress flow
+
+Status: implemented.
+
+`done next` / `seen next` marks the current visible changed file as seen and advances to the next visible file. In Changed Files it keeps the user on the file list and moves selection; in File Detail it opens the next file detail with file scroll reset. In `remaining` mode it selects the file that moves into the current visible index after the seen file is filtered out, so the command does not skip the next unreviewed file.
 
 ### P0: Review notes
 

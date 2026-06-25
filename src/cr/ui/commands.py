@@ -20,6 +20,7 @@ class BrowserCommandAction:
     SET_SOURCE_FILTER = "set_source_filter"
     CLEAR_SOURCE_FILTER = "clear_source_filter"
     MARK_SEEN = "mark_seen"
+    MARK_SEEN_AND_NEXT = "mark_seen_and_next"
     MARK_TODO = "mark_todo"
     SHOW_REMAINING = "show_remaining"
     SHOW_ALL_FILES = "show_all_files"
@@ -113,6 +114,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         if source in {"all", "clear"}:
             return BrowserCommand(BrowserCommandAction.CLEAR_SOURCE_FILTER)
         return BrowserCommand(BrowserCommandAction.SET_SOURCE_FILTER, source)
+    if command in {"done next", "seen next"}:
+        return BrowserCommand(BrowserCommandAction.MARK_SEEN_AND_NEXT)
     if command in {"m", "seen", "done"}:
         return BrowserCommand(BrowserCommandAction.MARK_SEEN)
     if command in {"todo", "unseen", "unmark"}:

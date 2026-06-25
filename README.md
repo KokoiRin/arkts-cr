@@ -139,6 +139,7 @@ cr --context 0
 
 ```text
 m / seen / done        把当前文件标记为已看
+done next / seen next  标记已看并前进到下一个文件
 todo / unseen / unmark 取消已看标记
 remaining              只显示还没看的文件
 allfiles / show all    回到全部改动文件
@@ -169,7 +170,7 @@ save prompt [PATH]     保存当前可见改动的 AI review handoff
 save prompt file [PATH] 保存当前文件的 AI review handoff
 ```
 
-文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。有备注的文件行会显示 `note` 标记；单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`，并在有备注时显示完整 `note: ...`。`note change TEXT` 会把当前 File Detail 中实际 `+` 或 `-` 改动行的位置追加进当前文件 note，added 行写成 `line N: TEXT`，deleted 行写成 `old line N: TEXT`；已有文件 note 会用 ` | ` 追加而不是覆盖。`notes` 会按当前 changed-file 顺序汇总备注，并把不在当前变更里的持久化备注追加到末尾；`notes QUERY` 会按路径或备注文本做大小写不敏感过滤。`copy notes` / `notes copy` 会复制完整汇总文本，`copy notes QUERY` 会复制过滤后的汇总文本。`copy diff` 会复制当前文件的轻量 Markdown diff 片段，包含当前 scope 下的 hunk、anchor、seen 状态和 review 备注，但不带 AI prompt 请求文案；`copy hunk` 会复制当前 File Detail hunk 的行号化 review 文本，适合只贴一个变更块；`copy change` 会复制当前 File Detail 中实际 `+` 或 `-` 改动行的单行 review 片段，added 行带 `path:line`，deleted 行只带旧行号；`save diff` 会把同样的片段保存成文件，默认路径是 `.cr/handoff/review-diff.md`，也可以在命令后传入自定义路径。`copy prompt` 会复制当前可见改动的 Markdown review handoff，并带上这些文件对应的 review 备注；`copy prompt file` 只复制当前文件及其备注，方便贴到聊天、AI prompt 或 PR comment。`save prompt` 和 `save prompt file` 会把同样的 Markdown 保存成文件，默认路径分别是 `.cr/handoff/review-prompt.md` 和 `.cr/handoff/review-prompt-file.md`，也可以在命令后传入自定义路径。
+文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。`done next` / `seen next` 会把当前文件标记为已看并前进到下一个可见文件；在 File Detail 里执行时会继续打开下一个文件详情，在 `remaining` 模式里不会跳过下一个未看文件。有备注的文件行会显示 `note` 标记；单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`，并在有备注时显示完整 `note: ...`。`note change TEXT` 会把当前 File Detail 中实际 `+` 或 `-` 改动行的位置追加进当前文件 note，added 行写成 `line N: TEXT`，deleted 行写成 `old line N: TEXT`；已有文件 note 会用 ` | ` 追加而不是覆盖。`notes` 会按当前 changed-file 顺序汇总备注，并把不在当前变更里的持久化备注追加到末尾；`notes QUERY` 会按路径或备注文本做大小写不敏感过滤。`copy notes` / `notes copy` 会复制完整汇总文本，`copy notes QUERY` 会复制过滤后的汇总文本。`copy diff` 会复制当前文件的轻量 Markdown diff 片段，包含当前 scope 下的 hunk、anchor、seen 状态和 review 备注，但不带 AI prompt 请求文案；`copy hunk` 会复制当前 File Detail hunk 的行号化 review 文本，适合只贴一个变更块；`copy change` 会复制当前 File Detail 中实际 `+` 或 `-` 改动行的单行 review 片段，added 行带 `path:line`，deleted 行只带旧行号；`save diff` 会把同样的片段保存成文件，默认路径是 `.cr/handoff/review-diff.md`，也可以在命令后传入自定义路径。`copy prompt` 会复制当前可见改动的 Markdown review handoff，并带上这些文件对应的 review 备注；`copy prompt file` 只复制当前文件及其备注，方便贴到聊天、AI prompt 或 PR comment。`save prompt` 和 `save prompt file` 会把同样的 Markdown 保存成文件，默认路径分别是 `.cr/handoff/review-prompt.md` 和 `.cr/handoff/review-prompt-file.md`，也可以在命令后传入自定义路径。
 
 切换 review scope：
 

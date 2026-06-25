@@ -101,6 +101,7 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 ),
                 CommandEntry("source all", "clear active source filter", "source all"),
                 CommandEntry("m / seen / done", "mark selected file as seen", "m"),
+                CommandEntry("done next / seen next", "mark seen and move to next file", "done next"),
                 CommandEntry("todo / unseen / unmark", "mark selected file as todo", "todo"),
                 CommandEntry("remaining", "show files not marked seen", "remaining"),
                 CommandEntry("allfiles / show all", "show all changed files", "allfiles"),

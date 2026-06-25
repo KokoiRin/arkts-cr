@@ -155,6 +155,12 @@ Product navigation terms:
   `copy notes` / `copy notes QUERY` and persisted with browse state. Internally,
   `cr.ui.review_notes` owns summary, filtering, and copy behavior while
   `ReviewWorkspace` owns stored note data.
+- `Review Progress`: lightweight per-file seen/todo state inside the current
+  Review Workspace, surfaced by `m` / `seen` / `done`, `done next` /
+  `seen next`, `todo` / `unseen` / `unmark`, `remaining`, and `allfiles`.
+  `ReviewWorkspace` owns stored `seen_paths` and remaining-only filtering;
+  Browser Action Execution owns the composed mark-and-advance workflow because
+  it coordinates progress state, selected file, and current page.
 - `Prompt Handoff`: Markdown review context copied or saved from the current
   browser Review Scope or selected file through `copy prompt` /
   `copy prompt file` / `save prompt` / `save prompt file`. It reuses

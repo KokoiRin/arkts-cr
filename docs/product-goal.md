@@ -191,7 +191,7 @@ P0 必须服务上面的主线。优先级判断：
    - 编译失败后更快进入问题、跳源码、复制上下文。
 
 3. Source/File Detail 阅读体验
-   - Status: first slices implemented for Source File current-symbol hints, symbol range selection, and File Detail source bridge.
+   - Status: first slices implemented for Source File current-symbol hints, symbol range selection, File Detail source bridge, and File Detail direct source copy.
    - 更好的源码范围选择。
    - 当前函数/符号提示。
    - 复制函数块或相关上下文。

@@ -490,7 +490,7 @@ class BrowserCommandExecutor:
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_SOURCE_CONTEXT:
-            message = _copy_source_context(state, args)
+            message = _copy_source_context(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SET_SOURCE_CONTEXT_LINES:
@@ -2280,11 +2280,26 @@ def _view_current_source_line(
     args: argparse.Namespace,
     style: TerminalStyle,
 ) -> str:
+    target = _file_detail_source_target(state, args, style)
+    if isinstance(target, str):
+        return target
+    path, line = target
+    BrowserNavigation.show_source_file(state, path, line)
+    return ""
+
+
+def _file_detail_source_target(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    *,
+    no_file_message: str = "No changed file to view source.",
+) -> tuple[str, int] | str:
     if state.page != BrowserPage.FILE_DETAIL:
         return "Open a file detail to view source."
     visible = state.visible_changes
     if not visible:
-        return "No changed file to view source."
+        return no_file_message
     state.clamp_selection()
     change = visible[state.selected]
     lines = _cached_file_lines(
@@ -2298,8 +2313,7 @@ def _view_current_source_line(
     line = file_detail_navigation.current_new_line(lines, state.file_scroll)
     if line is None:
         return "No current new-file line in File Detail."
-    BrowserNavigation.show_source_file(state, change.path, line)
-    return ""
+    return change.path, line
 
 
 def _copy_source_line(
@@ -2319,7 +2333,10 @@ def _copy_source_line(
 def _copy_source_context(
     state: BrowserState,
     args: argparse.Namespace,
+    style: TerminalStyle,
 ) -> str:
+    if state.page == BrowserPage.FILE_DETAIL:
+        return _copy_file_detail_source_context(state, args, style)
     if state.page != BrowserPage.SOURCE_FILE or not state.source_file_path:
         return "No source file to copy."
     content = source_file_module.load_source_file_content(
@@ -2353,6 +2370,37 @@ def _copy_source_context(
     if selection is not None:
         start, end = _clamp_source_range(selection[0], selection[1], len(content.lines))
         return f"Copied selected source {content.path}:{start}-{end}."
+    return f"Copied source context {content.path}:{target_line}."
+
+
+def _copy_file_detail_source_context(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    target = _file_detail_source_target(
+        state,
+        args,
+        style,
+        no_file_message="No changed file to copy source.",
+    )
+    if isinstance(target, str):
+        return target
+    path, line = target
+    content = source_file_module.load_source_file_content(git.repo_root(), path)
+    if content.error:
+        return content.error
+    symbol_label = _source_symbol_label_for_content(content, line)
+    text = source_file_module.source_context_markdown(
+        content,
+        target_line=line,
+        context_lines=state.source_context_lines,
+        symbol_label=symbol_label,
+    )
+    error = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if error:
+        return error
+    target_line = max(1, min(line, len(content.lines)))
     return f"Copied source context {content.path}:{target_line}."
 
 

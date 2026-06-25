@@ -1420,6 +1420,7 @@ class CliTests(unittest.TestCase):
         )
         self.assertIn("File Detail 帮助", file_detail_text)
         self.assertIn("view source", file_detail_text)
+        self.assertIn("copy source", file_detail_text)
 
     def test_page_content_help_screen_lists_source_file_commands(self):
         state = BrowserState([], page=BrowserPage.HELP, help_topic_page=BrowserPage.SOURCE_FILE)
@@ -1473,6 +1474,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("]/[ 跳转 hunk", file_detail)
         self.assertIn("find 查找", file_detail)
         self.assertIn("view source 看源码", file_detail)
+        self.assertIn("copy source 复制源码", file_detail)
         self.assertIn("copy line 复制行", file_detail)
         self.assertIn("Enter 选择", scope_home)
         self.assertIn(":base", scope_home)
@@ -3920,6 +3922,103 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.needs_redraw)
         self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
         self.assertIn("Open a file detail to view source.", state.status_message)
+
+    def test_browser_command_executor_copies_file_detail_source_context(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Sample.ts"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "class Sample {",
+                        "  render() {",
+                        "    const title = 'old'",
+                        "    const title = 'new'",
+                        "    return title",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [FileChange("src/Sample.ts", 1, 0)],
+                page=BrowserPage.FILE_DETAIL,
+                selected=0,
+                file_scroll=2,
+                source_context_lines=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 1/1  src/Sample.ts",
+                "  @@ -3,2 +3,3 @@",
+                "     3    3 |     const title = 'old'",
+                "          4 | +   const title = 'new'",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    with patch(
+                        "cr.ui.browser.file_actions.copy_text",
+                        return_value=None,
+                    ) as copy_text:
+                        result = executor.execute(
+                            parse_browser_command("copy source", raw_keys=True)
+                        )
+
+        copied = copy_text.call_args.args[0]
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("src/Sample.ts:4", copied)
+        self.assertIn("Symbol: class Sample > method render", copied)
+        self.assertIn("> 4      const title = 'new'", copied)
+        self.assertNotIn("class Sample {", copied)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIn("Copied source context src/Sample.ts:4.", state.status_message)
+
+    def test_browser_command_executor_reports_file_detail_copy_source_without_new_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(copy_cmd="copy-tool"),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20      | -deleted",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+                result = executor.execute(
+                    parse_browser_command("copy source", raw_keys=True)
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertIn("No current new-file line in File Detail.", state.status_message)
 
     def test_browser_command_executor_copies_current_change_in_file_detail(self):
         from cr.ui.browser import parse_browser_command

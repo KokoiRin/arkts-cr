@@ -95,6 +95,11 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("view problem", "view selected task problem source", "view problem"),
                 CommandEntry("copy problem", "copy selected task problem", "copy problem"),
                 CommandEntry("copy problems", "copy all current task problems", "copy problems"),
+                CommandEntry(
+                    "copy problem context",
+                    "copy problem source and diff context",
+                    "copy problem context",
+                ),
                 CommandEntry("copy task", "copy current task output", "copy task"),
                 CommandEntry("save task", "save current task output", "save task"),
                 CommandEntry("stop / cancel", "stop running task", "stop"),

@@ -15,6 +15,7 @@ import cr.ui.browser as browser_module
 from cr.ui import input as browser_input
 from cr.ui import commit_picker
 from cr.ui import page_content
+from cr.ui import problem_context
 from cr.ui import selected_file_actions
 from cr.ui import source_file
 from cr.ui import task_problems
@@ -305,6 +306,31 @@ class CliTests(unittest.TestCase):
         self.assertIn("1. src/Foo.ets:12:3 [ERROR TS2322]", all_text)
         self.assertIn("   Message: bad call", all_text)
         self.assertIn("2. src/Bar.ets:8", all_text)
+
+    def test_problem_context_renders_problem_source_and_diff(self):
+        text = problem_context.problem_context_markdown(
+            anchor="src/Foo.ets:5",
+            problem_text="src/Foo.ets:5:1\nSeverity: error\nbad call",
+            source_text="src/Foo.ets:5\n\n```text\n> 5  bad()\n```",
+            diff_text="# File Diff: src/Foo.ets\n\n```diff\n+bad()\n```",
+        )
+        no_diff = problem_context.problem_context_markdown(
+            anchor="src/Foo.ets:5",
+            problem_text="",
+            source_text="src/Foo.ets:5\n\n```text\n> 5  bad()\n```",
+            diff_text="",
+        )
+
+        self.assertIn("# Problem Context: src/Foo.ets:5", text)
+        self.assertIn("## Problem", text)
+        self.assertIn("Severity: error", text)
+        self.assertIn("## Source", text)
+        self.assertIn("> 5  bad()", text)
+        self.assertIn("## Diff", text)
+        self.assertIn("# File Diff: src/Foo.ets", text)
+        self.assertNotIn("No diff in current review scope.", text)
+        self.assertNotIn("## Problem", no_diff)
+        self.assertIn("No diff in current review scope.", no_diff)
 
     def test_source_file_view_reads_repo_file_and_windows_target_line(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1063,6 +1089,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy hunk", text)
         self.assertIn("copy line", text)
         self.assertIn("copy source", text)
+        self.assertIn("copy problem context", text)
         self.assertIn("copy change", text)
         self.assertIn("source context N", text)
         self.assertIn("find TEXT", text)
@@ -1106,6 +1133,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("problems sort output", commands)
         self.assertIn("copy problem", commands)
         self.assertIn("copy problems", commands)
+        self.assertIn("copy problem context", commands)
         self.assertIn("view problem", commands)
         self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
@@ -1204,6 +1232,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("task output", task_problems)
         self.assertIn("copy problem", task_problems)
         self.assertIn("copy problems", task_problems)
+        self.assertIn("copy context", task_problems)
         self.assertIn("view problem", task_problems)
         self.assertIn("b back", task_problems)
         source_file_bar = page_content.contextual_action_bar(
@@ -1216,6 +1245,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open", source_file_bar)
         self.assertIn("copy line", source_file_bar)
         self.assertIn("copy source", source_file_bar)
+        self.assertIn("copy context", source_file_bar)
         self.assertIn("source context", source_file_bar)
         self.assertIn("b back", source_file_bar)
         self.assertNotEqual(changed_files, file_detail)
@@ -1858,6 +1888,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy problems").action,
             BrowserCommandAction.COPY_TASK_PROBLEMS,
+        )
+        self.assertEqual(
+            parse_browser_command("copy problem context").action,
+            BrowserCommandAction.COPY_PROBLEM_CONTEXT,
         )
         problem_errors = parse_browser_command("problems errors")
         self.assertEqual(
@@ -4811,6 +4845,209 @@ class CliTests(unittest.TestCase):
         self.assertLess(copied.index("src/Two.ets:22:4"), copied.index("src/One.ets:1:1"))
         self.assertIn("1. src/Two.ets:22:4", copied)
         self.assertIn("2. src/One.ets:1:1", copied)
+
+    def test_browser_command_executor_copies_task_problem_context_with_diff(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 10)),
+                encoding="utf-8",
+            )
+            change = FileChange("src/Foo.ets", 2, 1)
+            state = BrowserState(
+                [change],
+                page=BrowserPage.TASK_PROBLEMS,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Foo.ets:5:1 error TS2322: bad call"],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.build_review_data",
+                    return_value={"files": [{"path": "src/Foo.ets"}]},
+                ) as build_data:
+                    with patch(
+                        "cr.ui.browser.render_file_diff_snippet",
+                        return_value="# File Diff: src/Foo.ets\n\n```diff\n+line 5\n```",
+                    ):
+                        with patch(
+                            "cr.ui.browser.file_actions.copy_text",
+                            return_value=None,
+                        ) as copy_text:
+                            result = executor.execute(
+                                parse_browser_command("copy problem context")
+                            )
+
+        self.assertTrue(result.handled)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("# Problem Context: src/Foo.ets:5", copied)
+        self.assertIn("## Problem", copied)
+        self.assertIn("Severity: error", copied)
+        self.assertIn("Code: TS2322", copied)
+        self.assertIn("bad call", copied)
+        self.assertIn("## Source", copied)
+        self.assertIn("> 5  line 5", copied)
+        self.assertIn("## Diff", copied)
+        self.assertIn("# File Diff: src/Foo.ets", copied)
+        self.assertNotIn("No diff in current review scope.", copied)
+        build_data.assert_called_once()
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertIn("Copied problem context src/Foo.ets:5", state.status_message)
+
+    def test_browser_command_executor_copies_source_page_problem_context(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 10)),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 2, 1)],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=5,
+                source_context_lines=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.build_review_data",
+                    return_value={"files": [{"path": "src/Foo.ets"}]},
+                ):
+                    with patch(
+                        "cr.ui.browser.render_file_diff_snippet",
+                        return_value="# File Diff: src/Foo.ets",
+                    ):
+                        with patch(
+                            "cr.ui.browser.file_actions.copy_text",
+                            return_value=None,
+                        ) as copy_text:
+                            result = executor.execute(
+                                parse_browser_command("copy problem context")
+                            )
+
+        self.assertTrue(result.handled)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("# Problem Context: src/Foo.ets:5", copied)
+        self.assertNotIn("## Problem", copied)
+        self.assertIn("  4  line 4", copied)
+        self.assertIn("> 5  line 5", copied)
+        self.assertIn("  6  line 6", copied)
+        self.assertNotIn("line 3", copied)
+        self.assertIn("# File Diff: src/Foo.ets", copied)
+
+    def test_browser_command_executor_copies_problem_context_without_diff(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=2,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(
+                        parse_browser_command("copy problem context")
+                    )
+
+        self.assertTrue(result.handled)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("# Problem Context: src/Foo.ets:2", copied)
+        self.assertIn("No diff in current review scope.", copied)
+        self.assertIn("Copied problem context src/Foo.ets:2", state.status_message)
+
+    def test_browser_command_executor_reports_empty_problem_context_copy(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(copy_cmd="copy-tool"),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+            result = executor.execute(parse_browser_command("copy problem context"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertIn("No problem context to copy.", state.status_message)
+
+    def test_browser_command_executor_reports_missing_problem_context_source(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Missing.ets",
+                source_file_line=2,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+                    result = executor.execute(
+                        parse_browser_command("copy problem context")
+                    )
+
+        self.assertTrue(result.handled)
+        copy_text.assert_not_called()
+        self.assertIn("Source file not found.", state.status_message)
 
     def test_browser_command_executor_views_selected_task_problem_source(self):
         from cr.ui.browser import parse_browser_command

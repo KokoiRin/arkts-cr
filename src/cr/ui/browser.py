@@ -27,6 +27,7 @@ from ..review.changes import (
 from ..review.data import build_review_data
 from ..review.prompt import render_prompt_handoff
 from ..review.risk import risk_hints
+from ..review.snippet import render_file_diff_snippet
 from ..review.tree import shorten_path
 from ..source.purpose import describe_file
 from ..vcs import git
@@ -42,6 +43,7 @@ from . import handoff as handoff_module
 from . import input as input_module
 from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import page_content
+from . import problem_context as problem_context_module
 from . import review_notes as review_notes_module
 from . import selected_file_actions
 from . import source_file as source_file_module
@@ -518,6 +520,10 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_TASK_PROBLEMS:
             message = _copy_task_problems(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_PROBLEM_CONTEXT:
+            message = _copy_problem_context(state, args)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SHOW_TASK_OUTPUT:
@@ -1240,6 +1246,97 @@ def _copy_task_problems(state: BrowserState, args: argparse.Namespace) -> str:
     if message:
         return message
     return f"Copied {len(problems)} task problems."
+
+
+def _copy_problem_context(state: BrowserState, args: argparse.Namespace) -> str:
+    target = _problem_context_target(state)
+    if target is None:
+        return "No problem context to copy."
+    path, line, problem_text, context_lines = target
+    content = source_file_module.load_source_file_content(git.repo_root(), path)
+    if content.error:
+        return content.error
+    source_text = source_file_module.source_context_markdown(
+        content,
+        target_line=line,
+        context_lines=context_lines,
+    )
+    anchor = f"{content.path}:{max(1, min(line, len(content.lines)))}"
+    text = problem_context_module.problem_context_markdown(
+        anchor=anchor,
+        problem_text=problem_text,
+        source_text=source_text,
+        diff_text=_problem_context_diff(state, args, content.path),
+    )
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return f"Copied problem context {anchor}."
+
+
+def _problem_context_target(state: BrowserState) -> tuple[str, int, str, int] | None:
+    if state.page == BrowserPage.TASK_PROBLEMS:
+        problems = _current_task_problems(state)
+        if not problems:
+            return None
+        selected = max(0, min(state.problem_selected, len(problems) - 1))
+        problem = problems[selected]
+        return (
+            problem.path,
+            problem.line,
+            task_problems_module.problem_handoff_text(problem),
+            3,
+        )
+    if state.page == BrowserPage.SOURCE_FILE and state.source_file_path:
+        return (
+            state.source_file_path,
+            max(1, state.source_file_line),
+            "",
+            state.source_context_lines,
+        )
+    return None
+
+
+def _problem_context_diff(
+    state: BrowserState,
+    args: argparse.Namespace,
+    path: str,
+) -> str:
+    change = next((change for change in state.changes if change.path == path), None)
+    if change is None:
+        return ""
+    review_notes = {}
+    note = state.review_notes.get(change.path, "").strip()
+    if note:
+        review_notes[change.path] = note
+    data = build_review_data(
+        [change],
+        staged=getattr(args, "staged", False),
+        all_changes=getattr(args, "all_changes", False),
+        base=getattr(args, "base", None),
+        ref_range=getattr(args, "ref_range", None),
+        include_hunks=True,
+        other_changes=_safe_other_change_counts(args),
+        context=getattr(args, "context", 2),
+        seen_paths=state.seen_paths,
+        review_notes=review_notes,
+    )
+    return render_file_diff_snippet(data["files"][0])
+
+
+def _safe_other_change_counts(args: argparse.Namespace) -> dict[str, int]:
+    required = (
+        "all_changes",
+        "base",
+        "code",
+        "paths",
+        "ref_range",
+        "staged",
+        "untracked",
+    )
+    if not all(hasattr(args, name) for name in required):
+        return {"staged": 0, "unstaged": 0}
+    return other_change_counts(args)
 
 
 def _save_prompt_handoff(

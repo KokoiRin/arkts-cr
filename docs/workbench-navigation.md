@@ -209,6 +209,7 @@ Source File Page is now explicit as a cross-layer read-only source preview. It c
 Source File Page find is explicit as page-local text navigation. `find TEXT`, `next match`, and `prev match` search only the current source preview, update the Source File Page target line, and keep File Detail find and Task Output find state separate.
 Source File Page copy-line is explicit as source-preview handoff. `copy line` copies the current Source File Page target `path:line`, reusing the same command vocabulary as File Detail without adding source snippets or multi-line selection.
 Source File Page source-snippet handoff is explicit as AI/review handoff. `copy source` copies Markdown source context around the current target line, while `source context N` adjusts the copied context radius without adding selection state or editing behavior.
+Problem Context handoff is explicit as focused failure handoff. `copy problem context` copies the selected Task Problems entry or current Source File Page target, source context, and same-file diff from the current Review Scope when available.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
@@ -474,6 +475,12 @@ Source File Page supports `copy source` for the current target-line marker. It c
 Status: implemented.
 
 Source File Page supports `source context N` to set the copied source context radius used by `copy source`. `N` is a non-negative integer clamped to a practical maximum, defaults to 3 on newly opened source pages, and is restored through in-session page history. This keeps AI handoff flexible without introducing a full selection model.
+
+### P0: Problem Context handoff
+
+Status: implemented.
+
+`copy problem context` copies focused Markdown for the selected Task Problems entry or current Source File Page target. The package includes problem facts when available, source context around the target line, and same-file diff from the current Review Scope when that file is changed; otherwise it includes `No diff in current review scope.`. `cr.ui.problem_context` owns Markdown assembly only, while Browser Action Execution gathers source/problem/diff facts and uses existing clipboard handling. This deliberately avoids save commands, cross-file dependency collection, full prompt templates, task transcripts, diagnostics persistence, and source editing.
 
 Task output handoff remains output-panel handoff, not diagnostics. `cr.ui.tasks` owns the task output text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 

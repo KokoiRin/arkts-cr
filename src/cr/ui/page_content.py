@@ -148,6 +148,7 @@ def contextual_action_bar(
             "errors",
             "warnings",
             "all",
+            "sort severity",
             "view problem",
             "task output",
             "copy problem",
@@ -712,16 +713,17 @@ def task_problems_screen_lines(
     max_lines: int,
 ) -> list[str]:
     problem_filter = getattr(state, "problem_filter", "")
+    sort_label = " (sort: severity)" if getattr(state, "problem_sort", "output") == "severity" else ""
     if not problems:
         if problem_filter:
             return [
-                style.bold(f"Task problems: {problem_filter}"),
+                style.bold(f"Task problems: {problem_filter}{sort_label}"),
                 f"No {problem_filter} task problems found.",
                 "Run problems all to show all task problems.",
                 "",
             ][:max_lines]
         return [
-            style.bold("Task problems"),
+            style.bold(f"Task problems{sort_label}"),
             "No task problems found.",
             "Run build, test, or lint, then open problems from task output.",
             "",
@@ -730,7 +732,10 @@ def task_problems_screen_lines(
     if problem_filter:
         title = f"{title}: {problem_filter}"
     count_label = task_problems_module.problem_severity_count_label(problems)
-    count_suffix = f"; {count_label}" if count_label else ""
+    count_parts = [count_label] if count_label else []
+    if getattr(state, "problem_sort", "output") == "severity":
+        count_parts.append("sort: severity")
+    count_suffix = f"; {'; '.join(count_parts)}" if count_parts else ""
     lines = [
         f"{style.bold(title)} ({len(problems)} found{count_suffix})",
         "Enter: open problem   task output: logs   b: back",

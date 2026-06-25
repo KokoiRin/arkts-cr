@@ -417,25 +417,31 @@ Task Output Page supports `find TEXT`, `next match`, and `prev match` over the c
 
 Status: implemented.
 
-`problems` / `task problems` opens a current-task Problems page that extracts repo-local `path:line[:column]` anchors from captured task output. The page also extracts generic severity, code, and message facts from common text such as `error TS2322: bad call` or `warning [W001]: check this`, then renders compact labels like `ERROR TS2322`. The page supports selection, scrolling, page history, severity filtering, and Enter-to-open through the existing editor handoff. It intentionally avoids severity sorting, text query filtering, build-tool-specific parser registries, history search, and diagnostics persistence.
+`problems` / `task problems` opens a current-task Problems page that extracts repo-local `path:line[:column]` anchors from captured task output. The page also extracts generic severity, code, and message facts from common text such as `error TS2322: bad call` or `warning [W001]: check this`, then renders compact labels like `ERROR TS2322`. The page supports selection, scrolling, page history, severity filtering, optional severity sorting, and Enter-to-open through the existing editor handoff. It intentionally avoids text query filtering, build-tool-specific parser registries, history search, and diagnostics persistence.
 
 ### P0: Task Problems handoff
 
 Status: implemented.
 
-`copy problem` copies the selected Task Problems entry, while `copy problems` copies every current visible Task Problems entry in output order. Handoff text includes severity, code, and cleaned message when present, plus the raw summary fallback. `cr.ui.task_problems` owns location, diagnostic fact extraction, severity filtering, and handoff text formatting; Browser Action Execution owns clipboard side effects through existing file actions. This intentionally stays lighter than a full diagnostics subsystem: no sorting, text query filtering, tool-specific parser registry, history search, persistence, or `save problems`.
+`copy problem` copies the selected Task Problems entry, while `copy problems` copies every current visible Task Problems entry in the active visible order. Handoff text includes severity, code, and cleaned message when present, plus the raw summary fallback. `cr.ui.task_problems` owns location, diagnostic fact extraction, severity filtering, optional severity sorting, and handoff text formatting; Browser Action Execution owns clipboard side effects through existing file actions. This intentionally stays lighter than a full diagnostics subsystem: no text query filtering, tool-specific parser registry, history search, persistence, or `save problems`.
 
 ### P0: Task Problems severity filter
 
 Status: implemented.
 
-Task Problems supports page-local severity filters with `problems errors`, `problems warnings`, `problems info`, and `problems note`; `problems all` clears the filter. The active filter narrows the visible list while preserving task-output order, and movement, Enter/open, `view problem`, `copy problem`, and `copy problems` all operate on the filtered visible list. `BrowserState.problem_filter` is restored through page history snapshots, while `cr.ui.task_problems` owns the pure filtering rule. This intentionally avoids severity sorting, text query filtering, task history search, and diagnostics persistence.
+Task Problems supports page-local severity filters with `problems errors`, `problems warnings`, `problems info`, and `problems note`; `problems all` clears the filter. The active filter narrows the visible list before sorting, and movement, Enter/open, `view problem`, `copy problem`, and `copy problems` all operate on the filtered visible list. `BrowserState.problem_filter` is restored through page history snapshots, while `cr.ui.task_problems` owns the pure filtering rule. This intentionally avoids text query filtering, task history search, and diagnostics persistence.
+
+### P0: Task Problems severity sort
+
+Status: implemented.
+
+Task Problems defaults to task-output order, then supports `problems sort severity` to group visible problems by `error`, `warning`, `info`, `note`, and unknown severity while preserving original output order inside each bucket. `problems sort output` restores task-output order. Sorting applies after severity filtering, updates the header with `sort: severity` only when active, and shares the same visible list used by movement, Enter/open, `view problem`, `copy problem`, and `copy problems`. `BrowserState.problem_sort` is page-local and restored through page history snapshots; it is not persisted across sessions.
 
 ### P0: Task Problems severity counts
 
 Status: implemented.
 
-Task Problems renders compact severity counts in the header for the currently visible list, for example `2 errors, 1 warning, 1 unknown`. Counts use the same filtered list as movement/open/copy and preserve task-output order. `cr.ui.task_problems` owns count formatting so Page Content only renders the display string. This intentionally avoids total-vs-filtered aggregate state, sorting, persistence, and new commands.
+Task Problems renders compact severity counts in the header for the currently visible list, for example `2 errors, 1 warning, 1 unknown`. Counts use the same filtered and sorted list as movement/open/copy. `cr.ui.task_problems` owns count formatting so Page Content only renders the display string. This intentionally avoids total-vs-filtered aggregate state and persistence.
 
 ### P0: Source File Page
 

@@ -74,11 +74,11 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
     current task output `path:line[:column]` anchors plus generic severity,
     code, and message facts, with Enter opening the selected repo-local location
     in the editor, visible severity counts in the Problems header, severity
-    filters narrowing the visible Problems list without sorting, `view problem`
-    opening a read-only in-TUI source preview, Source File Page `find TEXT` /
-    `next match` / `prev match` searching within that file, Source File Page
-    `copy line` copying the current target `path:line`, Source File Page
-    `copy source` copying nearby source context, and `copy problem` /
+    filters narrowing the visible Problems list, optional severity sorting,
+    `view problem` opening a read-only in-TUI source preview, Source File Page
+    `find TEXT` / `next match` / `prev match` searching within that file,
+    Source File Page `copy line` copying the current target `path:line`, Source
+    File Page `copy source` copying nearby source context, and `copy problem` /
     `copy problems` copying selected/visible problem handoff text.
   - Lets users stop a running task with `stop` / `cancel` and rerun the most recent task kind with `rerun` / `rebuild`.
   - Distinguishes task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
@@ -201,7 +201,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat task output handoff as Task Runtime text plus UI-edge delivery: `cr.ui.tasks` renders the current task output Markdown, while Browser Action Execution calls clipboard or handoff-file helpers. Task output handoff does not enter workspace persistence or task history.
   - Treat Task Output Page as page content over current `TaskState`: `cr.ui.page_content` renders status, command, output lines, empty state, and scroll footer; `browser.py` owns `task_scroll`, page transition, command execution, and tick redraw scheduling.
   - Treat rendered-text search as a shared UI helper: `cr.ui.text_search` strips ANSI style codes and finds matches over rendered lines, while File Detail and Task Output keep page-specific state and messages at their owning layers.
-  - Treat Task Problems as a lightweight UI projection of current task output: `cr.ui.task_problems` extracts repo-local file anchors plus generic severity/code/message facts, filters by severity, formats visible severity counts, and formats problem handoff text; Page Content renders the list; Browser Navigation owns page-local `problem_filter` with selection/scroll snapshots; Browser Action Execution owns selection plus editor/copy side effects.
+  - Treat Task Problems as a lightweight UI projection of current task output: `cr.ui.task_problems` extracts repo-local file anchors plus generic severity/code/message facts, filters by severity, optionally sorts the visible list by severity, formats visible severity counts, and formats problem handoff text; Page Content renders the list; Browser Navigation owns page-local `problem_filter` and `problem_sort` with selection/scroll snapshots; Browser Action Execution owns selection plus editor/copy side effects.
   - Treat Source File Page as a cross-layer read-only preview: `cr.ui.source_file` reads repo-local UTF-8 files, computes target-line windows, and formats target-line source context handoff; Page Content renders rows; Browser Action Execution owns navigation, source-page-local find state, clipboard side effects, and editor handoff. It is not File Detail, does not search across files, and does not enter workspace persistence.
   - Treat in-session review progress as browser workspace state: seen paths, remaining-only view, and selected-file progress operations belong in `ReviewWorkspace` and persist with `.git/cr/browse-state.json`.
   - Treat in-session review notes as browser workspace state: path-keyed notes belong in `ReviewWorkspace`, are edited through `note TEXT` / `note`, summarized/searched through `notes`, copied through `copy notes` / `copy notes QUERY`, and persist with `.git/cr/browse-state.json`. Summary/search/copy rules belong in `cr.ui.review_notes`.

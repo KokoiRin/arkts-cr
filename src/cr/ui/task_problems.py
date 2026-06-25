@@ -30,6 +30,12 @@ CODE_RE = re.compile(
     r"|\((?P<paren>[A-Za-z]+\d+[A-Za-z0-9_-]*)\)"
     r"|(?P<plain>[A-Z]{1,12}\d+[A-Za-z0-9_-]*))"
 )
+SEVERITY_SORT_ORDER = {
+    "error": 0,
+    "warning": 1,
+    "info": 2,
+    "note": 3,
+}
 
 
 @dataclass(frozen=True)
@@ -93,6 +99,24 @@ def filter_task_problems(
     if not normalized:
         return list(problems)
     return [problem for problem in problems if problem.severity == normalized]
+
+
+def sort_task_problems(
+    problems: list[TaskProblem],
+    sort_mode: str,
+) -> list[TaskProblem]:
+    if sort_mode.strip().lower() != "severity":
+        return list(problems)
+    return [
+        problem
+        for _, problem in sorted(
+            enumerate(problems),
+            key=lambda item: (
+                SEVERITY_SORT_ORDER.get(item[1].severity or "", 4),
+                item[0],
+            ),
+        )
+    ]
 
 
 def problem_severity_count_label(problems: list[TaskProblem]) -> str:

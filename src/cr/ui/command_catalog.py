@@ -82,6 +82,16 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("problems info", "show info task problems", "problems info"),
                 CommandEntry("problems note", "show note task problems", "problems note"),
                 CommandEntry("problems all", "show all task problems", "problems all"),
+                CommandEntry(
+                    "problems sort severity",
+                    "sort task problems by severity",
+                    "problems sort severity",
+                ),
+                CommandEntry(
+                    "problems sort output",
+                    "restore task-output problem order",
+                    "problems sort output",
+                ),
                 CommandEntry("view problem", "view selected task problem source", "view problem"),
                 CommandEntry("copy problem", "copy selected task problem", "copy problem"),
                 CommandEntry("copy problems", "copy all current task problems", "copy problems"),

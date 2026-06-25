@@ -79,6 +79,7 @@ class BrowserState:
     problem_selected: int = 0
     problem_scroll: int = 0
     problem_filter: str = ""
+    problem_sort: str = "output"
     source_file_path: str = ""
     source_file_line: int = 1
     source_file_scroll: int = 0
@@ -518,10 +519,21 @@ class BrowserCommandExecutor:
             BrowserNavigation.show_task_problems(
                 state,
                 problem_filter=parsed_command.value,
+                problem_sort=state.problem_sort,
             )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.CLEAR_TASK_PROBLEM_FILTER:
-            BrowserNavigation.show_task_problems(state)
+            BrowserNavigation.show_task_problems(
+                state,
+                problem_sort=state.problem_sort,
+            )
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SET_TASK_PROBLEM_SORT:
+            BrowserNavigation.show_task_problems(
+                state,
+                problem_filter=state.problem_filter,
+                problem_sort=parsed_command.value,
+            )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SHOW_TASK_PROBLEMS:
             BrowserNavigation.show_task_problems(state)
@@ -2614,7 +2626,8 @@ def _current_task_problems(state: BrowserState) -> list[task_problems_module.Tas
         git.repo_root(),
         state.task.lines,
     )
-    return task_problems_module.filter_task_problems(problems, state.problem_filter)
+    visible = task_problems_module.filter_task_problems(problems, state.problem_filter)
+    return task_problems_module.sort_task_problems(visible, state.problem_sort)
 
 
 def _current_source_file_view(

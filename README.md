@@ -78,7 +78,7 @@ o             用编辑器打开当前文件
 q             退出
 ```
 
-在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`]` / `[` 会跳到下一个 / 上一个 diff hunk；`: open hunk` 会打开当前 hunk，`: copy hunk` 会复制当前 hunk review 片段；`r` 刷新后如果当前文件仍在当前 scope/filter 里，会留在这个文件详情；`n/p` 仍然用于切到下一个 / 上一个文件。
+在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`]` / `[` 会跳到下一个 / 上一个 diff hunk；`: find TEXT` 会在当前文件详情里查找文本；`: open hunk` 会打开当前 hunk，`: copy hunk` 会复制当前 hunk review 片段；`r` 刷新后如果当前文件仍在当前 scope/filter 里，会留在这个文件详情；`n/p` 仍然用于切到下一个 / 上一个文件。
 
 打开 command palette：
 
@@ -151,6 +151,7 @@ copy notes QUERY       复制过滤后的 review 备注汇总
 copy diff              复制当前文件的轻量 diff review 片段
 copy hunk              复制当前 diff hunk review 片段
 save diff [PATH]       保存当前文件的轻量 diff review 片段
+find TEXT              在当前文件详情里查找渲染文本
 open hunk              在编辑器里打开当前 diff hunk
 next hunk / ]          跳到当前文件的下一个 diff hunk
 prev hunk / [          跳到当前文件的上一个 diff hunk
@@ -201,6 +202,7 @@ cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 : copy diff    复制当前文件的轻量 diff review 片段
 : copy hunk    复制当前 diff hunk review 片段
 : save diff    保存当前文件的轻量 diff review 片段
+: find TEXT    在当前文件详情里查找渲染文本
 : next hunk    跳到当前文件的下一个 diff hunk
 : prev hunk    跳到当前文件的上一个 diff hunk
 : copy prompt  复制当前可见改动的 AI review handoff

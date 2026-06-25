@@ -71,6 +71,7 @@ class BrowserCommandAction:
     END = "end"
     ENTER = "enter"
     LEFT = "left"
+    FIND_IN_FILE = "find_in_file"
     NEXT_HUNK = "next_hunk"
     PREVIOUS_HUNK = "previous_hunk"
     NEXT_FILE = "next_file"
@@ -244,6 +245,11 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.ENTER)
     if command in {"left", "h"}:
         return BrowserCommand(BrowserCommandAction.LEFT)
+    if command == "find" or command.startswith("find "):
+        return BrowserCommand(
+            BrowserCommandAction.FIND_IN_FILE,
+            command.removeprefix("find").strip(),
+        )
     if command in {"next hunk", "hunk next", "]"}:
         return BrowserCommand(BrowserCommandAction.NEXT_HUNK)
     if command in {"prev hunk", "previous hunk", "hunk prev", "hunk previous", "["}:

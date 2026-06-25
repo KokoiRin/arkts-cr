@@ -61,11 +61,11 @@ surface row rendering. It does not parse typed commands or execute actions.
 note summary lines, path/text filtering, empty-state text, and copy status
 messages. It does not edit notes, persist workspace state, parse commands, or
 place Browser Frame feedback.
-`cr.ui.file_detail_navigation` owns rendered File Detail hunk navigation:
-detecting hunk header rows, choosing next/previous target scroll positions,
-resolving the active hunk's new-file line, extracting the active rendered hunk
-block, and returning hunk navigation status messages. It does not render file
-content, parse commands, mutate browser state, or read Git diff data.
+`cr.ui.file_detail_navigation` owns rendered File Detail navigation: detecting
+hunk header rows, choosing next/previous target scroll positions, resolving the
+active hunk's new-file line, extracting the active rendered hunk block, finding
+rendered text, and returning navigation status messages. It does not render
+file content, parse commands, mutate browser state, or read Git diff data.
 `cr.ui.browser.BrowserCommandExecutor` owns browser action execution for parsed
 commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
@@ -168,8 +168,9 @@ Product navigation terms:
   `prev hunk` / `[` move the file scroll between rendered diff hunk headers,
   while `open hunk` opens the active hunk's new-file line in the editor and
   `copy hunk` copies the active rendered hunk block as compact review context.
-  This is local navigation inside the current selected file, not a new product
-  hierarchy layer.
+  `find TEXT` searches the current rendered File Detail text. This is local
+  navigation inside the current selected file, not a new product hierarchy
+  layer.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

@@ -30,6 +30,13 @@ class ActiveHunk:
     lines: list[str]
 
 
+@dataclass(frozen=True)
+class FileFindResult:
+    scroll: int
+    message: str
+    found: bool
+
+
 def jump_to_hunk(
     lines: list[str],
     current_scroll: int,
@@ -55,6 +62,21 @@ def jump_to_hunk(
     target = _clamp_scroll(target, max_scroll)
     hunk_number = _hunk_number_for_target(hunks, target)
     return HunkJumpResult(target, f"Moved to hunk {hunk_number}/{len(hunks)}.", True)
+
+
+def find_text(lines: list[str], query: str) -> FileFindResult:
+    text_query = query.strip()
+    if not text_query:
+        return FileFindResult(0, "Enter text to find.", False)
+    normalized = text_query.casefold()
+    for index, line in enumerate(lines[1:]):
+        if normalized in _plain_text(line).casefold():
+            return FileFindResult(
+                index,
+                f'Found "{text_query}" at line {index + 1}.',
+                True,
+            )
+    return FileFindResult(0, f'No matches for "{text_query}".', False)
 
 
 def hunk_scroll_positions(lines: list[str]) -> list[int]:

@@ -623,6 +623,10 @@ class BrowserCommandExecutor:
             message = _jump_file_hunk(state, args, style, "previous")
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.FIND_IN_FILE:
+            message = _find_in_current_file(state, args, style, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.HOME:
             if state.page == BrowserPage.FILE_DETAIL:
                 state.file_scroll = 0
@@ -1336,6 +1340,32 @@ def _jump_file_hunk(
         max_scroll=_max_file_scroll(state, args, style),
     )
     state.file_scroll = result.scroll
+    return result.message
+
+
+def _find_in_current_file(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    query: str,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to find text."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to find text."
+    state.clamp_selection()
+    lines = _cached_file_lines(
+        state,
+        visible[state.selected],
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    result = file_detail_navigation.find_text(lines, query)
+    if result.found:
+        state.file_scroll = min(result.scroll, _max_file_scroll(state, args, style))
     return result.message
 
 

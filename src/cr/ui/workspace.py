@@ -49,6 +49,13 @@ def capture_scope(args: argparse.Namespace) -> ReviewScope:
     )
 
 
+@dataclass(frozen=True)
+class ReviewProgressAdvance:
+    marked_path: str | None
+    target_path: str | None
+    had_next_before: bool = False
+
+
 @dataclass
 class ReviewWorkspace:
     changes: list[git.FileChange]
@@ -97,6 +104,57 @@ class ReviewWorkspace:
 
     def clear_source_filter(self) -> None:
         self.set_source_filter("")
+
+    def mark_selected_seen(self) -> bool:
+        visible = self.visible_changes
+        if not visible:
+            return False
+        self.clamp_selection()
+        self.seen_paths.add(visible[self.selected].path)
+        self.clamp_selection()
+        return True
+
+    def unmark_selected_seen(self) -> bool:
+        visible = self.visible_changes
+        if not visible:
+            return False
+        self.clamp_selection()
+        self.seen_paths.discard(visible[self.selected].path)
+        self.clamp_selection()
+        return True
+
+    def mark_selected_seen_and_advance(self) -> ReviewProgressAdvance:
+        visible_before = self.visible_changes
+        if not visible_before:
+            return ReviewProgressAdvance(None, None)
+
+        self.clamp_selection()
+        current_index = self.selected
+        current_path = visible_before[current_index].path
+        had_next_before = current_index + 1 < len(visible_before)
+        self.seen_paths.add(current_path)
+
+        visible_after = self.visible_changes
+        if not visible_after:
+            self.clamp_selection()
+            return ReviewProgressAdvance(
+                current_path,
+                None,
+                had_next_before=had_next_before,
+            )
+
+        if self.remaining_only:
+            self.selected = min(current_index, len(visible_after) - 1)
+        elif had_next_before:
+            self.selected = min(current_index + 1, len(visible_after) - 1)
+        else:
+            self.selected = min(current_index, len(visible_after) - 1)
+        self.clamp_selection()
+        return ReviewProgressAdvance(
+            current_path,
+            visible_after[self.selected].path,
+            had_next_before=had_next_before,
+        )
 
     def clamp_selection(self) -> None:
         total = len(self.visible_changes)

@@ -158,9 +158,11 @@ Product navigation terms:
 - `Review Progress`: lightweight per-file seen/todo state inside the current
   Review Workspace, surfaced by `m` / `seen` / `done`, `done next` /
   `seen next`, `todo` / `unseen` / `unmark`, `remaining`, and `allfiles`.
-  `ReviewWorkspace` owns stored `seen_paths` and remaining-only filtering;
-  Browser Action Execution owns the composed mark-and-advance workflow because
-  it coordinates progress state, selected file, and current page.
+  `ReviewWorkspace` owns stored `seen_paths`, remaining-only filtering, and
+  selected-file progress operations including mark, unmark, and
+  mark-and-advance selection rules. Browser Action Execution only coordinates the
+  page-aware part of mark-and-advance, such as reopening File Detail and placing
+  status feedback.
 - `Prompt Handoff`: Markdown review context copied or saved from the current
   browser Review Scope or selected file through `copy prompt` /
   `copy prompt file` / `save prompt` / `save prompt file`. It reuses

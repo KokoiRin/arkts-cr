@@ -153,7 +153,7 @@ Review Workspace
     ReviewWorkspace owns active scope, changed files, filter/progress/note state, selected file, selected commit, previous scope, and workspace-state data mapping
     seen_paths stores per-file review progress
     remaining_only filters visible changes to files not marked seen
-    done next / seen next is executed by BrowserCommandExecutor because it composes progress state with page-aware file navigation
+    mark/unmark/done-next selection rules live in ReviewWorkspace; BrowserCommandExecutor only adds page-aware navigation and status feedback
 
 Browser Command Dispatch
   current implementation:
@@ -365,6 +365,8 @@ Status: implemented.
 Status: implemented.
 
 `done next` / `seen next` marks the current visible changed file as seen and advances to the next visible file. In Changed Files it keeps the user on the file list and moves selection; in File Detail it opens the next file detail with file scroll reset. In `remaining` mode it selects the file that moves into the current visible index after the seen file is filtered out, so the command does not skip the next unreviewed file.
+
+`ReviewWorkspace` owns the selected-file progress operations behind this flow: mark, unmark, and mark-and-advance. Browser action execution keeps only the page-specific part, such as whether to remain in Changed Files or reopen File Detail.
 
 ### P0: Review notes
 

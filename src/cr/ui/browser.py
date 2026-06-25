@@ -294,14 +294,18 @@ class BrowserCommandExecutor:
             BrowserNavigation.show_changed_files(state)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.MARK_SEEN:
-            _mark_selected_seen(state)
+            workspace = state._sync_to_workspace()
+            workspace.mark_selected_seen()
+            state._sync_from_workspace()
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.MARK_SEEN_AND_NEXT:
             message = _mark_selected_seen_and_move_next(state)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.MARK_TODO:
-            _unmark_selected_seen(state)
+            workspace = state._sync_to_workspace()
+            workspace.unmark_selected_seen()
+            state._sync_from_workspace()
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SHOW_REMAINING:
             state.remaining_only = True
@@ -953,64 +957,33 @@ def _should_restore_browser_workspace_state(args: argparse.Namespace) -> bool:
     return workspace_persistence.should_restore_workspace_state(args)
 
 
-def _mark_selected_seen(state: BrowserState) -> None:
-    visible = state.visible_changes
-    if not visible:
-        return
-    state.clamp_selection()
-    state.seen_paths.add(visible[state.selected].path)
-    state.clamp_selection()
-
-
 def _mark_selected_seen_and_move_next(state: BrowserState) -> str:
-    visible_before = state.visible_changes
-    if not visible_before:
-        return "No changed file to mark seen."
-    state.clamp_selection()
-    current_index = state.selected
-    current_path = visible_before[current_index].path
-    had_later_file = current_index + 1 < len(visible_before)
     was_file_detail = state.page == BrowserPage.FILE_DETAIL
+    workspace = state._sync_to_workspace()
+    progress = workspace.mark_selected_seen_and_advance()
+    state._sync_from_workspace()
 
-    state.seen_paths.add(current_path)
-    state._sync_to_workspace()
-    visible_after = state.visible_changes
-    if not visible_after:
+    if progress.marked_path is None:
+        return "No changed file to mark seen."
+    if progress.target_path is None:
         BrowserNavigation.show_changed_files(state)
         state.clamp_selection()
-        return f"Marked {shorten_path(current_path)} seen. No remaining files."
-
-    if state.remaining_only:
-        state.selected = min(current_index, len(visible_after) - 1)
-    elif had_later_file:
-        state.selected = min(current_index + 1, len(visible_after) - 1)
-    else:
-        state.selected = min(current_index, len(visible_after) - 1)
+        return f"Marked {shorten_path(progress.marked_path)} seen. No remaining files."
 
     if was_file_detail:
         BrowserNavigation.open_file_detail(state)
     else:
         state.clamp_selection()
 
-    target_path = visible_after[state.selected].path
-    if target_path == current_path and not had_later_file:
+    if progress.target_path == progress.marked_path and not progress.had_next_before:
         return (
-            f"Marked {shorten_path(current_path)} seen. "
-            f"No next file after {shorten_path(current_path)}."
+            f"Marked {shorten_path(progress.marked_path)} seen. "
+            f"No next file after {shorten_path(progress.marked_path)}."
         )
     return (
-        f"Marked {shorten_path(current_path)} seen. "
-        f"Moved to {shorten_path(target_path)}."
+        f"Marked {shorten_path(progress.marked_path)} seen. "
+        f"Moved to {shorten_path(progress.target_path)}."
     )
-
-
-def _unmark_selected_seen(state: BrowserState) -> None:
-    visible = state.visible_changes
-    if not visible:
-        return
-    state.clamp_selection()
-    state.seen_paths.discard(visible[state.selected].path)
-    state.clamp_selection()
 
 
 def _set_selected_review_note(state: BrowserState, note: str) -> str:

@@ -474,13 +474,19 @@ Source File Page supports `copy line` for the current target-line marker. It cop
 
 Status: implemented.
 
-Source File Page supports `copy source` for the current target-line marker. It copies a compact Markdown snippet headed by `path:line`, including source lines before and after the target plus a `>` marker on the target line. The default radius is three lines; `source context N` changes that radius for the current Source File Page, and the page header shows the active context. `cr.ui.source_file` owns snippet formatting; Browser Navigation owns page-local context-radius snapshots; Browser Action Execution owns clipboard side effects, context-radius command handling, and unreadable-source feedback. It intentionally avoids multi-line interactive selection, syntax highlighting, source editing, cross-file snippets, and persistence.
+Source File Page supports `copy source` for the current target-line marker. It copies a compact Markdown snippet headed by `path:line`, including source lines before and after the target plus a `>` marker on the target line. The default radius is three lines; `source context N` changes that radius for the current Source File Page, and the page header shows the active context. `cr.ui.source_file` owns snippet formatting; Browser Navigation owns page-local context-radius snapshots; Browser Action Execution owns clipboard side effects, context-radius command handling, and unreadable-source feedback. It intentionally avoids syntax highlighting, source editing, cross-file snippets, and persistence.
 
 ### P0: Source File Page adjustable source context
 
 Status: implemented.
 
 Source File Page supports `source context N` to set the copied source context radius used by `copy source`. `N` is a non-negative integer clamped to a practical maximum, defaults to 3 on newly opened source pages, and is restored through in-session page history. This keeps AI handoff flexible without introducing a full selection model.
+
+### P0: Source File Page range selection
+
+Status: implemented.
+
+Source File Page supports `source select START END` to select an exact repo-local source line range and `source clear selection` to clear it. The header shows `selection: A-B`, selected rows render with a `*` marker while the target line keeps `>`, and page history restores the range with the rest of Source File Page state. When a range is active, `copy source` copies only that selected range; without a range, it keeps the existing context-radius copy behavior. This intentionally avoids source editing, syntax-aware expansion, cross-file ranges, mouse selection, multiple ranges, and workspace persistence.
 
 ### P0: Problem Context handoff
 

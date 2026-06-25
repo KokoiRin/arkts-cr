@@ -167,6 +167,7 @@ def contextual_action_bar(
             "copy source",
             "copy context",
             "source context",
+            "select range",
             "b back",
         ),
     }
@@ -807,17 +808,26 @@ def source_file_screen_lines(
     max_lines: int,
     *,
     context_lines: int = 3,
+    selection_start: int = 0,
+    selection_end: int = 0,
 ) -> list[str]:
+    source_labels = [f"context: {context_lines}"]
+    if selection_start > 0 and selection_end > 0:
+        start, end = sorted((selection_start, selection_end))
+        if view.total_lines > 0:
+            start = max(1, min(start, view.total_lines))
+            end = max(1, min(end, view.total_lines))
+        source_labels.append(f"selection: {start}-{end}")
     lines = [
         f"{style.bold('Source')} {style.file_path(view.path)}  "
-        f"{style.dim(f'context: {context_lines}')}",
+        f"{style.dim('; '.join(source_labels))}",
     ]
     if view.error:
         lines.extend([view.error, ""])
         return lines[:max_lines]
     width = len(str(max(view.total_lines, 1)))
     for row in view.rows:
-        marker = ">" if row.is_target else " "
+        marker = ">" if row.is_target else "*" if row.is_selected else " "
         lines.append(f"{marker} {str(row.line_number).rjust(width)}  {row.text}")
     if view.total_lines > len(view.rows):
         start = view.scroll + 1

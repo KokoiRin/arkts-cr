@@ -90,6 +90,8 @@ class BrowserState:
     source_file_line: int = 1
     source_file_scroll: int = 0
     source_context_lines: int = 3
+    source_selection_start: int = 0
+    source_selection_end: int = 0
     page: str = BrowserPage.CHANGED_FILES
     filter_text: str = ""
     source_filter: str = ""
@@ -485,6 +487,14 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SET_SOURCE_CONTEXT_LINES:
             message = _set_source_context_lines(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SET_SOURCE_SELECTION:
+            message = _set_source_selection(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.CLEAR_SOURCE_SELECTION:
+            message = _clear_source_selection(state)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.COPY_CHANGE:
@@ -2104,15 +2114,27 @@ def _copy_source_context(
     if content.error:
         return content.error
     target_line = max(1, state.source_file_line)
-    text = source_file_module.source_context_markdown(
-        content,
-        target_line=target_line,
-        context_lines=state.source_context_lines,
-    )
+    selection = _source_selection_range(state)
+    if selection is None:
+        text = source_file_module.source_context_markdown(
+            content,
+            target_line=target_line,
+            context_lines=state.source_context_lines,
+        )
+    else:
+        text = source_file_module.source_range_markdown(
+            content,
+            start_line=selection[0],
+            end_line=selection[1],
+            target_line=target_line,
+        )
     error = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
     if error:
         return error
     target_line = max(1, min(target_line, len(content.lines)))
+    if selection is not None:
+        start, end = _clamp_source_range(selection[0], selection[1], len(content.lines))
+        return f"Copied selected source {content.path}:{start}-{end}."
     return f"Copied source context {content.path}:{target_line}."
 
 
@@ -2127,6 +2149,45 @@ def _set_source_context_lines(state: BrowserState, raw_value: str) -> str:
         return "Source context must be a non-negative integer."
     state.source_context_lines = min(context_lines, SOURCE_CONTEXT_MAX_LINES)
     return f"Source context set to {state.source_context_lines}."
+
+
+def _set_source_selection(state: BrowserState, raw_value: str) -> str:
+    if state.page != BrowserPage.SOURCE_FILE:
+        return "Open a source file before selecting source."
+    parts = raw_value.split()
+    if len(parts) != 2:
+        return "Source selection must be two positive line numbers."
+    try:
+        start_line, end_line = (int(part) for part in parts)
+    except ValueError:
+        return "Source selection must be two positive line numbers."
+    if start_line <= 0 or end_line <= 0:
+        return "Source selection must be two positive line numbers."
+    start, end = sorted((start_line, end_line))
+    state.source_selection_start = start
+    state.source_selection_end = end
+    return f"Source selection set to {start}-{end}."
+
+
+def _clear_source_selection(state: BrowserState) -> str:
+    if state.page != BrowserPage.SOURCE_FILE:
+        return "Open a source file before clearing source selection."
+    state.source_selection_start = 0
+    state.source_selection_end = 0
+    return "Source selection cleared."
+
+
+def _source_selection_range(state: BrowserState) -> tuple[int, int] | None:
+    if state.source_selection_start <= 0 or state.source_selection_end <= 0:
+        return None
+    return tuple(sorted((state.source_selection_start, state.source_selection_end)))
+
+
+def _clamp_source_range(start_line: int, end_line: int, total_lines: int) -> tuple[int, int]:
+    start, end = sorted((start_line, end_line))
+    start = max(1, min(start, total_lines))
+    end = max(1, min(end, total_lines))
+    return start, end
 
 
 def _copy_current_change(
@@ -2759,6 +2820,8 @@ def _browse_source_file_screen_lines(
         style,
         max_lines,
         context_lines=state.source_context_lines,
+        selection_start=state.source_selection_start,
+        selection_end=state.source_selection_end,
     )
 
 
@@ -2787,6 +2850,8 @@ def _current_source_file_view(
         target_line=state.source_file_line,
         scroll=state.source_file_scroll,
         capacity=max(1, max_lines - 2),
+        selection_start=state.source_selection_start,
+        selection_end=state.source_selection_end,
     )
 
 

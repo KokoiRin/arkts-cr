@@ -156,6 +156,16 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "set copied source context radius",
                     "source context 3",
                 ),
+                CommandEntry(
+                    "source select START END",
+                    "select source line range",
+                    "source select 1 3",
+                ),
+                CommandEntry(
+                    "source clear selection",
+                    "clear selected source range",
+                    "source clear selection",
+                ),
                 CommandEntry("copy change", "copy current file-detail changed row", "copy change"),
                 CommandEntry(
                     "find TEXT",

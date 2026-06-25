@@ -16,6 +16,7 @@ class SourceFileRow:
     line_number: int
     text: str
     is_target: bool = False
+    is_selected: bool = False
 
 
 @dataclass(frozen=True)
@@ -64,12 +65,15 @@ def load_source_file_view(
     target_line: int,
     scroll: int,
     capacity: int,
+    selection_start: int = 0,
+    selection_end: int = 0,
 ) -> SourceFileView:
     content = load_source_file_content(repo, path)
     if content.error:
         return _error_view(content.path, target_line, content.error)
     lines = content.lines
     target_line = max(1, min(target_line, len(lines)))
+    selection = _normalize_range(selection_start, selection_end, len(lines))
     capacity = max(1, capacity)
     start = _initial_scroll(scroll, target_line, len(lines), capacity)
     end = min(len(lines), start + capacity)
@@ -78,6 +82,10 @@ def load_source_file_view(
             line_number=index + 1,
             text=lines[index],
             is_target=index + 1 == target_line,
+            is_selected=(
+                selection is not None
+                and selection[0] <= index + 1 <= selection[1]
+            ),
         )
         for index in range(start, end)
     ]
@@ -119,6 +127,37 @@ def source_context_markdown(
     )
 
 
+def source_range_markdown(
+    content: SourceFileContent,
+    *,
+    start_line: int,
+    end_line: int,
+    target_line: int = 0,
+) -> str:
+    if content.error:
+        return content.error
+    lines = content.lines or [""]
+    selection = _normalize_range(start_line, end_line, len(lines))
+    if selection is None:
+        return "No source range selected."
+    start, end = selection
+    target_line = max(0, min(target_line, len(lines)))
+    width = len(str(end))
+    body = []
+    for line_number in range(start, end + 1):
+        marker = ">" if line_number == target_line else " "
+        body.append(f"{marker} {str(line_number).rjust(width)}  {lines[line_number - 1]}")
+    return "\n".join(
+        [
+            f"{content.path}:{start}-{end}",
+            "",
+            "```text",
+            *body,
+            "```",
+        ]
+    )
+
+
 def _error_content(path: str, error: str) -> SourceFileContent:
     return SourceFileContent(Path(path).as_posix(), [], error)
 
@@ -130,6 +169,15 @@ def _initial_scroll(scroll: int, target_line: int, total: int, capacity: int) ->
         return max(0, min(scroll, total - capacity))
     centered = target_line - 1 - capacity // 2
     return max(0, min(centered, total - capacity))
+
+
+def _normalize_range(start_line: int, end_line: int, total: int) -> tuple[int, int] | None:
+    if start_line <= 0 or end_line <= 0 or total <= 0:
+        return None
+    start, end = sorted((start_line, end_line))
+    start = max(1, min(start, total))
+    end = max(1, min(end, total))
+    return start, end
 
 
 def _error_view(path: str, target_line: int, error: str) -> SourceFileView:

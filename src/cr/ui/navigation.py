@@ -43,6 +43,7 @@ class BrowserPageSnapshot:
     source_file_line: int = 1
     source_file_scroll: int = 0
     source_find_text: str = ""
+    source_context_lines: int = 3
 
 
 class _BrowserNavigationState(Protocol):
@@ -65,6 +66,7 @@ class _BrowserNavigationState(Protocol):
     source_file_line: int
     source_file_scroll: int
     source_find_text: str
+    source_context_lines: int
     page_back_stack: list[BrowserPageSnapshot]
     page_forward_stack: list[BrowserPageSnapshot]
 
@@ -121,6 +123,7 @@ class BrowserNavigation:
         state.source_file_line = max(1, line)
         state.source_file_scroll = -1
         state.source_find_text = ""
+        state.source_context_lines = 3
 
     @staticmethod
     def show_commit_picker(
@@ -217,6 +220,7 @@ class BrowserNavigation:
             source_file_line=state.source_file_line,
             source_file_scroll=state.source_file_scroll,
             source_find_text=state.source_find_text,
+            source_context_lines=state.source_context_lines,
         )
 
     @staticmethod
@@ -243,6 +247,7 @@ class BrowserNavigation:
         state.source_file_line = snapshot.source_file_line
         state.source_file_scroll = snapshot.source_file_scroll
         state.source_find_text = snapshot.source_find_text
+        state.source_context_lines = snapshot.source_context_lines
 
     @staticmethod
     def _restore_changed_files_fallback(state: _BrowserNavigationState) -> None:

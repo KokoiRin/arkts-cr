@@ -19,6 +19,7 @@ class BrowserCommandAction:
     CLEAR_FILTER = "clear_filter"
     SET_SOURCE_FILTER = "set_source_filter"
     CLEAR_SOURCE_FILTER = "clear_source_filter"
+    SET_SOURCE_CONTEXT_LINES = "set_source_context_lines"
     MARK_SEEN = "mark_seen"
     MARK_SEEN_AND_NEXT = "mark_seen_and_next"
     MARK_TODO = "mark_todo"
@@ -120,6 +121,11 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         )
     if command in {"c", "clear"}:
         return BrowserCommand(BrowserCommandAction.CLEAR_FILTER)
+    if command.startswith("source context "):
+        return BrowserCommand(
+            BrowserCommandAction.SET_SOURCE_CONTEXT_LINES,
+            command.removeprefix("source context ").strip(),
+        )
     if command.startswith("source "):
         source = command.removeprefix("source ").strip()
         if source in {"all", "clear"}:

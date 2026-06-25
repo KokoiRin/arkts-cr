@@ -60,6 +60,9 @@ from .workspace import (
 )
 
 
+SOURCE_CONTEXT_MAX_LINES = 50
+
+
 @dataclass
 class BrowserState:
     changes: list[git.FileChange]
@@ -83,6 +86,7 @@ class BrowserState:
     source_file_path: str = ""
     source_file_line: int = 1
     source_file_scroll: int = 0
+    source_context_lines: int = 3
     page: str = BrowserPage.CHANGED_FILES
     filter_text: str = ""
     source_filter: str = ""
@@ -476,6 +480,10 @@ class BrowserCommandExecutor:
             message = _copy_source_context(state, args)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SET_SOURCE_CONTEXT_LINES:
+            message = _set_source_context_lines(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.COPY_CHANGE:
             message = _copy_current_change(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
@@ -1983,12 +1991,26 @@ def _copy_source_context(
     text = source_file_module.source_context_markdown(
         content,
         target_line=target_line,
+        context_lines=state.source_context_lines,
     )
     error = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
     if error:
         return error
     target_line = max(1, min(target_line, len(content.lines)))
     return f"Copied source context {content.path}:{target_line}."
+
+
+def _set_source_context_lines(state: BrowserState, raw_value: str) -> str:
+    if state.page != BrowserPage.SOURCE_FILE:
+        return "Open a source file before setting source context."
+    try:
+        context_lines = int(raw_value)
+    except ValueError:
+        return "Source context must be a non-negative integer."
+    if context_lines < 0:
+        return "Source context must be a non-negative integer."
+    state.source_context_lines = min(context_lines, SOURCE_CONTEXT_MAX_LINES)
+    return f"Source context set to {state.source_context_lines}."
 
 
 def _copy_current_change(
@@ -2616,7 +2638,12 @@ def _browse_source_file_screen_lines(
 ) -> list[str]:
     view = _current_source_file_view(state, max_lines)
     state.source_file_scroll = view.scroll
-    return page_content.source_file_screen_lines(view, style, max_lines)
+    return page_content.source_file_screen_lines(
+        view,
+        style,
+        max_lines,
+        context_lines=state.source_context_lines,
+    )
 
 
 def _current_task_problems(state: BrowserState) -> list[task_problems_module.TaskProblem]:

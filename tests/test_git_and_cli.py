@@ -1064,6 +1064,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy line", text)
         self.assertIn("copy source", text)
         self.assertIn("copy change", text)
+        self.assertIn("source context N", text)
         self.assertIn("find TEXT", text)
         self.assertIn("next match", text)
         self.assertIn("prev match", text)
@@ -1112,6 +1113,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy hunk", commands)
         self.assertIn("copy line", commands)
         self.assertIn("copy source", commands)
+        self.assertIn("source context 3", commands)
         self.assertIn("copy change", commands)
         self.assertNotIn("note change TEXT", commands)
         self.assertIn("find TEXT", commands)
@@ -1214,6 +1216,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open", source_file_bar)
         self.assertIn("copy line", source_file_bar)
         self.assertIn("copy source", source_file_bar)
+        self.assertIn("source context", source_file_bar)
         self.assertIn("b back", source_file_bar)
         self.assertNotEqual(changed_files, file_detail)
 
@@ -1384,10 +1387,12 @@ class CliTests(unittest.TestCase):
             view,
             TerminalStyle(False),
             max_lines=8,
+            context_lines=8,
         )
         text = "\n".join(lines)
 
         self.assertIn("Source src/Foo.ets", text)
+        self.assertIn("context: 8", text)
         self.assertIn("  1  first", text)
         self.assertIn("> 2  target", text)
         self.assertIn("  3  third", text)
@@ -1458,6 +1463,7 @@ class CliTests(unittest.TestCase):
             task_scroll=8,
             problem_filter="warning",
             problem_sort="severity",
+            source_context_lines=8,
             scope_selected=2,
             command_selected=3,
             page=BrowserPage.FILE_DETAIL,
@@ -1516,6 +1522,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_line, 12)
         self.assertEqual(state.source_file_scroll, -1)
         self.assertEqual(state.source_find_text, "")
+        self.assertEqual(state.source_context_lines, 3)
 
     def test_browser_navigation_replaces_pages_without_history(self):
         state = BrowserState(
@@ -1613,6 +1620,7 @@ class CliTests(unittest.TestCase):
         BrowserNavigation.show_source_file(state, "src/First.ts", 3)
         state.source_find_text = "needle"
         state.source_file_scroll = 2
+        state.source_context_lines = 8
         BrowserNavigation.go_back(state)
         BrowserNavigation.go_forward(state)
 
@@ -1621,6 +1629,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_line, 3)
         self.assertEqual(state.source_file_scroll, 2)
         self.assertEqual(state.source_find_text, "needle")
+        self.assertEqual(state.source_context_lines, 8)
 
         BrowserNavigation.show_task_problems(
             state,
@@ -1934,6 +1943,13 @@ class CliTests(unittest.TestCase):
 
         clear_source = parse_browser_command("source clear")
         self.assertEqual(clear_source.action, BrowserCommandAction.CLEAR_SOURCE_FILTER)
+
+        source_context = parse_browser_command("source context 1")
+        self.assertEqual(
+            source_context.action,
+            BrowserCommandAction.SET_SOURCE_CONTEXT_LINES,
+        )
+        self.assertEqual(source_context.value, "1")
 
         base = parse_browser_command("base main")
         self.assertEqual(base.action, BrowserCommandAction.SWITCH_BASE)
@@ -5005,6 +5021,99 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_scroll, 2)
         self.assertIn("Copied source context src/Foo.ets:5", state.status_message)
 
+    def test_browser_command_executor_sets_source_context_lines(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [],
+            page=BrowserPage.SOURCE_FILE,
+            source_file_path="src/Foo.ets",
+            source_context_lines=3,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        set_context = executor.execute(parse_browser_command("source context 8"))
+        clamped_context = executor.execute(parse_browser_command("source context 999"))
+        invalid_context = executor.execute(parse_browser_command("source context nope"))
+
+        self.assertTrue(set_context.handled)
+        self.assertTrue(set_context.needs_redraw)
+        self.assertTrue(clamped_context.handled)
+        self.assertTrue(invalid_context.handled)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_context_lines, 50)
+        self.assertIn("Source context must be a non-negative integer.", state.status_message)
+
+    def test_browser_command_executor_reports_source_context_without_source_page(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [],
+            page=BrowserPage.CHANGED_FILES,
+            source_context_lines=3,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("source context 8"))
+
+        self.assertTrue(result.handled)
+        self.assertEqual(state.source_context_lines, 3)
+        self.assertIn("Open a source file before setting source context.", state.status_message)
+
+    def test_browser_command_executor_copies_configured_source_file_context(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 11)),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=5,
+                source_context_lines=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy source"))
+
+        self.assertTrue(result.handled)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("  4  line 4", copied)
+        self.assertIn("> 5  line 5", copied)
+        self.assertIn("  6  line 6", copied)
+        self.assertNotIn("line 3", copied)
+        self.assertNotIn("line 7", copied)
+        self.assertIn("Copied source context src/Foo.ets:5", state.status_message)
+
     def test_browser_command_executor_reports_empty_source_context_copy(self):
         from cr.ui.browser import parse_browser_command
 
@@ -7953,6 +8062,7 @@ class CliTests(unittest.TestCase):
                 page=BrowserPage.SOURCE_FILE,
                 source_file_path="src/Foo.ets",
                 source_file_line=2,
+                source_context_lines=8,
             )
             output = StringIO()
 
@@ -7967,6 +8077,7 @@ class CliTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("Scope: worktree > Source > src/Foo.ets", text)
         self.assertIn("Source src/Foo.ets", text)
+        self.assertIn("context: 8", text)
         self.assertIn("> 2  two", text)
         self.assertIn("cr:source> ", text)
 

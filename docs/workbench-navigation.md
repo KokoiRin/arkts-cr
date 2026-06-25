@@ -154,6 +154,7 @@ Task Problems Page
   current implementation:
     BrowserPage.TASK_PROBLEMS -> "problems"
     problem_selected / problem_scroll
+    problem_filter / problem_sort
     current TaskState output anchors only
 
 Source File Page
@@ -161,6 +162,7 @@ Source File Page
     BrowserPage.SOURCE_FILE -> "source"
     source_file_path / source_file_line / source_file_scroll
     source_find_text
+    source_context_lines
     repo-local UTF-8 file preview only
 
 Task Panel / Browser Frame
@@ -206,7 +208,7 @@ Task Problems Page is now explicit as a lightweight current-task Problems panel.
 Source File Page is now explicit as a cross-layer read-only source preview. It can be opened from Task Problems with `view problem`, keeps its own source path, target line, and scroll state, and does not change Review Scope or require the file to be in Changed Files.
 Source File Page find is explicit as page-local text navigation. `find TEXT`, `next match`, and `prev match` search only the current source preview, update the Source File Page target line, and keep File Detail find and Task Output find state separate.
 Source File Page copy-line is explicit as source-preview handoff. `copy line` copies the current Source File Page target `path:line`, reusing the same command vocabulary as File Detail without adding source snippets or multi-line selection.
-Source File Page source-snippet handoff is explicit as AI/review handoff. `copy source` copies Markdown source context around the current target line without adding selection state or editing behavior.
+Source File Page source-snippet handoff is explicit as AI/review handoff. `copy source` copies Markdown source context around the current target line, while `source context N` adjusts the copied context radius without adding selection state or editing behavior.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
@@ -465,7 +467,13 @@ Source File Page supports `copy line` for the current target-line marker. It cop
 
 Status: implemented.
 
-Source File Page supports `copy source` for the current target-line marker. It copies a compact Markdown snippet headed by `path:line`, including up to three lines before and after the target and a `>` marker on the target line. `cr.ui.source_file` owns snippet formatting; Browser Action Execution owns clipboard side effects and unreadable-source feedback. It intentionally avoids multi-line interactive selection, syntax highlighting, source editing, cross-file snippets, and persistence.
+Source File Page supports `copy source` for the current target-line marker. It copies a compact Markdown snippet headed by `path:line`, including source lines before and after the target plus a `>` marker on the target line. The default radius is three lines; `source context N` changes that radius for the current Source File Page, and the page header shows the active context. `cr.ui.source_file` owns snippet formatting; Browser Navigation owns page-local context-radius snapshots; Browser Action Execution owns clipboard side effects, context-radius command handling, and unreadable-source feedback. It intentionally avoids multi-line interactive selection, syntax highlighting, source editing, cross-file snippets, and persistence.
+
+### P0: Source File Page adjustable source context
+
+Status: implemented.
+
+Source File Page supports `source context N` to set the copied source context radius used by `copy source`. `N` is a non-negative integer clamped to a practical maximum, defaults to 3 on newly opened source pages, and is restored through in-session page history. This keeps AI handoff flexible without introducing a full selection model.
 
 Task output handoff remains output-panel handoff, not diagnostics. `cr.ui.tasks` owns the task output text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 

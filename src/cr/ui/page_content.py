@@ -163,6 +163,7 @@ def contextual_action_bar(
             "open",
             "copy line",
             "copy source",
+            "source context",
             "b back",
         ),
     }
@@ -772,9 +773,12 @@ def source_file_screen_lines(
     view: source_file_module.SourceFileView,
     style: TerminalStyle,
     max_lines: int,
+    *,
+    context_lines: int = 3,
 ) -> list[str]:
     lines = [
-        f"{style.bold('Source')} {style.file_path(view.path)}",
+        f"{style.bold('Source')} {style.file_path(view.path)}  "
+        f"{style.dim(f'context: {context_lines}')}",
     ]
     if view.error:
         lines.extend([view.error, ""])

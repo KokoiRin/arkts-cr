@@ -123,6 +123,16 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "jump to previous file-detail find match",
                     "prev match",
                 ),
+                CommandEntry(
+                    "next change",
+                    "jump to next file-detail changed row",
+                    "next change",
+                ),
+                CommandEntry(
+                    "prev change",
+                    "jump to previous file-detail changed row",
+                    "prev change",
+                ),
                 CommandEntry("next hunk", "jump to next diff hunk", "next hunk"),
                 CommandEntry("prev hunk", "jump to previous diff hunk", "prev hunk"),
                 CommandEntry("copy notes", "copy review notes summary", "copy notes"),

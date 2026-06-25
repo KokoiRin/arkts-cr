@@ -76,6 +76,8 @@ class BrowserCommandAction:
     FIND_IN_FILE = "find_in_file"
     NEXT_MATCH = "next_match"
     PREVIOUS_MATCH = "previous_match"
+    NEXT_CHANGE = "next_change"
+    PREVIOUS_CHANGE = "previous_change"
     NEXT_HUNK = "next_hunk"
     PREVIOUS_HUNK = "previous_hunk"
     NEXT_FILE = "next_file"
@@ -262,6 +264,15 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.NEXT_MATCH)
     if command in {"prev match", "previous match", "match prev", "match previous"}:
         return BrowserCommand(BrowserCommandAction.PREVIOUS_MATCH)
+    if command in {"next change", "change next"}:
+        return BrowserCommand(BrowserCommandAction.NEXT_CHANGE)
+    if command in {
+        "prev change",
+        "previous change",
+        "change prev",
+        "change previous",
+    }:
+        return BrowserCommand(BrowserCommandAction.PREVIOUS_CHANGE)
     if command in {"next hunk", "hunk next", "]"}:
         return BrowserCommand(BrowserCommandAction.NEXT_HUNK)
     if command in {"prev hunk", "previous hunk", "hunk prev", "hunk previous", "["}:

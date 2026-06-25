@@ -305,6 +305,43 @@ class CliTests(unittest.TestCase):
         self.assertEqual(previous_result.scroll, 2)
         self.assertEqual(previous_wrap.scroll, 4)
 
+    def test_file_detail_navigation_jumps_between_changed_rows_with_wraparound(self):
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1,5 +1,5 @@",
+            "     1    1 | context",
+            "       \033[32m2 | +added\033[0m",
+            "    3      | -deleted",
+            "     4    3 | context",
+            "          4 | +second",
+        ]
+
+        next_result = file_detail_navigation.jump_to_changed_row(lines, 1, "next")
+        next_wrap = file_detail_navigation.jump_to_changed_row(lines, 5, "next")
+        previous_result = file_detail_navigation.jump_to_changed_row(
+            lines,
+            4,
+            "previous",
+        )
+        previous_wrap = file_detail_navigation.jump_to_changed_row(
+            lines,
+            1,
+            "previous",
+        )
+        none = file_detail_navigation.jump_to_changed_row(
+            ["File 1/1", "  @@ -1 +1 @@", "     1    1 | context"],
+            0,
+            "next",
+        )
+
+        self.assertEqual(next_result.scroll, 2)
+        self.assertEqual(next_result.message, "Moved to change 1/3.")
+        self.assertEqual(next_wrap.scroll, 2)
+        self.assertEqual(previous_result.scroll, 3)
+        self.assertEqual(previous_wrap.scroll, 5)
+        self.assertFalse(none.changed)
+        self.assertEqual(none.message, "No changed rows in current file.")
+
     def test_handoff_module_saves_repo_relative_and_absolute_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -634,6 +671,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("find TEXT", text)
         self.assertIn("next match", text)
         self.assertIn("prev match", text)
+        self.assertIn("next change", text)
+        self.assertIn("prev change", text)
         self.assertIn("save diff", text)
         self.assertIn("next hunk", text)
         self.assertIn("prev hunk", text)
@@ -659,6 +698,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("find TEXT", commands)
         self.assertIn("next match", commands)
         self.assertIn("prev match", commands)
+        self.assertIn("next change", commands)
+        self.assertIn("prev change", commands)
         self.assertIn("save diff", commands)
         self.assertIn("next hunk", commands)
         self.assertIn("prev hunk", commands)
@@ -927,6 +968,14 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("prev match").action,
             BrowserCommandAction.PREVIOUS_MATCH,
+        )
+        self.assertEqual(
+            parse_browser_command("next change").action,
+            BrowserCommandAction.NEXT_CHANGE,
+        )
+        self.assertEqual(
+            parse_browser_command("prev change").action,
+            BrowserCommandAction.PREVIOUS_CHANGE,
         )
         save_diff = parse_browser_command("save diff")
         self.assertEqual(save_diff.action, BrowserCommandAction.SAVE_DIFF)
@@ -1768,6 +1817,107 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.needs_redraw)
         self.assertEqual(state.file_scroll, 3)
         self.assertIn("Moved to hunk 2/2.", state.status_message)
+
+    def test_browser_command_executor_jumps_between_changed_rows_in_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=1,
+            review_notes={"src/Sample.ts": "keep note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1,5 +1,5 @@",
+            "     1    1 | context",
+            "       \033[32m2 | +added\033[0m",
+            "    3      | -deleted",
+            "     4    3 | context",
+            "          4 | +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            next_result = executor.execute(
+                parse_browser_command("next change", raw_keys=True)
+            )
+            previous_result = executor.execute(
+                parse_browser_command("prev change", raw_keys=True)
+            )
+
+        self.assertTrue(next_result.handled)
+        self.assertTrue(next_result.needs_redraw)
+        self.assertTrue(previous_result.handled)
+        self.assertTrue(previous_result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(state.file_scroll, 5)
+        self.assertEqual(state.review_notes["src/Sample.ts"], "keep note")
+        self.assertIsNotNone(state.task)
+        self.assertIn("Moved to change 3/3.", state.status_message)
+
+    def test_browser_command_executor_reports_changed_row_navigation_outside_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("next change", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertIn("Open a file detail to jump changes.", state.status_message)
+
+    def test_browser_command_executor_reports_changed_row_navigation_without_changed_rows(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=1,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1 +1 @@",
+            "     1    1 | context",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            result = executor.execute(parse_browser_command("next change", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 1)
+        self.assertIn("No changed rows in current file.", state.status_message)
 
     def test_browser_command_executor_opens_current_hunk_in_file_detail(self):
         from cr.ui.browser import parse_browser_command
@@ -7269,6 +7419,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("find TEXT", text)
         self.assertIn("next match", text)
         self.assertIn("prev match", text)
+        self.assertIn("next change", text)
+        self.assertIn("prev change", text)
         self.assertIn("save diff", text)
         self.assertIn("next hunk", text)
         self.assertIn("prev hunk", text)
@@ -7300,6 +7452,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("find TEXT", commands)
         self.assertIn("next match", commands)
         self.assertIn("prev match", commands)
+        self.assertIn("next change", commands)
+        self.assertIn("prev change", commands)
         self.assertIn("save diff", commands)
         self.assertIn("next hunk", commands)
         self.assertIn("prev hunk", commands)

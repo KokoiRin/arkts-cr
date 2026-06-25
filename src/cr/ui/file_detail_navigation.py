@@ -64,6 +64,32 @@ def jump_to_hunk(
     return HunkJumpResult(target, f"Moved to hunk {hunk_number}/{len(hunks)}.", True)
 
 
+def jump_to_changed_row(
+    lines: list[str],
+    current_scroll: int,
+    direction: str,
+) -> HunkJumpResult:
+    changed_rows = changed_row_positions(lines)
+    if not changed_rows:
+        return HunkJumpResult(
+            current_scroll,
+            "No changed rows in current file.",
+            False,
+        )
+    if direction == "previous":
+        before = [position for position in changed_rows if position < current_scroll]
+        target = before[-1] if before else changed_rows[-1]
+    else:
+        after = [position for position in changed_rows if position > current_scroll]
+        target = after[0] if after else changed_rows[0]
+    row_number = changed_rows.index(target) + 1
+    return HunkJumpResult(
+        target,
+        f"Moved to change {row_number}/{len(changed_rows)}.",
+        True,
+    )
+
+
 def find_text(lines: list[str], query: str) -> FileFindResult:
     text_query = query.strip()
     if not text_query:
@@ -122,6 +148,14 @@ def hunk_scroll_positions(lines: list[str]) -> list[int]:
     return positions
 
 
+def changed_row_positions(lines: list[str]) -> list[int]:
+    return [
+        index
+        for index, line in enumerate(lines[1:])
+        if _is_changed_row(line)
+    ]
+
+
 def active_hunk_new_line(lines: list[str], current_scroll: int) -> int | None:
     hunk = active_hunk(lines, current_scroll)
     if hunk is None:
@@ -178,6 +212,15 @@ def _hunk_headers(body: list[str]) -> list[tuple[int, str]]:
 
 def _is_hunk_header(line: str) -> bool:
     return _plain_text(line).lstrip().startswith("@@")
+
+
+def _is_changed_row(line: str) -> bool:
+    text = _plain_text(line)
+    if "|" not in text:
+        return False
+    _, content = text.split("|", 1)
+    marker = content.lstrip()[:1]
+    return marker in {"+", "-"}
 
 
 def _rendered_row_new_line(line: str) -> int | None:

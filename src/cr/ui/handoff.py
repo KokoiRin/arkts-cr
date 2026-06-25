@@ -17,6 +17,7 @@ DEFAULT_DIFF_SNIPPET_PATH = Path(".cr") / "handoff" / "review-diff.md"
 DEFAULT_TASK_OUTPUT_PATH = Path(".cr") / "handoff" / "task-output.md"
 DEFAULT_TASK_OUTPUT_TAIL_PATH = Path(".cr") / "handoff" / "task-output-tail.md"
 DEFAULT_TASK_OUTPUT_MATCH_PATH = Path(".cr") / "handoff" / "task-output-match.md"
+DEFAULT_TASK_PROBLEM_PATH = Path(".cr") / "handoff" / "task-problem.md"
 DEFAULT_TASK_PROBLEMS_PATH = Path(".cr") / "handoff" / "task-problems.md"
 DEFAULT_FILE_TASK_PROBLEMS_PATH = Path(".cr") / "handoff" / "task-problems-file.md"
 DEFAULT_SOURCE_PATH = Path(".cr") / "handoff" / "source.md"
@@ -76,6 +77,15 @@ def save_task_output_match_text(
 ) -> HandoffSaveResult:
     path = task_output_match_save_path(repo, requested_path)
     return _save_text(text, path, repo, label="task output match")
+
+
+def save_task_problem_text(
+    text: str,
+    repo: Path,
+    requested_path: str = "",
+) -> HandoffSaveResult:
+    path = task_problem_save_path(repo, requested_path)
+    return _save_text(text, path, repo, label="task problem")
 
 
 def save_task_problems_text(
@@ -157,6 +167,14 @@ def task_output_tail_save_path(repo: Path, requested_path: str = "") -> Path:
 def task_output_match_save_path(repo: Path, requested_path: str = "") -> Path:
     text_path = requested_path.strip()
     path = Path(text_path) if text_path else DEFAULT_TASK_OUTPUT_MATCH_PATH
+    if path.is_absolute():
+        return path
+    return repo / path
+
+
+def task_problem_save_path(repo: Path, requested_path: str = "") -> Path:
+    text_path = requested_path.strip()
+    path = Path(text_path) if text_path else DEFAULT_TASK_PROBLEM_PATH
     if path.is_absolute():
         return path
     return repo / path

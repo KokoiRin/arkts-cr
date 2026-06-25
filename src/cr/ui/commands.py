@@ -86,6 +86,7 @@ class BrowserCommandAction:
     SAVE_TASK_OUTPUT = "save_task_output"
     SAVE_TASK_OUTPUT_TAIL = "save_task_output_tail"
     SAVE_TASK_OUTPUT_MATCH = "save_task_output_match"
+    SAVE_TASK_PROBLEM = "save_task_problem"
     SAVE_TASK_PROBLEMS = "save_task_problems"
     SAVE_FILE_TASK_PROBLEMS = "save_file_task_problems"
     SAVE_SOURCE_CONTEXT = "save_source_context"
@@ -412,6 +413,17 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(
             BrowserCommandAction.SAVE_TASK_OUTPUT,
             command.removeprefix("save task ").strip(),
+        )
+    if command == "save problem":
+        return BrowserCommand(BrowserCommandAction.SAVE_TASK_PROBLEM)
+    if (
+        command.startswith("save problem ")
+        and command != "save problem context"
+        and not command.startswith("save problem context ")
+    ):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_TASK_PROBLEM,
+            command.removeprefix("save problem ").strip(),
         )
     if command == "save problems":
         return BrowserCommand(BrowserCommandAction.SAVE_TASK_PROBLEMS)

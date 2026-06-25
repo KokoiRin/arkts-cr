@@ -145,7 +145,11 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "查看选中问题对应的文件 diff",
                     "view problem diff",
                 ),
-                CommandEntry("copy problem", "复制选中问题", "copy problem"),
+                CommandEntry(
+                    "copy problem",
+                    "复制选中问题；save problem 保存",
+                    "copy problem",
+                ),
                 CommandEntry("copy problems", "复制当前问题列表", "copy problems"),
                 CommandEntry(
                     "copy file problems",
@@ -359,6 +363,14 @@ def command_palette_entries() -> list[PaletteCommand]:
                     description=entry.description,
                 )
             )
+    entries.append(
+        PaletteCommand(
+            group="任务",
+            label="save problem",
+            command="save problem",
+            description="保存选中问题",
+        )
+    )
     return entries
 
 

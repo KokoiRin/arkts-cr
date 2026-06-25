@@ -725,6 +725,10 @@ class BrowserCommandExecutor:
             message = _save_task_output_match(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_TASK_PROBLEM:
+            message = _save_selected_task_problem(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_TASK_PROBLEMS:
             message = _save_task_problems(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
@@ -1450,6 +1454,33 @@ def _copy_selected_task_problem(state: BrowserState, args: argparse.Namespace) -
     if message:
         return message
     return "Copied task problem."
+
+
+def _save_selected_task_problem(state: BrowserState, requested_path: str = "") -> str:
+    if state.page == BrowserPage.SOURCE_FILE:
+        current = _source_file_task_problem(state)
+        if current is None:
+            return "No current source problem to save."
+        problem, _selected, _total = current
+        result = handoff_module.save_task_problem_text(
+            task_problems_module.problem_handoff_text(problem),
+            git.repo_root(),
+            requested_path,
+        )
+        if result.error:
+            return result.error
+        return f"Saved source problem to {result.display_path}."
+    problem = _current_task_problem_for_action(state)
+    if problem is None:
+        return "No task problem to save."
+    result = handoff_module.save_task_problem_text(
+        task_problems_module.problem_handoff_text(problem),
+        git.repo_root(),
+        requested_path,
+    )
+    if result.error:
+        return result.error
+    return f"Saved task problem to {result.display_path}."
 
 
 def _copy_task_problems(state: BrowserState, args: argparse.Namespace) -> str:

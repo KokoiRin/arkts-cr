@@ -206,6 +206,8 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "复制当前函数或方法范围",
                     "copy source symbol",
                 ),
+                CommandEntry("next symbol", "跳到下一个源码符号", "next symbol"),
+                CommandEntry("prev symbol", "跳到上一个源码符号", "prev symbol"),
                 CommandEntry(
                     "source context N",
                     "设置复制源码时的上下文半径",

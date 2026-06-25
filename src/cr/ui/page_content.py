@@ -188,6 +188,7 @@ def contextual_action_bar(
             "↑/↓ 滚动",
             "find 查找",
             "next match 下个匹配",
+            "next/prev symbol 跳符号",
             "open 打开",
             "copy line 复制行",
             "copy source 复制源码",
@@ -333,6 +334,7 @@ def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
             (
                 "↑/↓ / PgUp/PgDn：滚动源码",
                 "find TEXT / next match / prev match：查找源码内容",
+                "next symbol / prev symbol：跳到下一个或上一个源码符号",
                 "open / copy line：打开或复制当前源码行",
                 "copy source：复制当前源码上下文",
                 "copy source symbol：复制当前函数或方法范围",

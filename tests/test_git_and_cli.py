@@ -1374,6 +1374,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy line", commands)
         self.assertIn("copy source", commands)
         self.assertIn("copy source symbol", commands)
+        self.assertIn("next symbol", commands)
+        self.assertIn("prev symbol", commands)
         self.assertIn("source context 3", commands)
         self.assertIn("source select 1 3", commands)
         self.assertIn("source select symbol", commands)
@@ -1561,6 +1563,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("↑/↓ 滚动", source_file_bar)
         self.assertIn("find 查找", source_file_bar)
         self.assertIn("next match 下个匹配", source_file_bar)
+        self.assertIn("next/prev symbol 跳符号", source_file_bar)
         self.assertIn("open 打开", source_file_bar)
         self.assertIn("copy line 复制行", source_file_bar)
         self.assertIn("copy source 复制源码", source_file_bar)
@@ -2316,6 +2319,14 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy current symbol").action,
             BrowserCommandAction.COPY_SOURCE_SYMBOL,
+        )
+        self.assertEqual(
+            parse_browser_command("next symbol").action,
+            BrowserCommandAction.NEXT_SOURCE_SYMBOL,
+        )
+        self.assertEqual(
+            parse_browser_command("prev symbol").action,
+            BrowserCommandAction.PREVIOUS_SOURCE_SYMBOL,
         )
         self.assertEqual(
             parse_browser_command("copy change").action,
@@ -7959,6 +7970,142 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_line, 1)
         self.assertEqual(state.source_find_text, "target")
         self.assertIn('Found "target" at line 1.', state.status_message)
+
+    def test_browser_command_executor_jumps_source_file_symbols(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "struct Foo {",
+                        "  build() {",
+                        "    Text('first')",
+                        "  }",
+                        "  private onTap = () => {",
+                        "    this.handleTap()",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=3,
+                source_file_scroll=2,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                next_symbol = executor.execute(parse_browser_command("next symbol"))
+                line_after_next = state.source_file_line
+                scroll_after_next = state.source_file_scroll
+                prev_symbol = executor.execute(parse_browser_command("prev symbol"))
+
+        self.assertTrue(next_symbol.handled)
+        self.assertTrue(next_symbol.needs_redraw)
+        self.assertEqual(line_after_next, 5)
+        self.assertEqual(scroll_after_next, -1)
+        self.assertTrue(prev_symbol.handled)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_line, 2)
+        self.assertEqual(state.source_file_scroll, -1)
+        self.assertIn("已跳到源码符号 struct Foo > method build src/Foo.ets:2.", state.status_message)
+
+    def test_browser_command_executor_reports_source_symbol_jump_empty_states(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("const title = 'hi'\nText(title)\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=2,
+                source_file_scroll=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                no_symbols = executor.execute(parse_browser_command("next symbol"))
+                no_symbol_message = state.status_message
+                state.source_file_path = "src/Missing.ets"
+                missing = executor.execute(parse_browser_command("next symbol"))
+
+        self.assertTrue(no_symbols.needs_redraw)
+        self.assertTrue(missing.needs_redraw)
+        self.assertEqual(state.source_file_line, 2)
+        self.assertEqual(state.source_file_scroll, 1)
+        self.assertEqual(no_symbol_message, "没有可跳转的源码符号。")
+        self.assertIn("Source file not found.", state.status_message)
+
+    def test_browser_command_executor_reports_source_symbol_jump_boundaries(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "struct Foo {",
+                        "  build() {",
+                        "    Text('first')",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=1,
+                source_file_scroll=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                previous_symbol = executor.execute(parse_browser_command("prev symbol"))
+                previous_message = state.status_message
+                state.source_file_line = 4
+                next_symbol = executor.execute(parse_browser_command("next symbol"))
+
+        self.assertTrue(previous_symbol.needs_redraw)
+        self.assertTrue(next_symbol.needs_redraw)
+        self.assertEqual(previous_message, "已经在第一个源码符号。")
+        self.assertEqual(state.source_file_line, 4)
+        self.assertEqual(state.source_file_scroll, 1)
+        self.assertEqual(state.status_message, "已经在最后一个源码符号。")
 
     def test_browser_command_executor_reports_source_file_find_empty_states(self):
         from cr.ui.browser import parse_browser_command

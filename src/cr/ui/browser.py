@@ -506,6 +506,14 @@ class BrowserCommandExecutor:
             message = _copy_source_symbol(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.NEXT_SOURCE_SYMBOL:
+            message = _jump_source_symbol(state, "next")
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.PREVIOUS_SOURCE_SYMBOL:
+            message = _jump_source_symbol(state, "previous")
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SET_SOURCE_CONTEXT_LINES:
             message = _set_source_context_lines(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
@@ -2554,6 +2562,37 @@ def _source_symbol_path_for_content(
         return []
     symbols = source_outline.parse_outline("\n".join(content.lines))
     return source_outline.symbol_path_at_line(symbols, target_line)
+
+
+def _jump_source_symbol(state: BrowserState, direction: str) -> str:
+    if state.page != BrowserPage.SOURCE_FILE or not state.source_file_path:
+        return "先打开源码文件再跳转源码符号。"
+    content = source_file_module.load_source_file_content(
+        git.repo_root(),
+        state.source_file_path,
+    )
+    if content.error:
+        return content.error
+    symbols = source_outline.flatten_symbols(
+        source_outline.parse_outline("\n".join(content.lines))
+    )
+    if not symbols:
+        return "没有可跳转的源码符号。"
+    current_line = max(1, state.source_file_line)
+    if direction == "next":
+        candidates = [symbol for symbol in symbols if symbol.line > current_line]
+        if not candidates:
+            return "已经在最后一个源码符号。"
+        symbol = candidates[0]
+    else:
+        candidates = [symbol for symbol in symbols if symbol.line < current_line]
+        if not candidates:
+            return "已经在第一个源码符号。"
+        symbol = candidates[-1]
+    state.source_file_line = max(1, min(symbol.line, len(content.lines)))
+    state.source_file_scroll = -1
+    label = _source_symbol_label_for_content(content, state.source_file_line)
+    return f"已跳到源码符号 {label} {content.path}:{state.source_file_line}."
 
 
 def _set_source_context_lines(state: BrowserState, raw_value: str) -> str:

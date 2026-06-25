@@ -199,6 +199,8 @@ save problem context     保存同一份上下文
 
 ```text
 find TEXT            在源码预览里查找
+next symbol          跳到下一个源码符号
+prev symbol          跳到上一个源码符号
 copy line            复制当前源码行锚点
 copy source          复制当前源码上下文，包含 symbol 提示
 copy source symbol   复制当前函数或方法范围

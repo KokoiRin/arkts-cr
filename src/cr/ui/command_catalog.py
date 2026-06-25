@@ -216,6 +216,7 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("open hunk", "在编辑器打开当前 diff hunk", "open hunk"),
                 CommandEntry("open line", "在编辑器打开当前文件详情行", "open line"),
                 CommandEntry("view source", "在 TUI 中查看当前源码行", "view source"),
+                CommandEntry("view diff", "查看当前源码行对应的 diff", "view diff"),
                 CommandEntry("copy path", "复制选中文件路径", "copy path"),
                 CommandEntry("copy anchor", "复制选中文件路径和行号", "copy anchor"),
                 CommandEntry("copy diff", "复制选中文件 diff 片段", "copy diff"),

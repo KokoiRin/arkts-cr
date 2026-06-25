@@ -1478,6 +1478,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
         self.assertIn("view source", commands)
+        self.assertIn("view diff", commands)
         self.assertIn("copy hunk", commands)
         self.assertIn("copy line", commands)
         self.assertIn("copy source", commands)
@@ -1598,6 +1599,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy source", text)
         self.assertIn("save source symbol", text)
         self.assertIn("save source", text)
+        self.assertIn("view diff", text)
         self.assertIn("选择源码行范围", text)
 
     def test_page_content_contextual_action_bar_matches_current_page(self):
@@ -1691,6 +1693,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open 打开", source_file_bar)
         self.assertIn("copy line 复制行", source_file_bar)
         self.assertIn("copy source 复制源码", source_file_bar)
+        self.assertIn("view diff 查看 diff", source_file_bar)
         self.assertIn("copy context 复制上下文", source_file_bar)
         self.assertIn("save context 保存上下文", source_file_bar)
         self.assertIn("source context 上下文行数", source_file_bar)
@@ -2789,6 +2792,10 @@ class CliTests(unittest.TestCase):
         )
         self.assertEqual(
             parse_browser_command("view problem diff").action,
+            BrowserCommandAction.VIEW_TASK_PROBLEM_DIFF,
+        )
+        self.assertEqual(
+            parse_browser_command("view diff").action,
             BrowserCommandAction.VIEW_TASK_PROBLEM_DIFF,
         )
         save_prompt = parse_browser_command("save prompt")
@@ -7850,6 +7857,84 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 2)
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+
+    def test_browser_command_executor_views_source_file_diff(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("one\ntwo\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/One.ets", 1, 0), FileChange("src/Two.ets", 1, 0)],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Two.ets",
+                source_file_line=2,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 2/2  src/Two.ets",
+                "  @@ -1,2 +1,3 @@",
+                "     1    1 | one",
+                "          2 | +two",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    with patch("cr.ui.browser._max_file_scroll", return_value=10):
+                        result = executor.execute(parse_browser_command("view diff"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIn("Opened source diff src/Two.ets:2.", state.status_message)
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+
+    def test_browser_command_executor_reports_source_file_diff_without_changed_file(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("one\ntwo\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/One.ets", 1, 0)],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Two.ets",
+                source_file_line=2,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("view diff"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.selected, 0)
+        self.assertIn(
+            "No diff for source src/Two.ets:2 in current review scope.",
+            state.status_message,
+        )
 
     def test_browser_command_executor_reports_problem_diff_without_changed_file(self):
         from cr.ui.browser import parse_browser_command

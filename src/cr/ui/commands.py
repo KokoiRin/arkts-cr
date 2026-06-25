@@ -348,7 +348,14 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         )
     if command in {"view problem", "view task problem"}:
         return BrowserCommand(BrowserCommandAction.VIEW_TASK_PROBLEM)
-    if command in {"view problem diff", "view task problem diff", "problem diff"}:
+    if command in {
+        "view diff",
+        "source diff",
+        "view source diff",
+        "view problem diff",
+        "view task problem diff",
+        "problem diff",
+    }:
         return BrowserCommand(BrowserCommandAction.VIEW_TASK_PROBLEM_DIFF)
     if command == "save diff":
         return BrowserCommand(BrowserCommandAction.SAVE_DIFF)

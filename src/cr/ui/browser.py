@@ -2987,6 +2987,8 @@ def _view_selected_task_problem_diff(
     args: argparse.Namespace,
     style: TerminalStyle,
 ) -> str:
+    if state.page == BrowserPage.SOURCE_FILE:
+        return _view_source_file_diff(state, args, style)
     problem = _current_task_problem_for_action(state)
     if problem is None:
         return "No task problem to view diff."
@@ -3011,6 +3013,35 @@ def _view_selected_task_problem_diff(
         state.file_scroll = min(position, _max_file_scroll(state, args, style))
         return f"Opened problem diff {problem.path}:{problem.line}."
     return f"Opened problem diff {problem.path}; line {problem.line} is not visible in diff."
+
+
+def _view_source_file_diff(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    if not state.source_file_path:
+        return "No source file to view diff."
+    path = state.source_file_path
+    line = max(1, state.source_file_line)
+    change = _select_changed_file_for_problem_diff(state, path)
+    if change is None:
+        return f"No diff for source {path}:{line} in current review scope."
+    BrowserNavigation.open_file_detail(state)
+    visible = state.visible_changes
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    position = file_detail_navigation.new_line_position(lines, line)
+    if position is not None:
+        state.file_scroll = min(position, _max_file_scroll(state, args, style))
+        return f"Opened source diff {path}:{line}."
+    return f"Opened source diff {path}; line {line} is not visible in diff."
 
 
 def _select_changed_file_for_problem_diff(

@@ -508,6 +508,10 @@ class BrowserCommandExecutor:
             message = _select_source_to_mark(state)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SELECT_SOURCE_SYMBOL:
+            message = _select_source_symbol(state)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.CLEAR_SOURCE_MARK:
             message = _clear_source_mark(state)
             _show_browser_message(state, message, raw_keys, frame)
@@ -2336,10 +2340,18 @@ def _source_symbol_label_for_content(
     content: source_file_module.SourceFileContent,
     target_line: int,
 ) -> str:
+    path = _source_symbol_path_for_content(content, target_line)
+    return " > ".join(f"{symbol.kind} {symbol.name}" for symbol in path)
+
+
+def _source_symbol_path_for_content(
+    content: source_file_module.SourceFileContent,
+    target_line: int,
+) -> list[source_outline.Symbol]:
     if content.error:
-        return ""
+        return []
     symbols = source_outline.parse_outline("\n".join(content.lines))
-    return source_outline.symbol_label_at_line(symbols, target_line)
+    return source_outline.symbol_path_at_line(symbols, target_line)
 
 
 def _set_source_context_lines(state: BrowserState, raw_value: str) -> str:
@@ -2397,6 +2409,27 @@ def _select_source_to_mark(state: BrowserState) -> str:
     state.source_selection_start = start
     state.source_selection_end = end
     return f"Source selection set to {start}-{end}."
+
+
+def _select_source_symbol(state: BrowserState) -> str:
+    if state.page != BrowserPage.SOURCE_FILE or not state.source_file_path:
+        return "Open a source file before selecting source symbol."
+    content = source_file_module.load_source_file_content(
+        git.repo_root(),
+        state.source_file_path,
+    )
+    if content.error:
+        return content.error
+    target_line = max(1, min(state.source_file_line, len(content.lines)))
+    path = _source_symbol_path_for_content(content, target_line)
+    if not path:
+        return "No source symbol at current line."
+    symbol = path[-1]
+    start, end = _clamp_source_range(symbol.line, symbol.end_line, len(content.lines))
+    state.source_selection_start = start
+    state.source_selection_end = end
+    label = " > ".join(f"{item.kind} {item.name}" for item in path)
+    return f"Selected source symbol {label} {content.path}:{start}-{end}."
 
 
 def _clear_source_mark(state: BrowserState) -> str:

@@ -197,6 +197,7 @@ source context N     设置复制源码的上下文行数
 source mark          标记当前源码行
 source select to     选择标记行到当前行
 source select A B    选择指定源码范围
+source select symbol 选择当前函数或方法范围
 copy problem context 复制问题 + 源码 + diff 上下文
 ```
 
@@ -391,6 +392,7 @@ prev match
 copy line
 source context N
 source select START END
+source select symbol
 source mark
 source select to
 source clear mark
@@ -403,7 +405,7 @@ save problem context
 `copy source` 有两种模式：
 
 - 没有选区时，复制目标行附近上下文。
-- 有 `source select` 或 `source mark` 选区时，只复制选中的源码范围。
+- 有 `source select`、`source mark` 或 `source select symbol` 选区时，只复制选中的源码范围。
 
 ## 10. Review 进度和备注
 

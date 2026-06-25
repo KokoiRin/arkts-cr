@@ -208,6 +208,11 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "选择源码行范围",
                     "source select 1 3",
                 ),
+                CommandEntry(
+                    "source select symbol",
+                    "选择当前函数或方法范围",
+                    "source select symbol",
+                ),
                 CommandEntry("source mark", "标记当前源码行", "source mark"),
                 CommandEntry(
                     "source select to",

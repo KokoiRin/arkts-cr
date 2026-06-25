@@ -102,6 +102,16 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "restore task-output problem order",
                     "problems sort output",
                 ),
+                CommandEntry(
+                    "problems group file",
+                    "group task problems by file",
+                    "problems group file",
+                ),
+                CommandEntry(
+                    "problems group none",
+                    "show flat task problems",
+                    "problems group none",
+                ),
                 CommandEntry("view problem", "view selected task problem source", "view problem"),
                 CommandEntry("copy problem", "copy selected task problem", "copy problem"),
                 CommandEntry("copy problems", "copy all current task problems", "copy problems"),

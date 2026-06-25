@@ -150,6 +150,7 @@ def contextual_action_bar(
             "all",
             "find",
             "sort severity",
+            "group file",
             "view problem",
             "task output",
             "copy problem",
@@ -758,6 +759,9 @@ def task_problems_screen_lines(
         count_parts.append(f"find: {problem_query}")
     if getattr(state, "problem_sort", "output") == "severity":
         count_parts.append("sort: severity")
+    problem_group = getattr(state, "problem_group", "none")
+    if problem_group == "file":
+        count_parts.append("group: file")
     count_suffix = f"; {'; '.join(count_parts)}" if count_parts else ""
     lines = [
         f"{style.bold(title)} ({len(problems)} found{count_suffix})",
@@ -775,7 +779,16 @@ def task_problems_screen_lines(
     state.problem_scroll = start
     end = min(len(problems), start + row_capacity)
     index_width = len(str(len(problems)))
+    problem_counts_by_path = _problem_counts_by_path(problems)
+    previous_path = ""
     for index, problem in enumerate(problems[start:end], start):
+        if problem_group == "file" and problem.path != previous_path:
+            lines.append(
+                style.dim(
+                    f"{problem.path} ({problem_counts_by_path.get(problem.path, 0)})"
+                )
+            )
+            previous_path = problem.path
         marker = ">" if index == selected else " "
         location = task_problems_module.problem_location(problem)
         label = task_problems_module.problem_diagnostic_label(problem)
@@ -789,6 +802,13 @@ def task_problems_screen_lines(
     else:
         lines.append("")
     return lines[:max_lines]
+
+
+def _problem_counts_by_path(problems: list[TaskProblem]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for problem in problems:
+        counts[problem.path] = counts.get(problem.path, 0) + 1
+    return counts
 
 
 def _task_problems_title(

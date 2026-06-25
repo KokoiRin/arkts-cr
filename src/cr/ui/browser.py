@@ -86,6 +86,7 @@ class BrowserState:
     problem_filter: str = ""
     problem_sort: str = "output"
     problem_query: str = ""
+    problem_group: str = "none"
     source_file_path: str = ""
     source_file_line: int = 1
     source_file_scroll: int = 0
@@ -550,6 +551,7 @@ class BrowserCommandExecutor:
                 problem_filter=parsed_command.value,
                 problem_sort=state.problem_sort,
                 problem_query=state.problem_query,
+                problem_group=state.problem_group,
             )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.CLEAR_TASK_PROBLEM_FILTER:
@@ -557,6 +559,7 @@ class BrowserCommandExecutor:
                 state,
                 problem_sort=state.problem_sort,
                 problem_query=state.problem_query,
+                problem_group=state.problem_group,
             )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SET_TASK_PROBLEM_SORT:
@@ -565,6 +568,7 @@ class BrowserCommandExecutor:
                 problem_filter=state.problem_filter,
                 problem_sort=parsed_command.value,
                 problem_query=state.problem_query,
+                problem_group=state.problem_group,
             )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SET_TASK_PROBLEM_QUERY:
@@ -573,6 +577,7 @@ class BrowserCommandExecutor:
                 problem_filter=state.problem_filter,
                 problem_sort=state.problem_sort,
                 problem_query=parsed_command.value,
+                problem_group=state.problem_group,
             )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.CLEAR_TASK_PROBLEM_QUERY:
@@ -580,6 +585,16 @@ class BrowserCommandExecutor:
                 state,
                 problem_filter=state.problem_filter,
                 problem_sort=state.problem_sort,
+                problem_group=state.problem_group,
+            )
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SET_TASK_PROBLEM_GROUP:
+            BrowserNavigation.show_task_problems(
+                state,
+                problem_filter=state.problem_filter,
+                problem_sort=state.problem_sort,
+                problem_query=state.problem_query,
+                problem_group=parsed_command.value,
             )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SHOW_TASK_PROBLEMS:

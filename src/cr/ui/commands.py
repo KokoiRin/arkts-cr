@@ -62,6 +62,7 @@ class BrowserCommandAction:
     SET_TASK_PROBLEM_SORT = "set_task_problem_sort"
     SET_TASK_PROBLEM_QUERY = "set_task_problem_query"
     CLEAR_TASK_PROBLEM_QUERY = "clear_task_problem_query"
+    SET_TASK_PROBLEM_GROUP = "set_task_problem_group"
     VIEW_TASK_PROBLEM = "view_task_problem"
     SAVE_DIFF = "save_diff"
     SAVE_PROMPT = "save_prompt"
@@ -245,6 +246,19 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(
             BrowserCommandAction.SET_TASK_PROBLEM_SORT,
             problem_sort_aliases[command],
+        )
+    problem_group_aliases = {
+        "problems group file": "file",
+        "problems group path": "file",
+        "group problems file": "file",
+        "problems group none": "none",
+        "problems group off": "none",
+        "problems group flat": "none",
+    }
+    if command in problem_group_aliases:
+        return BrowserCommand(
+            BrowserCommandAction.SET_TASK_PROBLEM_GROUP,
+            problem_group_aliases[command],
         )
     problem_filter_aliases = {
         "errors": "error",

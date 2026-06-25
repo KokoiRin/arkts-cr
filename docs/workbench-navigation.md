@@ -446,6 +446,12 @@ Status: implemented.
 
 Task Problems defaults to task-output order, then supports `problems sort severity` to group visible problems by `error`, `warning`, `info`, `note`, and unknown severity while preserving original output order inside each bucket. `problems sort output` restores task-output order. Sorting applies after severity and text filtering, updates the header with `sort: severity` only when active, and shares the same visible list used by movement, Enter/open, `view problem`, `copy problem`, and `copy problems`. `BrowserState.problem_sort` is page-local and restored through page history snapshots; it is not persisted across sessions.
 
+### P0: Task Problems file grouping
+
+Status: implemented.
+
+Task Problems supports `problems group file` to insert file headers into the current visible Problems list and `problems group none` to return to the flat list. Grouping is render-only: it applies after severity filtering, text filtering, and sorting have produced the visible problem list, and movement, Enter/open, `view problem`, `copy problem`, `copy problems`, `copy problem context`, and `save problem context` still use the same visible `TaskProblem` indices as flat mode. The header shows `group: file`, and page history restores `problem_group`. This intentionally avoids collapsible groups, group-level selection, group bulk actions, tool-specific diagnostic trees, and persisted grouping preferences.
+
 ### P0: Task Problems severity counts
 
 Status: implemented.

@@ -263,6 +263,8 @@ build
 : problems clear find 清除 Problems 文本过滤
 : problems sort severity 按 error/warning/info/note 排序当前 Problems
 : problems sort output 恢复 task output 顺序
+: problems group file 按文件分组显示 Problems
+: problems group none 恢复 Problems 平铺显示
 : view problem 在 TUI 内查看 Problems 页当前问题附近源码
 : copy problem 复制 Problems 页当前选中的问题
 : copy problems 复制当前任务输出中的全部问题
@@ -273,7 +275,7 @@ build
 : rerun    重跑最近一次任务
 ```
 
-任务面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。`: task output` / `: output` 会打开当前任务的完整输出视图，支持 `↑/↓`、`PgUp/PgDn`、`Home/End` 滚动，`find TEXT` 搜索当前日志，`next match` / `prev match` 继续跳转匹配，`b` 回到之前的代码页面；`: problems` / `: task problems` 会从当前任务输出里提取 `path:line[:column]` 文件位置和常见 `error` / `warning` / code / message 诊断信息，Problems 页标题会显示当前可见问题的 severity 数量；进入 Problems 页后可以用 `problems errors` / `problems warnings` / `problems info` / `problems note` 聚焦某类 severity，用 `problems all` 清除过滤，用 `problems find TEXT` 按路径、位置、summary、severity、code 或 message 过滤，用 `problems clear find` 清除文本过滤，用 `problems sort severity` 优先看 error/warning/info/note，用 `problems sort output` 恢复原始 task output 顺序；选择问题后按 `Enter` 打开到编辑器，用 `view problem` 在 TUI 内查看问题附近源码，Source File Page 内也支持 `find TEXT` / `next match` / `prev match`、`copy line`、`source context N`、`source select A B`、`source clear selection` 和 `copy source`，有源码选区时 `copy source` 会复制选区，否则复制目标行附近上下文；也可以用 `copy problem` / `copy problems` 复制当前可见问题；`copy problem context` 会打包当前问题或 Source File Page 目标行、源码片段，以及当前 Review Scope 中同文件 diff，没匹配 diff 时会在 Markdown 里说明；`save problem context [PATH]` 保存同一份 Markdown，默认 `.cr/handoff/problem-context.md`。后台任务会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个任务进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓的 build 会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置 build，用 `--test-cmd` / `CR_TEST_CMD` 配置 test，用 `--lint-cmd` / `CR_LINT_CMD` 配置 lint：
+任务面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。`: task output` / `: output` 会打开当前任务的完整输出视图，支持 `↑/↓`、`PgUp/PgDn`、`Home/End` 滚动，`find TEXT` 搜索当前日志，`next match` / `prev match` 继续跳转匹配，`b` 回到之前的代码页面；`: problems` / `: task problems` 会从当前任务输出里提取 `path:line[:column]` 文件位置和常见 `error` / `warning` / code / message 诊断信息，Problems 页标题会显示当前可见问题的 severity 数量；进入 Problems 页后可以用 `problems errors` / `problems warnings` / `problems info` / `problems note` 聚焦某类 severity，用 `problems all` 清除过滤，用 `problems find TEXT` 按路径、位置、summary、severity、code 或 message 过滤，用 `problems clear find` 清除文本过滤，用 `problems sort severity` 优先看 error/warning/info/note，用 `problems sort output` 恢复原始 task output 顺序，用 `problems group file` 按文件分组扫描，用 `problems group none` 恢复平铺；选择问题后按 `Enter` 打开到编辑器，用 `view problem` 在 TUI 内查看问题附近源码，Source File Page 内也支持 `find TEXT` / `next match` / `prev match`、`copy line`、`source context N`、`source select A B`、`source clear selection` 和 `copy source`，有源码选区时 `copy source` 会复制选区，否则复制目标行附近上下文；也可以用 `copy problem` / `copy problems` 复制当前可见问题；`copy problem context` 会打包当前问题或 Source File Page 目标行、源码片段，以及当前 Review Scope 中同文件 diff，没匹配 diff 时会在 Markdown 里说明；`save problem context [PATH]` 保存同一份 Markdown，默认 `.cr/handoff/problem-context.md`。后台任务会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个任务进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓的 build 会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置 build，用 `--test-cmd` / `CR_TEST_CMD` 配置 test，用 `--lint-cmd` / `CR_LINT_CMD` 配置 lint：
 
 ```bash
 cr --build-cmd './remote buildEntry --app douyin' --test-cmd 'npm test' --lint-cmd 'npm run lint'

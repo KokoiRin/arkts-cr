@@ -1,8 +1,9 @@
 """Task output problem extraction for the interactive browser.
 
-This module owns lightweight file-location extraction and handoff text for
-already captured task output. It does not manage task processes, render browser
-pages, open editors, copy to clipboards, or persist diagnostics.
+This module owns lightweight file-location extraction, generic diagnostic facts,
+and handoff text for already captured task output. It does not manage task
+processes, render browser pages, open editors, copy to clipboards, or persist
+diagnostics.
 """
 
 from __future__ import annotations
@@ -19,6 +20,16 @@ ANCHOR_RE = re.compile(
     r"(?P<line>[1-9]\d*)"
     r"(?::(?P<column>[1-9]\d*))?"
 )
+SEVERITY_RE = re.compile(
+    r"\b(?P<severity>fatal error|error|warning|warn|info|note)\b",
+    re.IGNORECASE,
+)
+CODE_RE = re.compile(
+    r"^\s*(?:[: -]\s*)?"
+    r"(?:\[(?P<bracket>[A-Za-z]+\d+[A-Za-z0-9_-]*)\]"
+    r"|\((?P<paren>[A-Za-z]+\d+[A-Za-z0-9_-]*)\)"
+    r"|(?P<plain>[A-Z]{1,12}\d+[A-Za-z0-9_-]*))"
+)
 
 
 @dataclass(frozen=True)
@@ -28,6 +39,9 @@ class TaskProblem:
     column: int | None
     summary: str
     output_line: int
+    severity: str | None = None
+    code: str | None = None
+    message: str = ""
 
 
 def problem_location(problem: TaskProblem) -> str:
@@ -35,22 +49,37 @@ def problem_location(problem: TaskProblem) -> str:
     return f"{problem.path}:{problem.line}{column}"
 
 
+def problem_diagnostic_label(problem: TaskProblem) -> str:
+    parts = []
+    if problem.severity:
+        parts.append(problem.severity.upper())
+    if problem.code:
+        parts.append(problem.code)
+    return " ".join(parts)
+
+
 def problem_handoff_text(problem: TaskProblem) -> str:
-    return "\n".join(
-        [
-            problem_location(problem),
-            problem.summary,
-        ]
-    )
+    lines = [problem_location(problem)]
+    if problem.severity:
+        lines.append(f"Severity: {problem.severity}")
+    if problem.code:
+        lines.append(f"Code: {problem.code}")
+    if problem.message:
+        lines.append(f"Message: {problem.message}")
+    lines.append(problem.summary)
+    return "\n".join(lines)
 
 
 def problems_handoff_text(problems: list[TaskProblem]) -> str:
     lines = ["# Task problems", ""]
     for index, problem in enumerate(problems, start=1):
+        label = problem_diagnostic_label(problem)
+        label_text = f" [{label}]" if label else ""
+        detail = f"Message: {problem.message}" if problem.message else problem.summary
         lines.extend(
             [
-                f"{index}. {problem_location(problem)}",
-                f"   {problem.summary}",
+                f"{index}. {problem_location(problem)}{label_text}",
+                f"   {detail}",
             ]
         )
     return "\n".join(lines)
@@ -65,6 +94,7 @@ def extract_task_problems(repo: Path, lines: list[str]) -> list[TaskProblem]:
             normalized = _normalize_problem_path(repo, match.group("path"))
             if normalized is None:
                 continue
+            severity, code, message = _extract_diagnostic_facts(line, match.end())
             problems.append(
                 TaskProblem(
                     path=normalized,
@@ -72,6 +102,9 @@ def extract_task_problems(repo: Path, lines: list[str]) -> list[TaskProblem]:
                     column=_optional_int(match.group("column")),
                     summary=line.strip(),
                     output_line=output_index,
+                    severity=severity,
+                    code=code,
+                    message=message,
                 )
             )
     return problems
@@ -103,3 +136,48 @@ def _optional_int(value: str | None) -> int | None:
     if value is None:
         return None
     return int(value)
+
+
+def _extract_diagnostic_facts(line: str, anchor_end: int) -> tuple[str | None, str | None, str]:
+    suffix = line[anchor_end:].strip()
+    severity_match = SEVERITY_RE.search(suffix)
+    code_start = severity_match.end() if severity_match else 0
+    if severity_match is None:
+        severity_match = SEVERITY_RE.search(line[:anchor_end])
+        code_start = 0
+    severity = _normalize_severity(severity_match.group("severity")) if severity_match else None
+    if severity_match is None:
+        return None, None, ""
+    code, message_start = _extract_diagnostic_code(suffix, code_start)
+    message = _clean_diagnostic_message(suffix[message_start:])
+    return severity, code, message
+
+
+def _normalize_severity(value: str) -> str:
+    normalized = value.lower()
+    if normalized in {"warn", "warning"}:
+        return "warning"
+    if normalized in {"fatal error", "fatal"}:
+        return "error"
+    return normalized
+
+
+def _extract_diagnostic_code(text: str, start: int) -> tuple[str | None, int]:
+    remainder = text[start:]
+    code_match = CODE_RE.match(remainder)
+    if code_match is None:
+        return None, start
+    code = next(
+        value
+        for value in (
+            code_match.group("bracket"),
+            code_match.group("paren"),
+            code_match.group("plain"),
+        )
+        if value is not None
+    )
+    return code, start + code_match.end()
+
+
+def _clean_diagnostic_message(value: str) -> str:
+    return value.strip(" \t:-")

@@ -160,6 +160,41 @@ class CliTests(unittest.TestCase):
         self.assertEqual(problems[1].line, 20)
         self.assertIsNone(problems[1].column)
 
+    def test_task_problems_extracts_diagnostic_facts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("sample", encoding="utf-8")
+
+            problems = task_problems.extract_task_problems(
+                repo,
+                [
+                    "src/Foo.ets:12:3 error TS2322: bad call",
+                    "src/Foo.ets:20 warning [W001]: check this",
+                    "src/Foo.ets:30 plain anchor only",
+                    "ERROR src/Foo.ets:40 [E123]: prefix bad",
+                    "src/Foo.ets:50 error bad Foo1",
+                ],
+            )
+
+        self.assertEqual(problems[0].severity, "error")
+        self.assertEqual(problems[0].code, "TS2322")
+        self.assertEqual(problems[0].message, "bad call")
+        self.assertEqual(problems[1].severity, "warning")
+        self.assertEqual(problems[1].code, "W001")
+        self.assertEqual(problems[1].message, "check this")
+        self.assertIsNone(problems[2].severity)
+        self.assertIsNone(problems[2].code)
+        self.assertEqual(problems[2].message, "")
+        self.assertIn("plain anchor only", problems[2].summary)
+        self.assertEqual(problems[3].severity, "error")
+        self.assertEqual(problems[3].code, "E123")
+        self.assertEqual(problems[3].message, "prefix bad")
+        self.assertEqual(problems[4].severity, "error")
+        self.assertIsNone(problems[4].code)
+        self.assertEqual(problems[4].message, "bad Foo1")
+
     def test_task_problems_ignores_urls_missing_files_and_outside_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -187,6 +222,9 @@ class CliTests(unittest.TestCase):
                 column=3,
                 summary="src/Foo.ets:12:3 error: bad call",
                 output_line=1,
+                severity="error",
+                code="TS2322",
+                message="bad call",
             ),
             task_problems.TaskProblem(
                 path="src/Bar.ets",
@@ -201,9 +239,13 @@ class CliTests(unittest.TestCase):
         all_text = task_problems.problems_handoff_text(problems)
 
         self.assertIn("src/Foo.ets:12:3", selected)
+        self.assertIn("Severity: error", selected)
+        self.assertIn("Code: TS2322", selected)
+        self.assertIn("Message: bad call", selected)
         self.assertIn("bad call", selected)
         self.assertIn("# Task problems", all_text)
-        self.assertIn("1. src/Foo.ets:12:3", all_text)
+        self.assertIn("1. src/Foo.ets:12:3 [ERROR TS2322]", all_text)
+        self.assertIn("   Message: bad call", all_text)
         self.assertIn("2. src/Bar.ets:8", all_text)
 
     def test_source_file_view_reads_repo_file_and_windows_target_line(self):
@@ -1138,6 +1180,9 @@ class CliTests(unittest.TestCase):
                 column=3,
                 summary="src/Foo.ets:12:3 error: bad call",
                 output_line=1,
+                severity="error",
+                code="TS2322",
+                message="bad call",
             ),
             task_problems.TaskProblem(
                 path="src/Bar.ets",
@@ -1160,6 +1205,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Task problems", text)
         self.assertIn("> 1", text)
         self.assertIn("src/Foo.ets:12:3", text)
+        self.assertIn("ERROR TS2322", text)
         self.assertIn("bad call", text)
         self.assertIn("src/Bar.ets:8", text)
 

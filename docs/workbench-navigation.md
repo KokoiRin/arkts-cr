@@ -202,7 +202,7 @@ Commit Picker
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Task Output Page is now explicit as a current-task output detail page. It can be opened with `task output` / `output`, keeps its own scroll and find state, and returns through page history; it does not change the three review layers or persist task logs.
-Task Problems Page is now explicit as a lightweight current-task Problems panel. It can be opened with `problems` / `task problems`, keeps its own selection and scroll state, and opens repo-local `path:line[:column]` anchors through the existing editor handoff.
+Task Problems Page is now explicit as a lightweight current-task Problems panel. It can be opened with `problems` / `task problems`, keeps its own selection and scroll state, shows generic severity/code/message facts when common log text contains them, and opens repo-local `path:line[:column]` anchors through the existing editor handoff.
 Source File Page is now explicit as a cross-layer read-only source preview. It can be opened from Task Problems with `view problem`, keeps its own source path, target line, and scroll state, and does not change Review Scope or require the file to be in Changed Files.
 Source File Page find is explicit as page-local text navigation. `find TEXT`, `next match`, and `prev match` search only the current source preview, update the Source File Page target line, and keep File Detail find and Task Output find state separate.
 Source File Page copy-line is explicit as source-preview handoff. `copy line` copies the current Source File Page target `path:line`, reusing the same command vocabulary as File Detail without adding source snippets or multi-line selection.
@@ -416,13 +416,13 @@ Task Output Page supports `find TEXT`, `next match`, and `prev match` over the c
 
 Status: implemented.
 
-`problems` / `task problems` opens a current-task Problems page that extracts repo-local `path:line[:column]` anchors from captured task output. The page supports selection, scrolling, page history, and Enter-to-open through the existing editor handoff. It intentionally avoids severity parsing, build-tool-specific formats, history search, and diagnostics persistence.
+`problems` / `task problems` opens a current-task Problems page that extracts repo-local `path:line[:column]` anchors from captured task output. The page also extracts generic severity, code, and message facts from common text such as `error TS2322: bad call` or `warning [W001]: check this`, then renders compact labels like `ERROR TS2322`. The page supports selection, scrolling, page history, and Enter-to-open through the existing editor handoff. It intentionally avoids severity sorting/filtering, build-tool-specific parser registries, history search, and diagnostics persistence.
 
 ### P0: Task Problems handoff
 
 Status: implemented.
 
-`copy problem` copies the selected Task Problems entry, while `copy problems` copies every current Task Problems entry in output order. `cr.ui.task_problems` owns location and handoff text formatting; Browser Action Execution owns clipboard side effects through existing file actions. This intentionally stays lighter than diagnostics: no severity parsing, tool-specific formats, history search, persistence, or `save problems`.
+`copy problem` copies the selected Task Problems entry, while `copy problems` copies every current Task Problems entry in output order. Handoff text includes severity, code, and cleaned message when present, plus the raw summary fallback. `cr.ui.task_problems` owns location, diagnostic fact extraction, and handoff text formatting; Browser Action Execution owns clipboard side effects through existing file actions. This intentionally stays lighter than a full diagnostics subsystem: no sorting/filtering, tool-specific parser registry, history search, persistence, or `save problems`.
 
 ### P0: Source File Page
 

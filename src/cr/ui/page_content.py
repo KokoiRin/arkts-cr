@@ -733,9 +733,11 @@ def task_problems_screen_lines(
     for index, problem in enumerate(problems[start:end], start):
         marker = ">" if index == selected else " "
         location = task_problems_module.problem_location(problem)
+        label = task_problems_module.problem_diagnostic_label(problem)
+        label_text = f"  {style.dim(label)}" if label else ""
         lines.append(
             f"{marker} {str(index + 1).rjust(index_width)}  "
-            f"{style.file_path(location)}  {problem.summary}"
+            f"{style.file_path(location)}{label_text}  {problem.summary}"
         )
     if len(problems) > row_capacity:
         lines.append(style.dim(f"showing {start + 1}-{end}/{len(problems)}"))

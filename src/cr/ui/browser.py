@@ -597,7 +597,7 @@ class BrowserCommandExecutor:
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_PROBLEM_DIFF:
-            message = _copy_problem_diff(state, args)
+            message = _copy_problem_diff(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_TASK_PROBLEM:
@@ -754,7 +754,7 @@ class BrowserCommandExecutor:
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_PROBLEM_DIFF:
-            message = _save_problem_diff(state, args, parsed_command.value)
+            message = _save_problem_diff(state, args, style, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_TASK_PROBLEMS:
@@ -1556,12 +1556,18 @@ def _save_selected_task_problem(
     return f"Saved task problem to {result.display_path}."
 
 
-def _copy_problem_diff(state: BrowserState, args: argparse.Namespace) -> str:
+def _copy_problem_diff(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
     text, problem, error = _problem_diff_text(
         state,
         args,
+        style,
         task_empty_message="No task problem diff to copy.",
         source_empty_message="No current source problem diff to copy.",
+        file_empty_message="No current file problem diff to copy.",
     )
     if error:
         return error
@@ -1575,13 +1581,16 @@ def _copy_problem_diff(state: BrowserState, args: argparse.Namespace) -> str:
 def _save_problem_diff(
     state: BrowserState,
     args: argparse.Namespace,
+    style: TerminalStyle,
     requested_path: str = "",
 ) -> str:
     text, problem, error = _problem_diff_text(
         state,
         args,
+        style,
         task_empty_message="No task problem diff to save.",
         source_empty_message="No current source problem diff to save.",
+        file_empty_message="No current file problem diff to save.",
     )
     if error:
         return error
@@ -1599,15 +1608,29 @@ def _save_problem_diff(
 def _problem_diff_text(
     state: BrowserState,
     args: argparse.Namespace,
+    style: TerminalStyle,
     *,
     task_empty_message: str,
     source_empty_message: str,
+    file_empty_message: str,
 ) -> tuple[str, task_problems_module.TaskProblem | None, str]:
     if state.page == BrowserPage.SOURCE_FILE:
         current = _source_file_task_problem(state)
         if current is None:
             return "", None, source_empty_message
         problem, _selected, _total = current
+    elif state.page == BrowserPage.FILE_DETAIL:
+        current = _file_detail_task_problem(
+            state,
+            args,
+            style,
+            action="use",
+            no_file_message=file_empty_message,
+            missing_message=file_empty_message,
+        )
+        if isinstance(current, str):
+            return "", None, current
+        problem = current
     else:
         problem = _current_task_problem_for_action(state)
         if problem is None:
@@ -4033,12 +4056,14 @@ def _file_detail_task_problem(
     style: TerminalStyle,
     *,
     action: str,
+    no_file_message: str | None = None,
+    missing_message: str | None = None,
 ) -> task_problems_module.TaskProblem | str:
     target = _file_detail_source_target(
         state,
         args,
         style,
-        no_file_message=f"No changed file to {action} problem.",
+        no_file_message=no_file_message or f"No changed file to {action} problem.",
     )
     if isinstance(target, str):
         return target
@@ -4046,7 +4071,7 @@ def _file_detail_task_problem(
     for problem in _current_task_problems(state):
         if problem.path == path and problem.line == line:
             return problem
-    return f"No current file problem to {action}."
+    return missing_message or f"No current file problem to {action}."
 
 
 def _current_task_problems(state: BrowserState) -> list[task_problems_module.TaskProblem]:

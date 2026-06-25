@@ -440,8 +440,9 @@ q
 
 ## 14. 设计文档
 
-更底层的产品层级和架构边界见：
+产品目标、产品层级和架构边界见：
 
+- [docs/product-goal.md](docs/product-goal.md)
 - [docs/workbench-navigation.md](docs/workbench-navigation.md)
 - [docs/design.md](docs/design.md)
 - [docs/p0.md](docs/p0.md)

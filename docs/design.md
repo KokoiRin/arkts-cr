@@ -1,5 +1,7 @@
 # cr minimal design
 
+Product goal: see [docs/product-goal.md](product-goal.md). This design file records current behavior and boundaries; the product-goal document is the higher-level judgement for why a P0 should exist.
+
 ## Requirement card
 
 Implement a terminal-first code review workbench named `cr`.

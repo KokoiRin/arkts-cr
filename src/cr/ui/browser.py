@@ -644,6 +644,16 @@ class BrowserCommandExecutor:
         if action == BrowserCommandAction.SHOW_TASK_PROBLEMS:
             BrowserNavigation.show_task_problems(state)
             return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.NEXT_TASK_PROBLEM:
+            message = _jump_task_problem(state, "next")
+            if message:
+                _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.PREVIOUS_TASK_PROBLEM:
+            message = _jump_task_problem(state, "previous")
+            if message:
+                _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.NEXT_TASK_PROBLEM_FILE:
             message = _jump_task_problem_file(state, "next")
             if message:
@@ -1920,6 +1930,37 @@ def _move_task_problem_selection(state: BrowserState, delta: int) -> None:
     if not total:
         return
     state.problem_selected = max(0, min(state.problem_selected + delta, total - 1))
+
+
+def _jump_task_problem(state: BrowserState, direction: str) -> str:
+    problems = _current_task_problems(state)
+    if not problems:
+        return "没有可跳转的问题。"
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    if direction == "next":
+        if selected >= len(problems) - 1:
+            state.problem_selected = selected
+            return "已经在最后一个问题。"
+        selected += 1
+    else:
+        if selected <= 0:
+            state.problem_selected = 0
+            return "已经在第一个问题。"
+        selected -= 1
+    state.problem_selected = selected
+    if state.page == BrowserPage.TASK_OUTPUT:
+        _scroll_task_output_to_problem(state, problems[selected])
+    return f"已选择问题 {selected + 1}/{len(problems)}。"
+
+
+def _scroll_task_output_to_problem(
+    state: BrowserState,
+    problem: task_problems_module.TaskProblem,
+) -> None:
+    if state.task is None or not state.task.lines:
+        return
+    output_index = max(0, min(problem.output_line - 1, len(state.task.lines) - 1))
+    state.task_scroll = max(0, output_index - 1)
 
 
 def _jump_task_problem_file(state: BrowserState, direction: str) -> str:
@@ -3230,7 +3271,12 @@ def _browse_task_output_screen_lines(
     style: TerminalStyle,
     max_lines: int,
 ) -> list[str]:
-    return page_content.task_output_screen_lines(state, style, max_lines)
+    return page_content.task_output_screen_lines(
+        state,
+        style,
+        max_lines,
+        problems=_current_task_problems(state),
+    )
 
 
 def _browse_task_problems_screen_lines(
@@ -3286,8 +3332,6 @@ def _current_task_problem_for_action(
     problems = _current_task_problems(state)
     if not problems:
         return None
-    if state.page == BrowserPage.TASK_OUTPUT:
-        return problems[0]
     selected = max(0, min(state.problem_selected, len(problems) - 1))
     return problems[selected]
 

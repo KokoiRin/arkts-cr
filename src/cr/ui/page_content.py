@@ -149,10 +149,11 @@ def contextual_action_bar(
             "↑/↓ 滚动",
             "find 查找",
             "next match 下个匹配",
+            "next/prev problem 切换问题",
             "problems 问题列表",
-            "view problem 查看首个问题",
-            "copy context 复制首个问题",
-            "save context 保存首个问题",
+            "view problem 查看选中问题",
+            "copy context 复制选中问题",
+            "save context 保存选中问题",
             "copy task tail 复制尾部",
             "copy task 复制任务",
             "save task 保存任务",
@@ -301,9 +302,10 @@ def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
             (
                 "↑/↓ / PgUp/PgDn：滚动任务输出",
                 "find TEXT / next match / prev match：查找输出",
+                "next problem / prev problem：切换当前解析出的问题",
                 "problems：进入解析出的问题列表",
-                "view problem：直接查看首个解析出的问题源码",
-                "copy problem context / save problem context：复制或保存首个问题、任务输出、源码和 diff 上下文",
+                "view problem：直接查看当前问题源码",
+                "copy problem context / save problem context：复制或保存当前问题、任务输出、源码和 diff 上下文",
                 "copy task / save task：复制或保存完整任务输出",
                 "copy task tail [N] / save task tail [PATH]：复制或保存输出尾部",
                 "stop：停止运行中任务，rerun：重跑最近任务",
@@ -846,6 +848,7 @@ def task_output_screen_lines(
     state: Any,
     style: TerminalStyle,
     max_lines: int,
+    problems: list[TaskProblem] | None = None,
 ) -> list[str]:
     task = getattr(state, "task", None)
     if task is None:
@@ -861,6 +864,9 @@ def task_output_screen_lines(
         f"Status: {task_runtime.task_status(task)}",
         f"Command: {_format_task_command(task.command)}",
     ]
+    problem_label = _task_output_selected_problem_label(state, problems or [])
+    if problem_label:
+        header.append(problem_label)
     if max_lines <= len(header):
         return header[:max_lines]
 
@@ -881,6 +887,20 @@ def task_output_screen_lines(
     else:
         lines.append("")
     return lines[:max_lines]
+
+
+def _task_output_selected_problem_label(
+    state: Any,
+    problems: list[TaskProblem],
+) -> str:
+    if not problems:
+        return ""
+    selected = max(0, min(getattr(state, "problem_selected", 0), len(problems) - 1))
+    problem = problems[selected]
+    return (
+        f"Problem: {selected + 1}/{len(problems)} "
+        f"{task_problems_module.problem_location(problem)}"
+    )
 
 
 def task_problems_screen_lines(

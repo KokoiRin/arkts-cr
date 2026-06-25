@@ -71,6 +71,8 @@ class BrowserCommandAction:
     SET_TASK_PROBLEM_QUERY = "set_task_problem_query"
     CLEAR_TASK_PROBLEM_QUERY = "clear_task_problem_query"
     SET_TASK_PROBLEM_GROUP = "set_task_problem_group"
+    NEXT_TASK_PROBLEM = "next_task_problem"
+    PREVIOUS_TASK_PROBLEM = "previous_task_problem"
     NEXT_TASK_PROBLEM_FILE = "next_task_problem_file"
     PREVIOUS_TASK_PROBLEM_FILE = "previous_task_problem_file"
     VIEW_TASK_PROBLEM = "view_task_problem"
@@ -264,6 +266,15 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.NEXT_TASK_PROBLEM_FILE)
     if command in {"prev problem file", "previous problem file", "problem file prev"}:
         return BrowserCommand(BrowserCommandAction.PREVIOUS_TASK_PROBLEM_FILE)
+    if command in {"next problem", "problem next", "next task problem"}:
+        return BrowserCommand(BrowserCommandAction.NEXT_TASK_PROBLEM)
+    if command in {
+        "prev problem",
+        "previous problem",
+        "problem prev",
+        "previous task problem",
+    }:
+        return BrowserCommand(BrowserCommandAction.PREVIOUS_TASK_PROBLEM)
     if command in {"problems all", "all problems", "clear problems"}:
         return BrowserCommand(BrowserCommandAction.CLEAR_TASK_PROBLEM_FILTER)
     if command in {"problems clear find", "problems clear query", "clear problem find"}:

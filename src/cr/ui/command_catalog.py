@@ -137,6 +137,8 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "跳到上一个问题文件",
                     "prev problem file",
                 ),
+                CommandEntry("next problem", "选择下一个任务问题", "next problem"),
+                CommandEntry("prev problem", "选择上一个任务问题", "prev problem"),
                 CommandEntry("view problem", "查看选中问题的源码位置", "view problem"),
                 CommandEntry("copy problem", "复制选中问题", "copy problem"),
                 CommandEntry("copy problems", "复制当前问题列表", "copy problems"),
@@ -147,12 +149,12 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 ),
                 CommandEntry(
                     "copy problem context",
-                    "复制问题源码和 diff 上下文",
+                    "复制问题、任务输出、源码和 diff 上下文",
                     "copy problem context",
                 ),
                 CommandEntry(
                     "save problem context",
-                    "保存问题源码和 diff 上下文",
+                    "保存问题、任务输出、源码和 diff 上下文",
                     "save problem context",
                 ),
                 CommandEntry("copy task", "复制当前任务输出", "copy task"),

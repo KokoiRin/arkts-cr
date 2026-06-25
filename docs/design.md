@@ -63,7 +63,11 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Supports in-session review-scope switching with `worktree`, `staged`, `all`, `base REF`, and `range OLD..NEW`.
   - Keeps the input prompt on the final terminal row.
   - Shows build/test/lint output in a 5-10 line bottom task panel above the prompt while the main content remains usable.
-  - Updates task output by repainting only the task panel when the user is idle.
+  - Updates task output by repainting only the task panel when the user is idle
+    on ordinary pages.
+  - Provides a `task output` / `output` page for reading the current task's
+    captured output with independent scrolling; that page redraws main content
+    while a task is running so logs remain visible.
   - Lets users stop a running task with `stop` / `cancel` and rerun the most recent task kind with `rerun` / `rebuild`.
   - Distinguishes task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
   - Shows compact session-local task history in the background task panel, starting with completed build/test/lint results.
@@ -153,7 +157,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Keep `src/cr/cli.py` as the command parser and delegate interactive browse execution to `src/cr/ui/browser.py`.
   - Reuse `src/cr/review/changes.py` for changed-file selection, sorting, code-file detection, hunk rendering, and modified-symbol facts so `browse`, `review`, and `diff` share one implementation of review-scope rules.
   - Treat browser session state as one module-owned concept: all changes, filtered visible changes, selected index, page, and filter query.
-  - Treat `BrowserPage` as the canonical internal page vocabulary for Scope Home, Commit Picker, Changed Files, File Detail, and Command Palette.
+  - Treat `BrowserPage` as the canonical internal page vocabulary for Scope Home, Commit Picker, Changed Files, File Detail, Command Palette, and Task Output.
   - Treat `BrowserNavigation` as the owner of page transition rules, in-session page history, and small local state resets such as file scroll, command selection, scope selection, and commit picker selection resets.
   - Treat `ReviewWorkspace` as the owner of active review scope, changed-file loading, path/source filter state, progress/note state, selected-file progress operations, selected file, selected commit, previous scope, and workspace-state data mapping. Browser file I/O remains at the UI edge.
   - Treat `Workspace Persistence` as the owner of `.git/cr/browse-state.json` path construction, schema version wrapping/validation, tolerant JSON read/write, and default-session restore/save eligibility. `browser.py` decides when to call it, while `ReviewWorkspace` interprets product state.
@@ -183,6 +187,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat `.cr/tasks.json` as project-local task presets for `build`, `test`, and `lint`. Command resolution order is CLI argument, environment variable, project preset, DouyinHarmony build default, then missing-command feedback.
   - Treat `tasks` as a source diagnostic command, not a task runner. Treat `tasks help` as preset-format help, not a task runner. Source explanation, malformed preset reporting, and preset-format help belong in `cr.ui.tasks`.
   - Treat task output handoff as Task Runtime text plus UI-edge delivery: `cr.ui.tasks` renders the current task output Markdown, while Browser Action Execution calls clipboard or handoff-file helpers. Task output handoff does not enter workspace persistence or task history.
+  - Treat Task Output Page as page content over current `TaskState`: `cr.ui.page_content` renders status, command, output lines, empty state, and scroll footer; `browser.py` owns `task_scroll`, page transition, command execution, and tick redraw scheduling.
   - Treat in-session review progress as browser workspace state: seen paths, remaining-only view, and selected-file progress operations belong in `ReviewWorkspace` and persist with `.git/cr/browse-state.json`.
   - Treat in-session review notes as browser workspace state: path-keyed notes belong in `ReviewWorkspace`, are edited through `note TEXT` / `note`, summarized/searched through `notes`, copied through `copy notes` / `copy notes QUERY`, and persist with `.git/cr/browse-state.json`. Summary/search/copy rules belong in `cr.ui.review_notes`.
   - Treat prompt handoff as a `cr.review` output format reused by the browser: `copy prompt` / `copy prompt file` / `save prompt` / `save prompt file` may choose current browser files and pass matching review notes, but Markdown structure stays owned by `cr.review.prompt`. UI-side handoff file paths and writes stay in `cr.ui.handoff`.

@@ -72,6 +72,7 @@ class BrowserState:
     commit_scroll: int = 0
     command_scroll: int = 0
     file_scroll: int = 0
+    task_scroll: int = 0
     page: str = BrowserPage.CHANGED_FILES
     filter_text: str = ""
     source_filter: str = ""
@@ -166,6 +167,8 @@ class BrowserState:
             total = len(_scope_home_entries())
         elif self.page == BrowserPage.COMMAND_PALETTE:
             total = len(_filtered_command_palette_entries(self))
+        elif self.page == BrowserPage.TASK_OUTPUT:
+            total = 1
         else:
             total = len(self.visible_changes)
         if total == 0:
@@ -478,6 +481,9 @@ class BrowserCommandExecutor:
             message = _copy_task_output(state, args)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SHOW_TASK_OUTPUT:
+            BrowserNavigation.show_task_output(state)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SAVE_PROMPT:
             message = _save_prompt_handoff(
                 state,
@@ -632,24 +638,32 @@ class BrowserCommandExecutor:
         if action == BrowserCommandAction.MOVE_DOWN:
             if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, 1, args, style)
+            elif state.page == BrowserPage.TASK_OUTPUT:
+                _scroll_task_output(state, 1)
             else:
                 _move_selection(state, 1)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.MOVE_UP:
             if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, -1, args, style)
+            elif state.page == BrowserPage.TASK_OUTPUT:
+                _scroll_task_output(state, -1)
             else:
                 _move_selection(state, -1)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.PAGE_DOWN:
             if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, _page_step(), args, style)
+            elif state.page == BrowserPage.TASK_OUTPUT:
+                _scroll_task_output(state, _page_step())
             else:
                 _move_selection(state, _page_step())
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.PAGE_UP:
             if state.page == BrowserPage.FILE_DETAIL:
                 _scroll_file(state, -_page_step(), args, style)
+            elif state.page == BrowserPage.TASK_OUTPUT:
+                _scroll_task_output(state, -_page_step())
             else:
                 _move_selection(state, -_page_step())
             return BrowserActionResult(needs_redraw=True)
@@ -684,6 +698,8 @@ class BrowserCommandExecutor:
         if action == BrowserCommandAction.HOME:
             if state.page == BrowserPage.FILE_DETAIL:
                 state.file_scroll = 0
+            elif state.page == BrowserPage.TASK_OUTPUT:
+                state.task_scroll = 0
             elif state.page == BrowserPage.SCOPE_HOME:
                 state.scope_selected = 0
             elif state.page == BrowserPage.COMMAND_PALETTE:
@@ -694,6 +710,8 @@ class BrowserCommandExecutor:
         if action == BrowserCommandAction.END:
             if state.page == BrowserPage.FILE_DETAIL:
                 state.file_scroll = _max_file_scroll(state, args, style)
+            elif state.page == BrowserPage.TASK_OUTPUT:
+                state.task_scroll = _max_task_output_scroll(state)
             elif state.page == BrowserPage.SCOPE_HOME:
                 total = len(_scope_home_entries())
                 if total:
@@ -718,6 +736,8 @@ class BrowserCommandExecutor:
                 if message:
                     _show_browser_message(state, message, raw_keys, frame)
                 return BrowserActionResult(needs_redraw=True)
+            if state.page == BrowserPage.TASK_OUTPUT:
+                return BrowserActionResult()
             if state.visible_changes:
                 BrowserNavigation.open_file_detail(state)
                 return BrowserActionResult(needs_redraw=True)
@@ -852,6 +872,8 @@ def run_browser(args: argparse.Namespace) -> int:
                         ),
                     ]
                 )
+            elif state.page == BrowserPage.TASK_OUTPUT:
+                _print_lines(_browse_task_output_screen_lines(state, style, _screen_height()))
             elif state.page == BrowserPage.CHANGED_FILES:
                 _print_lines(
                     _browse_list_lines(
@@ -902,6 +924,9 @@ def run_browser(args: argparse.Namespace) -> int:
             tick_when_idle=state.task is not None and state.task.running,
         )
         if command_result == input_module.TICK:
+            if state.page == BrowserPage.TASK_OUTPUT:
+                needs_redraw = True
+                continue
             _draw_task_panel_only(state.task, style, frame, state.task_history)
             if frame.dirty:
                 needs_redraw = True
@@ -1432,6 +1457,11 @@ def _scroll_file(
     state.file_scroll = max(0, min(state.file_scroll + delta, max_scroll))
 
 
+def _scroll_task_output(state: BrowserState, delta: int) -> None:
+    max_scroll = _max_task_output_scroll(state)
+    state.task_scroll = max(0, min(state.task_scroll + delta, max_scroll))
+
+
 def _jump_file_hunk(
     state: BrowserState,
     args: argparse.Namespace,
@@ -1715,6 +1745,12 @@ def _max_file_scroll(
     return max(0, body_count - _file_body_capacity())
 
 
+def _max_task_output_scroll(state: BrowserState) -> int:
+    layout = _screen_layout(state.task)
+    body_lines = max(1, layout.content_height - 2)
+    return page_content.max_task_output_scroll(state, body_lines)
+
+
 def _page_step() -> int:
     return max(5, _screen_height() - 8)
 
@@ -1807,6 +1843,15 @@ def _draw_browse_screen(
         lines = [
             *header_lines,
             *_browse_command_palette_screen_lines(
+                state,
+                style,
+                body_lines,
+            ),
+        ]
+    elif state.page == BrowserPage.TASK_OUTPUT:
+        lines = [
+            *header_lines,
+            *_browse_task_output_screen_lines(
                 state,
                 style,
                 body_lines,
@@ -2169,6 +2214,14 @@ def _browse_commit_screen_lines(
     max_lines: int,
 ) -> list[str]:
     return page_content.browse_commit_screen_lines(state, style, max_lines)
+
+
+def _browse_task_output_screen_lines(
+    state: BrowserState,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    return page_content.task_output_screen_lines(state, style, max_lines)
 
 
 def _empty_browse_lines(

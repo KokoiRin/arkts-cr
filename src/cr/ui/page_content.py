@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+import shlex
 from typing import Any
 
 from ..review.changes import (
@@ -26,6 +27,7 @@ from ..source.purpose import describe_file as default_describe_file
 from ..vcs import git
 from . import commit_picker
 from .navigation import BrowserPage
+from . import tasks as task_runtime
 from .terminal import TerminalStyle, file_uri, vscode_uri
 
 
@@ -60,6 +62,8 @@ def browse_prompt(page: str) -> str:
         return "cr:scopes> "
     if page == BrowserPage.COMMAND_PALETTE:
         return "cr:commands> "
+    if page == BrowserPage.TASK_OUTPUT:
+        return "cr:task> "
     return "cr:list> "
 
 
@@ -120,6 +124,14 @@ def contextual_action_bar(
             "c clear",
             "b back",
         ),
+        BrowserPage.TASK_OUTPUT: (
+            "↑/↓ scroll",
+            "copy task",
+            "save task",
+            "stop",
+            "rerun",
+            "b back",
+        ),
     }
     actions = actions_by_page.get(page, actions_by_page[BrowserPage.CHANGED_FILES])
     line = "Actions: " + "  |  ".join(actions)
@@ -169,6 +181,8 @@ def product_breadcrumb(state: Any, args: argparse.Namespace) -> str:
         return label
     if state.page == BrowserPage.COMMAND_PALETTE:
         return f"{label} > Commands"
+    if state.page == BrowserPage.TASK_OUTPUT:
+        return f"{label} > Task Output"
     if state.page == BrowserPage.FILE_DETAIL:
         visible = state.visible_changes
         if visible and 0 <= state.selected < len(visible):
@@ -609,6 +623,63 @@ def commit_change_summary(commit: git.CommitSummary, style: TerminalStyle) -> st
         f"{style.added('+' + str(commit.added))} "
         f"{style.deleted('-' + str(commit.deleted))}"
     )
+
+
+def task_output_screen_lines(
+    state: Any,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    task = getattr(state, "task", None)
+    if task is None:
+        return [
+            style.bold("Task output"),
+            "No current task output.",
+            "Run build, test, or lint to create output.",
+            "",
+        ][:max_lines]
+
+    header = [
+        style.bold(f"Task output ({task_runtime.task_label(task.kind)})"),
+        f"Status: {task_runtime.task_status(task)}",
+        f"Command: {_format_task_command(task.command)}",
+    ]
+    if max_lines <= len(header):
+        return header[:max_lines]
+
+    body = list(task.lines) if task.lines else ["(no output captured)"]
+    body_capacity = max(1, max_lines - len(header) - 1)
+    max_scroll = max(0, len(body) - body_capacity)
+    state.task_scroll = max(0, min(getattr(state, "task_scroll", 0), max_scroll))
+    start = state.task_scroll
+    end = min(len(body), start + body_capacity)
+    lines = [*header, *body[start:end]]
+    if max_scroll:
+        lines.append(
+            style.dim(
+                f"showing {start + 1}-{end}/{len(body)}   "
+                "↑/↓ scroll   PgUp/PgDn page   b back"
+            )
+        )
+    else:
+        lines.append("")
+    return lines[:max_lines]
+
+
+def max_task_output_scroll(state: Any, max_lines: int) -> int:
+    task = getattr(state, "task", None)
+    if task is None:
+        return 0
+    header_count = 3
+    body = task.lines if task.lines else ["(no output captured)"]
+    body_capacity = max(1, max_lines - header_count - 1)
+    return max(0, len(body) - body_capacity)
+
+
+def _format_task_command(command: list[str]) -> str:
+    if not command:
+        return "(no command)"
+    return shlex.join(command)
 
 
 def empty_browse_lines(

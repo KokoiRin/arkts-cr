@@ -17,6 +17,7 @@ class BrowserPage:
     CHANGED_FILES = "list"
     FILE_DETAIL = "file"
     COMMAND_PALETTE = "commands"
+    TASK_OUTPUT = "task-output"
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,7 @@ class BrowserPageSnapshot:
     command_filter_text: str
     selected_commit: Optional[object]
     commit_scroll: int
+    task_scroll: int = 0
 
 
 class _BrowserNavigationState(Protocol):
@@ -44,6 +46,7 @@ class _BrowserNavigationState(Protocol):
     commit_scroll: int
     list_scroll: int
     command_filter_text: str
+    task_scroll: int
     page_back_stack: list[BrowserPageSnapshot]
     page_forward_stack: list[BrowserPageSnapshot]
 
@@ -67,6 +70,12 @@ class BrowserNavigation:
         state.page = BrowserPage.COMMAND_PALETTE
         state.command_selected = 0
         state.command_scroll = 0
+
+    @staticmethod
+    def show_task_output(state: _BrowserNavigationState) -> None:
+        BrowserNavigation._record_transition(state, BrowserPage.TASK_OUTPUT)
+        state.page = BrowserPage.TASK_OUTPUT
+        state.task_scroll = 0
 
     @staticmethod
     def show_commit_picker(
@@ -108,6 +117,7 @@ class BrowserNavigation:
             BrowserPage.COMMAND_PALETTE,
             BrowserPage.SCOPE_HOME,
             BrowserPage.FILE_DETAIL,
+            BrowserPage.TASK_OUTPUT,
         }:
             BrowserNavigation._restore_changed_files_fallback(state)
             return
@@ -151,6 +161,7 @@ class BrowserNavigation:
             command_filter_text=state.command_filter_text,
             selected_commit=state.selected_commit,
             commit_scroll=state.commit_scroll,
+            task_scroll=state.task_scroll,
         )
 
     @staticmethod
@@ -168,6 +179,7 @@ class BrowserNavigation:
         state.command_filter_text = snapshot.command_filter_text
         state.selected_commit = snapshot.selected_commit
         state.commit_scroll = snapshot.commit_scroll
+        state.task_scroll = snapshot.task_scroll
 
     @staticmethod
     def _restore_changed_files_fallback(state: _BrowserNavigationState) -> None:

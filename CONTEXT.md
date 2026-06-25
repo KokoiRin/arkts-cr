@@ -34,10 +34,10 @@ or draw the Browser Frame.
 `cr.ui.page_content` owns browser page main-content rendering: prompt labels,
 help lines, scope breadcrumbs/context, Scope Home entries and overview counts,
 Changed Files tree rows including local change source badges and summaries,
-Commit Picker rows and change summaries, empty states, File Detail lines, and
-page scroll window calculations. It does not read raw input, draw the Browser
-Frame, run commands, switch review scopes, persist workspace state, or execute
-file actions.
+Commit Picker rows and change summaries, empty states, File Detail lines, Task
+Output Page lines, and page scroll window calculations. It does not read raw
+input, draw the Browser Frame, run commands, switch review scopes, persist
+workspace state, or execute file actions.
 `cr.ui.commit_picker` owns Commit Picker rules: commit search text, loaded
 commit filtering, and filtered selection helpers. It does not render terminal
 rows, parse commands, load commits from Git, draw the Browser Frame, or persist
@@ -104,6 +104,9 @@ Product navigation terms:
 - `Command Palette`: a cross-layer action surface, not a review hierarchy level.
 - `Task Panel`: a screen-rendering region for background tasks, not a review
   hierarchy level.
+- `Task Output Page`: a browser page for reading the current task's captured
+  output with its own scroll state. It is an Output Panel-style detail view for
+  Task Panel data, not a new review hierarchy level and not task history.
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
   content, task panel, and prompt regions. Internally, `cr.ui.frame` owns the
   screen-layer layout and Task Panel presentation helpers.
@@ -112,9 +115,9 @@ Product navigation terms:
   escape-sequence mapping, idle tick, EOF, interrupt, and temporary line query
   reading, while `browser.py` decides how those tokens affect product state.
 - `Page Content`: the internal module that renders product-page main content
-  for Scope Home, Commit Picker, Changed Files, empty states, and File Detail.
-  It owns page text and scroll-window rendering rules, while Browser Frame owns
-  screen placement.
+  for Scope Home, Commit Picker, Changed Files, empty states, File Detail, and
+  Task Output Page. It owns page text and scroll-window rendering rules, while
+  Browser Frame owns screen placement.
 - `Scope Home Counts`: temporary overview counts shown on Scope Home for
   Worktree, Staged, All local changes, and Recent commits. Browser
   orchestration samples these counts when Scope Home opens or refreshes; Page
@@ -145,9 +148,9 @@ Product navigation terms:
   Browser Frame owns placement constraints and line fitting; the action bar is
   not command state, workspace state, or persisted data.
 - `Browser Navigation`: the internal module that moves between Scope Home,
-  Commit Picker, Changed Files, File Detail, and Command Palette, including
-  in-session back/forward page history, without loading Git data or rendering
-  terminal output.
+  Commit Picker, Changed Files, File Detail, Command Palette, and Task Output
+  Page, including in-session back/forward page history, without loading Git data
+  or rendering terminal output.
 - `Review Workspace`: the internal module that owns the current Review Scope,
   changed files, path/source filter state, progress/note state, selected file,
   selected commit, previous scope, and persistence data mapping for `cr browse`.

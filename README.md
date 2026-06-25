@@ -18,10 +18,10 @@ cr
 上下文区        当前 review scope 和临时状态反馈，比如 opened / invalid choice
 主工作区        文件树、commit 列表、单文件 diff、command palette
 后台任务面板    build 等后台任务的状态、最近输出和最近任务结果
-命令提示区      cr:list> / cr:file> / cr:commits>
+命令提示区      cr:list> / cr:file> / cr:commits> / cr:task>
 ```
 
-build/test/lint 运行时只允许刷新后台任务面板；主工作区仍然可以继续浏览，最底下的命令提示不会被日志挤走。raw-key 模式里的普通操作反馈会显示在上下文区，不会追加到 prompt 下面。用户打开 `:` 或 `/` 这种临时输入后，界面会回到同一个固定 frame。
+build/test/lint 运行时普通页面只刷新后台任务面板；主工作区仍然可以继续浏览，最底下的命令提示不会被日志挤走。需要看完整日志时输入 `: task output` 或 `: output` 进入可滚动的任务输出页；只有停在这个页面时，主工作区才会跟随任务输出刷新。raw-key 模式里的普通操作反馈会显示在上下文区，不会追加到 prompt 下面。用户打开 `:` 或 `/` 这种临时输入后，界面会回到同一个固定 frame。
 
 ## 安装
 
@@ -249,13 +249,14 @@ build
 : lint     运行 lint
 : tasks    查看 build/test/lint 命令来源
 : tasks help  查看 .cr/tasks.json 格式
+: task output 打开当前任务输出详情页
 : copy task 复制当前任务输出
 : save task [PATH] 保存当前任务输出，默认 .cr/handoff/task-output.md
 : stop     停止正在运行的任务
 : rerun    重跑最近一次任务
 ```
 
-任务面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。后台任务会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个任务进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓的 build 会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置 build，用 `--test-cmd` / `CR_TEST_CMD` 配置 test，用 `--lint-cmd` / `CR_LINT_CMD` 配置 lint：
+任务面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。`: task output` / `: output` 会打开当前任务的完整输出视图，支持 `↑/↓`、`PgUp/PgDn`、`Home/End` 滚动，`b` 回到之前的代码页面；这个页面仍然可以执行 `copy task`、`save task`、`stop` 和 `rerun`。后台任务会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个任务进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓的 build 会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置 build，用 `--test-cmd` / `CR_TEST_CMD` 配置 test，用 `--lint-cmd` / `CR_LINT_CMD` 配置 lint：
 
 ```bash
 cr --build-cmd './remote buildEntry --app douyin' --test-cmd 'npm test' --lint-cmd 'npm run lint'

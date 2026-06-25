@@ -48,6 +48,7 @@ class BrowserCommandAction:
     COPY_PROMPT = "copy_prompt"
     COPY_FILE_PROMPT = "copy_file_prompt"
     COPY_TASK_OUTPUT = "copy_task_output"
+    SHOW_TASK_OUTPUT = "show_task_output"
     SAVE_DIFF = "save_diff"
     SAVE_PROMPT = "save_prompt"
     SAVE_FILE_PROMPT = "save_file_prompt"
@@ -185,6 +186,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_FILE_PROMPT)
     if command in {"copy task", "copy task output"}:
         return BrowserCommand(BrowserCommandAction.COPY_TASK_OUTPUT)
+    if command in {"task output", "output", BrowserPage.TASK_OUTPUT}:
+        return BrowserCommand(BrowserCommandAction.SHOW_TASK_OUTPUT)
     if command == "save diff":
         return BrowserCommand(BrowserCommandAction.SAVE_DIFF)
     if command.startswith("save diff "):

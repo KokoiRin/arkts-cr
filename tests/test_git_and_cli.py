@@ -761,6 +761,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("save prompt file", text)
         self.assertIn("copy task", text)
         self.assertIn("save task", text)
+        self.assertIn("task output", text)
 
     def test_command_catalog_module_filters_executable_palette_entries(self):
         commands = [entry.command for entry in command_catalog.command_palette_entries()]
@@ -777,6 +778,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt file", commands)
         self.assertIn("copy task", commands)
         self.assertIn("save task", commands)
+        self.assertIn("task output", commands)
         self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
@@ -850,6 +852,14 @@ class CliTests(unittest.TestCase):
         self.assertIn(":base", scope_home)
         self.assertIn("/ filter commits", commit_picker)
         self.assertIn("Enter run", command_palette)
+        task_output = page_content.contextual_action_bar(
+            BrowserPage.TASK_OUTPUT,
+            style,
+        )
+        self.assertIn("copy task", task_output)
+        self.assertIn("save task", task_output)
+        self.assertIn("stop", task_output)
+        self.assertIn("b back", task_output)
         self.assertNotEqual(changed_files, file_detail)
 
     def test_page_content_contextual_action_bar_uses_line_fitting(self):
@@ -861,12 +871,53 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(fitted, "Actions: Enter open")
 
+    def test_page_content_task_output_screen_lines_render_current_task(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            task=TaskState(
+                ["npm", "test"],
+                process,
+                kind="test",
+                lines=["start tests", "failed test"],
+                returncode=1,
+            ),
+        )
+
+        lines = page_content.task_output_screen_lines(
+            state,
+            TerminalStyle(False),
+            max_lines=10,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("Task output", text)
+        self.assertIn("Status: failed (1)", text)
+        self.assertIn("Command: npm test", text)
+        self.assertIn("start tests", text)
+        self.assertIn("failed test", text)
+
+    def test_page_content_task_output_screen_lines_render_empty_state(self):
+        state = BrowserState([])
+
+        lines = page_content.task_output_screen_lines(
+            state,
+            TerminalStyle(False),
+            max_lines=6,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("No current task output.", text)
+        self.assertIn("Run build, test, or lint", text)
+
     def test_browser_page_model_names_current_pages(self):
         self.assertEqual(BrowserPage.SCOPE_HOME, "scopes")
         self.assertEqual(BrowserPage.COMMIT_PICKER, "commits")
         self.assertEqual(BrowserPage.CHANGED_FILES, "list")
         self.assertEqual(BrowserPage.FILE_DETAIL, "file")
         self.assertEqual(BrowserPage.COMMAND_PALETTE, "commands")
+        self.assertEqual(BrowserPage.TASK_OUTPUT, "task-output")
 
         state = BrowserState([])
         self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
@@ -886,6 +937,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("BrowserPage.COMMIT_PICKER", source)
         self.assertIn("BrowserPage.SCOPE_HOME", source)
         self.assertIn("BrowserPage.COMMAND_PALETTE", source)
+        self.assertIn("BrowserPage.TASK_OUTPUT", source)
         self.assertIn("BrowserNavigation.", source)
         self.assertNotIn('mode: str = "list"', source)
         self.assertNotIn("state.mode", source)
@@ -899,6 +951,7 @@ class CliTests(unittest.TestCase):
             commit_scroll=5,
             command_scroll=6,
             file_scroll=7,
+            task_scroll=8,
             scope_selected=2,
             command_selected=3,
             page=BrowserPage.FILE_DETAIL,
@@ -926,6 +979,11 @@ class CliTests(unittest.TestCase):
         BrowserNavigation.open_file_detail(state)
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 0)
+
+        state.task_scroll = 11
+        BrowserNavigation.show_task_output(state)
+        self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+        self.assertEqual(state.task_scroll, 0)
 
     def test_browser_navigation_replaces_pages_without_history(self):
         state = BrowserState(
@@ -1203,6 +1261,14 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy task").action,
             BrowserCommandAction.COPY_TASK_OUTPUT,
+        )
+        self.assertEqual(
+            parse_browser_command("task output").action,
+            BrowserCommandAction.SHOW_TASK_OUTPUT,
+        )
+        self.assertEqual(
+            parse_browser_command("output").action,
+            BrowserCommandAction.SHOW_TASK_OUTPUT,
         )
         save_prompt = parse_browser_command("save prompt")
         self.assertEqual(save_prompt.action, BrowserCommandAction.SAVE_PROMPT)
@@ -3562,6 +3628,71 @@ class CliTests(unittest.TestCase):
             self.assertTrue(result.handled)
             self.assertFalse((repo / ".cr").exists())
             self.assertIn("No task output to save.", output.getvalue())
+
+    def test_browser_command_executor_opens_task_output_page(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            page=BrowserPage.FILE_DETAIL,
+            file_scroll=12,
+            task_scroll=9,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("task output"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+        self.assertEqual(state.task_scroll, 0)
+
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 12)
+
+    def test_browser_command_executor_scrolls_task_output_page(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                lines=[f"line {index}" for index in range(30)],
+                returncode=0,
+            ),
+            page=BrowserPage.TASK_OUTPUT,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(False),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            page_down = executor.execute(parse_browser_command("pagedown"))
+            self.assertTrue(page_down.needs_redraw)
+            self.assertGreater(state.task_scroll, 0)
+
+            executor.execute(parse_browser_command("home"))
+            self.assertEqual(state.task_scroll, 0)
+
+            executor.execute(parse_browser_command("end"))
+            self.assertGreater(state.task_scroll, 0)
 
     def test_browser_file_actions_report_when_no_changed_file_is_available(self):
         from cr.ui.browser import parse_browser_command
@@ -6141,6 +6272,42 @@ class CliTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("Recent: build succeeded ./old-build.sh", text)
 
+    def test_browse_screen_renders_task_output_page(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            page=BrowserPage.TASK_OUTPUT,
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                kind="build",
+                lines=["compile line"],
+                returncode=0,
+            ),
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with redirect_stdout(output):
+                _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("Scope: worktree > Task Output", text)
+        self.assertIn("Task output", text)
+        self.assertIn("compile line", text)
+        self.assertIn("cr:task> ", text)
+
     def test_build_start_records_process_group_id(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -6779,6 +6946,78 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         self.assertEqual(draw.call_count, 2)
+
+    def test_task_output_page_tick_redraws_main_content_not_panel_only(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+        processes: list[subprocess.Popen[bytes]] = []
+
+        def start_running_task(state, _args, _kind):
+            process = subprocess.Popen(
+                [sys.executable, "-c", "import time; time.sleep(2)"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            processes.append(process)
+            state.task = TaskState(["sleep"], process, lines=["first line"])
+
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                repo = Path(tmp)
+                with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                    with patch(
+                        "cr.ui.browser._should_restore_browser_workspace_state",
+                        return_value=False,
+                    ):
+                        with patch(
+                            "cr.ui.browser._load_browse_changes",
+                            return_value=[FileChange("src/Sample.ts", 1, 1)],
+                        ):
+                            with patch("cr.ui.browser._show_commits_when_empty"):
+                                with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                    with patch(
+                                        "cr.ui.browser._read_browse_command",
+                                        side_effect=[
+                                            "build",
+                                            "task output",
+                                            browser_input.TICK,
+                                            "q",
+                                        ],
+                                    ):
+                                        with patch(
+                                            "cr.ui.browser._start_task",
+                                            side_effect=start_running_task,
+                                        ):
+                                            with patch(
+                                                "cr.ui.browser._draw_browse_screen"
+                                            ) as draw:
+                                                with patch(
+                                                    "cr.ui.browser._draw_task_panel_only"
+                                                ) as panel_only:
+                                                    from cr.ui.browser import run_browser
+
+                                                    result = run_browser(args)
+        finally:
+            for process in processes:
+                process.terminate()
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=1)
+
+        self.assertEqual(result, 0)
+        self.assertGreaterEqual(draw.call_count, 4)
+        panel_only.assert_not_called()
 
     def test_screen_layout_reserves_prompt_and_task_panel_regions(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

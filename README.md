@@ -124,6 +124,8 @@ open line        用编辑器打开当前渲染行
 view source      在 TUI 中查看当前源码行
 copy source      复制当前源码行附近上下文
 copy source symbol 复制当前函数或方法范围
+save source      保存当前源码行附近上下文
+save source symbol 保存当前函数或方法范围
 copy problem context 复制当前源码行 + diff 上下文
 save problem context 保存当前源码行 + diff 上下文
 copy line        复制当前行锚点
@@ -212,6 +214,8 @@ prev symbol          跳到上一个源码符号
 copy line            复制当前源码行锚点
 copy source          复制当前源码上下文，包含 symbol 提示
 copy source symbol   复制当前函数或方法范围
+save source          保存当前源码上下文到 .cr/handoff/source.md
+save source symbol   保存当前函数或方法范围到 .cr/handoff/source-symbol.md
 source context N     设置复制源码的上下文行数
 source mark          标记当前源码行
 source select to     选择标记行到当前行
@@ -340,6 +344,8 @@ copy line              复制当前行 path:line
 copy diff              复制当前文件轻量 diff 片段
 copy hunk              复制当前 hunk
 copy change            复制当前改动行
+copy source            复制当前源码上下文
+copy source symbol     复制当前函数或方法范围
 copy prompt            复制当前可见改动的 AI review handoff
 copy prompt file       复制当前文件的 AI review handoff
 copy notes             复制 review 备注汇总
@@ -353,6 +359,8 @@ copy problem context   复制问题 + 源码 + 同文件 diff
 
 ```text
 save diff [PATH]
+save source [PATH]
+save source symbol [PATH]
 save prompt [PATH]
 save prompt file [PATH]
 save problem context [PATH]
@@ -417,14 +425,18 @@ source select to
 source clear mark
 source clear selection
 copy source
+save source [PATH]
+save source symbol [PATH]
 copy problem context
 save problem context
 ```
 
-`copy source` 有两种模式：
+`copy source` 和 `save source` 有两种模式：
 
 - 没有选区时，复制目标行附近上下文。
 - 有 `source select`、`source mark` 或 `source select symbol` 选区时，只复制选中的源码范围。
+
+`save source` 默认写到 `.cr/handoff/source.md`，`save source symbol` 默认写到 `.cr/handoff/source-symbol.md`。传入 `PATH` 时会保存到指定路径。
 
 ## 10. Review 进度和备注
 

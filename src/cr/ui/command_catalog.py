@@ -227,6 +227,16 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "复制当前函数或方法范围",
                     "copy source symbol",
                 ),
+                CommandEntry(
+                    "save source",
+                    "保存当前源码上下文",
+                    "save source",
+                ),
+                CommandEntry(
+                    "save source symbol",
+                    "保存当前函数或方法范围",
+                    "save source symbol",
+                ),
                 CommandEntry("next symbol", "跳到下一个源码符号", "next symbol"),
                 CommandEntry("prev symbol", "跳到上一个源码符号", "prev symbol"),
                 CommandEntry(

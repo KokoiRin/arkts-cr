@@ -19,6 +19,8 @@ DEFAULT_TASK_OUTPUT_TAIL_PATH = Path(".cr") / "handoff" / "task-output-tail.md"
 DEFAULT_TASK_OUTPUT_MATCH_PATH = Path(".cr") / "handoff" / "task-output-match.md"
 DEFAULT_TASK_PROBLEMS_PATH = Path(".cr") / "handoff" / "task-problems.md"
 DEFAULT_FILE_TASK_PROBLEMS_PATH = Path(".cr") / "handoff" / "task-problems-file.md"
+DEFAULT_SOURCE_PATH = Path(".cr") / "handoff" / "source.md"
+DEFAULT_SOURCE_SYMBOL_PATH = Path(".cr") / "handoff" / "source-symbol.md"
 DEFAULT_PROBLEM_CONTEXT_PATH = Path(".cr") / "handoff" / "problem-context.md"
 
 
@@ -85,6 +87,17 @@ def save_task_problems_text(
 ) -> HandoffSaveResult:
     path = task_problems_save_path(repo, requested_path, selected_file=selected_file)
     return _save_text(text, path, repo, label="task problems")
+
+
+def save_source_text(
+    text: str,
+    repo: Path,
+    requested_path: str = "",
+    *,
+    symbol: bool = False,
+) -> HandoffSaveResult:
+    path = source_save_path(repo, requested_path, symbol=symbol)
+    return _save_text(text, path, repo, label="source")
 
 
 def save_problem_context_text(
@@ -159,6 +172,15 @@ def task_problems_save_path(
     default_path = (
         DEFAULT_FILE_TASK_PROBLEMS_PATH if selected_file else DEFAULT_TASK_PROBLEMS_PATH
     )
+    path = Path(text_path) if text_path else default_path
+    if path.is_absolute():
+        return path
+    return repo / path
+
+
+def source_save_path(repo: Path, requested_path: str = "", *, symbol: bool = False) -> Path:
+    text_path = requested_path.strip()
+    default_path = DEFAULT_SOURCE_SYMBOL_PATH if symbol else DEFAULT_SOURCE_PATH
     path = Path(text_path) if text_path else default_path
     if path.is_absolute():
         return path

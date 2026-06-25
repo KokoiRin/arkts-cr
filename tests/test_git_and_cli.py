@@ -1399,6 +1399,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy line", text)
         self.assertIn("copy source", text)
         self.assertIn("copy source symbol", text)
+        self.assertIn("save source", text)
+        self.assertIn("save source symbol", text)
         self.assertIn("copy problem context", text)
         self.assertIn("copy task tail", text)
         self.assertIn("copy task match", text)
@@ -1571,6 +1573,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("view source", file_detail_text)
         self.assertIn("copy source", file_detail_text)
         self.assertIn("copy source symbol", file_detail_text)
+        self.assertIn("save source", file_detail_text)
+        self.assertIn("save source symbol", file_detail_text)
         self.assertIn("copy problem context", file_detail_text)
         self.assertIn("save problem context", file_detail_text)
 
@@ -1592,6 +1596,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("source select to", text)
         self.assertIn("copy source symbol", text)
         self.assertIn("copy source", text)
+        self.assertIn("save source symbol", text)
+        self.assertIn("save source", text)
         self.assertIn("选择源码行范围", text)
 
     def test_page_content_contextual_action_bar_matches_current_page(self):
@@ -2438,6 +2444,29 @@ class CliTests(unittest.TestCase):
             parse_browser_command("copy current symbol").action,
             BrowserCommandAction.COPY_SOURCE_SYMBOL,
         )
+        save_source = parse_browser_command("save source")
+        self.assertEqual(save_source.action, BrowserCommandAction.SAVE_SOURCE_CONTEXT)
+        self.assertEqual(save_source.value, "")
+        save_source_path = parse_browser_command("save source tmp/source.md")
+        self.assertEqual(
+            save_source_path.action,
+            BrowserCommandAction.SAVE_SOURCE_CONTEXT,
+        )
+        self.assertEqual(save_source_path.value, "tmp/source.md")
+        save_source_symbol = parse_browser_command("save source symbol")
+        self.assertEqual(
+            save_source_symbol.action,
+            BrowserCommandAction.SAVE_SOURCE_SYMBOL,
+        )
+        self.assertEqual(save_source_symbol.value, "")
+        save_source_symbol_path = parse_browser_command(
+            "save source symbol tmp/symbol.md"
+        )
+        self.assertEqual(
+            save_source_symbol_path.action,
+            BrowserCommandAction.SAVE_SOURCE_SYMBOL,
+        )
+        self.assertEqual(save_source_symbol_path.value, "tmp/symbol.md")
         self.assertEqual(
             parse_browser_command("next symbol").action,
             BrowserCommandAction.NEXT_SOURCE_SYMBOL,
@@ -8074,6 +8103,46 @@ class CliTests(unittest.TestCase):
         self.assertIn("> 3  ", copied)
         self.assertIn("Copied source context src/Foo.ets:3", state.status_message)
 
+    def test_browser_command_executor_saves_selected_source_context_default_path(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 9)),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=5,
+                source_selection_start=3,
+                source_selection_end=6,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("save source"))
+
+            saved = repo / ".cr" / "handoff" / "source.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertIn("src/Foo.ets:3-6", text)
+        self.assertIn("> 5  line 5", text)
+        self.assertNotIn("line 2", text)
+        self.assertNotIn("line 7", text)
+        self.assertIn("Saved selected source to .cr/handoff/source.md.", state.status_message)
+
     def test_browser_command_executor_sets_source_context_lines(self):
         from cr.ui.browser import parse_browser_command
 
@@ -8422,6 +8491,65 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("other() {", copied)
         self.assertEqual((state.source_selection_start, state.source_selection_end), (7, 8))
         self.assertIn("Copied source symbol src/Foo.ets:2-5.", state.status_message)
+
+    def test_browser_command_executor_saves_file_detail_source_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Sample.ts"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "class Sample {",
+                        "  render() {",
+                        "    return value",
+                        "  }",
+                        "  other() {",
+                        "    return nope",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [FileChange("src/Sample.ts", 1, 1)],
+                page=BrowserPage.FILE_DETAIL,
+                selected=0,
+                file_scroll=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(False),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser._cached_file_lines",
+                    return_value=[
+                        "File 1/1  src/Sample.ts",
+                        "  @@ -1 +3 @@",
+                        "          3 | +    return value",
+                    ],
+                ):
+                    result = executor.execute(
+                        parse_browser_command("save source symbol tmp/render.md")
+                    )
+
+            saved = repo / "tmp" / "render.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertIn("src/Sample.ts:2-4", text)
+        self.assertIn("Symbol: class Sample > method render", text)
+        self.assertIn("return value", text)
+        self.assertNotIn("other()", text)
+        self.assertIn("Saved source symbol to tmp/render.md.", state.status_message)
 
     def test_browser_command_executor_copies_source_field_arrow_symbol(self):
         from cr.ui.browser import parse_browser_command

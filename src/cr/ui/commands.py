@@ -88,6 +88,8 @@ class BrowserCommandAction:
     SAVE_TASK_OUTPUT_MATCH = "save_task_output_match"
     SAVE_TASK_PROBLEMS = "save_task_problems"
     SAVE_FILE_TASK_PROBLEMS = "save_file_task_problems"
+    SAVE_SOURCE_CONTEXT = "save_source_context"
+    SAVE_SOURCE_SYMBOL = "save_source_symbol"
     SAVE_PROBLEM_CONTEXT = "save_problem_context"
     REVEAL_FILE = "reveal_file"
     STAGE_FILE = "stage_file"
@@ -354,6 +356,20 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(
             BrowserCommandAction.SAVE_DIFF,
             command.removeprefix("save diff ").strip(),
+        )
+    if command == "save source":
+        return BrowserCommand(BrowserCommandAction.SAVE_SOURCE_CONTEXT)
+    if command.startswith("save source symbol "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_SOURCE_SYMBOL,
+            command.removeprefix("save source symbol ").strip(),
+        )
+    if command == "save source symbol":
+        return BrowserCommand(BrowserCommandAction.SAVE_SOURCE_SYMBOL)
+    if command.startswith("save source "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_SOURCE_CONTEXT,
+            command.removeprefix("save source ").strip(),
         )
     if command == "save prompt":
         return BrowserCommand(BrowserCommandAction.SAVE_PROMPT)

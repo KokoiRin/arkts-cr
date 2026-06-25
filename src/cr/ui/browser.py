@@ -507,6 +507,14 @@ class BrowserCommandExecutor:
             message = _copy_source_symbol(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_SOURCE_CONTEXT:
+            message = _save_source_context(state, args, style, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_SOURCE_SYMBOL:
+            message = _save_source_symbol(state, args, style, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.NEXT_SOURCE_SYMBOL:
             message = _jump_source_symbol(state, "next")
             _show_browser_message(state, message, raw_keys, frame)
@@ -2572,18 +2580,56 @@ def _copy_source_context(
     args: argparse.Namespace,
     style: TerminalStyle,
 ) -> str:
+    handoff = _source_context_handoff(state, args, style, action_label="copy")
+    if handoff.error:
+        return handoff.error
+    error = file_actions.copy_text(handoff.text, getattr(args, "copy_cmd", None))
+    if error:
+        return error
+    if handoff.selected:
+        return f"Copied selected source {handoff.path}:{handoff.start}-{handoff.end}."
+    return f"Copied source context {handoff.path}:{handoff.line}."
+
+
+@dataclass(frozen=True)
+class SourceContextHandoff:
+    text: str = ""
+    path: str = ""
+    line: int = 0
+    start: int = 0
+    end: int = 0
+    selected: bool = False
+    error: str = ""
+
+
+def _source_context_handoff(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    *,
+    action_label: str,
+) -> SourceContextHandoff:
     if state.page == BrowserPage.FILE_DETAIL:
-        return _copy_file_detail_source_context(state, args, style)
-    if state.page != BrowserPage.SOURCE_FILE or not state.source_file_path:
-        return "No source file to copy."
-    content = source_file_module.load_source_file_content(
-        git.repo_root(),
-        state.source_file_path,
-    )
+        target = _file_detail_source_target(
+            state,
+            args,
+            style,
+            no_file_message=f"No changed file to {action_label} source.",
+        )
+        if isinstance(target, str):
+            return SourceContextHandoff(error=target)
+        path, target_line = target
+        selection = None
+    elif state.page == BrowserPage.SOURCE_FILE and state.source_file_path:
+        path = state.source_file_path
+        target_line = max(1, state.source_file_line)
+        selection = _source_selection_range(state)
+    else:
+        return SourceContextHandoff(error=f"No source file to {action_label}.")
+
+    content = source_file_module.load_source_file_content(git.repo_root(), path)
     if content.error:
-        return content.error
-    target_line = max(1, state.source_file_line)
-    selection = _source_selection_range(state)
+        return SourceContextHandoff(error=content.error)
     symbol_label = _source_symbol_label_for_content(content, target_line)
     if selection is None:
         text = source_file_module.source_context_markdown(
@@ -2592,53 +2638,45 @@ def _copy_source_context(
             context_lines=state.source_context_lines,
             symbol_label=symbol_label,
         )
-    else:
-        text = source_file_module.source_range_markdown(
-            content,
-            start_line=selection[0],
-            end_line=selection[1],
-            target_line=target_line,
-            symbol_label=symbol_label,
-        )
-    error = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
-    if error:
-        return error
-    target_line = max(1, min(target_line, len(content.lines)))
-    if selection is not None:
-        start, end = _clamp_source_range(selection[0], selection[1], len(content.lines))
-        return f"Copied selected source {content.path}:{start}-{end}."
-    return f"Copied source context {content.path}:{target_line}."
+        line = max(1, min(target_line, len(content.lines)))
+        return SourceContextHandoff(text=text, path=content.path, line=line)
+    text = source_file_module.source_range_markdown(
+        content,
+        start_line=selection[0],
+        end_line=selection[1],
+        target_line=target_line,
+        symbol_label=symbol_label,
+    )
+    start, end = _clamp_source_range(selection[0], selection[1], len(content.lines))
+    return SourceContextHandoff(
+        text=text,
+        path=content.path,
+        line=max(1, min(target_line, len(content.lines))),
+        start=start,
+        end=end,
+        selected=True,
+    )
 
 
-def _copy_file_detail_source_context(
+def _save_source_context(
     state: BrowserState,
     args: argparse.Namespace,
     style: TerminalStyle,
+    requested_path: str = "",
 ) -> str:
-    target = _file_detail_source_target(
-        state,
-        args,
-        style,
-        no_file_message="No changed file to copy source.",
+    handoff = _source_context_handoff(state, args, style, action_label="save")
+    if handoff.error:
+        return handoff.error
+    result = handoff_module.save_source_text(
+        handoff.text,
+        git.repo_root(),
+        requested_path,
     )
-    if isinstance(target, str):
-        return target
-    path, line = target
-    content = source_file_module.load_source_file_content(git.repo_root(), path)
-    if content.error:
-        return content.error
-    symbol_label = _source_symbol_label_for_content(content, line)
-    text = source_file_module.source_context_markdown(
-        content,
-        target_line=line,
-        context_lines=state.source_context_lines,
-        symbol_label=symbol_label,
-    )
-    error = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
-    if error:
-        return error
-    target_line = max(1, min(line, len(content.lines)))
-    return f"Copied source context {content.path}:{target_line}."
+    if result.error:
+        return result.error
+    if handoff.selected:
+        return f"Saved selected source to {result.display_path}."
+    return f"Saved source context to {result.display_path}."
 
 
 def _copy_source_symbol(
@@ -2646,17 +2684,42 @@ def _copy_source_symbol(
     args: argparse.Namespace,
     style: TerminalStyle,
 ) -> str:
-    target = _source_symbol_copy_target(state, args, style)
+    handoff = _source_symbol_handoff(state, args, style, action_label="copy")
+    if handoff.error:
+        return handoff.error
+    error = file_actions.copy_text(handoff.text, getattr(args, "copy_cmd", None))
+    if error:
+        return error
+    return f"Copied source symbol {handoff.path}:{handoff.start}-{handoff.end}."
+
+
+@dataclass(frozen=True)
+class SourceSymbolHandoff:
+    text: str = ""
+    path: str = ""
+    start: int = 0
+    end: int = 0
+    error: str = ""
+
+
+def _source_symbol_handoff(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    *,
+    action_label: str,
+) -> SourceSymbolHandoff:
+    target = _source_symbol_copy_target(state, args, style, action_label=action_label)
     if isinstance(target, str):
-        return target
+        return SourceSymbolHandoff(error=target)
     path, line = target
     content = source_file_module.load_source_file_content(git.repo_root(), path)
     if content.error:
-        return content.error
+        return SourceSymbolHandoff(error=content.error)
     target_line = max(1, min(line, len(content.lines)))
     symbol_path = _source_symbol_path_for_content(content, target_line)
     if not symbol_path:
-        return "No source symbol at current line."
+        return SourceSymbolHandoff(error="No source symbol at current line.")
     symbol = symbol_path[-1]
     start, end = _clamp_source_range(symbol.line, symbol.end_line, len(content.lines))
     label = " > ".join(f"{item.kind} {item.name}" for item in symbol_path)
@@ -2667,27 +2730,46 @@ def _copy_source_symbol(
         target_line=target_line,
         symbol_label=label,
     )
-    error = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
-    if error:
-        return error
-    return f"Copied source symbol {content.path}:{start}-{end}."
+    return SourceSymbolHandoff(text=text, path=content.path, start=start, end=end)
+
+
+def _save_source_symbol(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    requested_path: str = "",
+) -> str:
+    handoff = _source_symbol_handoff(state, args, style, action_label="save")
+    if handoff.error:
+        return handoff.error
+    result = handoff_module.save_source_text(
+        handoff.text,
+        git.repo_root(),
+        requested_path,
+        symbol=True,
+    )
+    if result.error:
+        return result.error
+    return f"Saved source symbol to {result.display_path}."
 
 
 def _source_symbol_copy_target(
     state: BrowserState,
     args: argparse.Namespace,
     style: TerminalStyle,
+    *,
+    action_label: str = "copy",
 ) -> tuple[str, int] | str:
     if state.page == BrowserPage.FILE_DETAIL:
         return _file_detail_source_target(
             state,
             args,
             style,
-            no_file_message="No changed file to copy source symbol.",
+            no_file_message=f"No changed file to {action_label} source symbol.",
         )
     if state.page == BrowserPage.SOURCE_FILE and state.source_file_path:
         return state.source_file_path, max(1, state.source_file_line)
-    return "No source symbol to copy."
+    return f"No source symbol to {action_label}."
 
 
 def _source_symbol_label(state: BrowserState) -> str:

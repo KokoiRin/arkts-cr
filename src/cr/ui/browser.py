@@ -486,6 +486,14 @@ class BrowserCommandExecutor:
             message = _copy_task_output(state, args)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_TASK_PROBLEM:
+            message = _copy_selected_task_problem(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_TASK_PROBLEMS:
+            message = _copy_task_problems(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SHOW_TASK_OUTPUT:
             BrowserNavigation.show_task_output(state)
             return BrowserActionResult(needs_redraw=True)
@@ -1138,6 +1146,29 @@ def _copy_task_output(state: BrowserState, args: argparse.Namespace) -> str:
     if message:
         return message
     return "Copied task output."
+
+
+def _copy_selected_task_problem(state: BrowserState, args: argparse.Namespace) -> str:
+    problems = _current_task_problems(state)
+    if not problems:
+        return "No task problem to copy."
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    text = task_problems_module.problem_handoff_text(problems[selected])
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return "Copied task problem."
+
+
+def _copy_task_problems(state: BrowserState, args: argparse.Namespace) -> str:
+    problems = _current_task_problems(state)
+    if not problems:
+        return "No task problems to copy."
+    text = task_problems_module.problems_handoff_text(problems)
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return f"Copied {len(problems)} task problems."
 
 
 def _save_prompt_handoff(

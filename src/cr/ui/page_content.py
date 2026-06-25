@@ -28,6 +28,7 @@ from ..vcs import git
 from . import commit_picker
 from .navigation import BrowserPage
 from . import tasks as task_runtime
+from . import task_problems as task_problems_module
 from .task_problems import TaskProblem
 from .terminal import TerminalStyle, file_uri, vscode_uri
 
@@ -142,6 +143,8 @@ def contextual_action_bar(
             "Enter open",
             "↑/↓ select",
             "task output",
+            "copy problem",
+            "copy problems",
             "copy task",
             "b back",
         ),
@@ -712,7 +715,7 @@ def task_problems_screen_lines(
     index_width = len(str(len(problems)))
     for index, problem in enumerate(problems[start:end], start):
         marker = ">" if index == selected else " "
-        location = task_problem_location(problem)
+        location = task_problems_module.problem_location(problem)
         lines.append(
             f"{marker} {str(index + 1).rjust(index_width)}  "
             f"{style.file_path(location)}  {problem.summary}"
@@ -722,11 +725,6 @@ def task_problems_screen_lines(
     else:
         lines.append("")
     return lines[:max_lines]
-
-
-def task_problem_location(problem: TaskProblem) -> str:
-    column = f":{problem.column}" if problem.column is not None else ""
-    return f"{problem.path}:{problem.line}{column}"
 
 
 def max_task_output_scroll(state: Any, max_lines: int) -> int:

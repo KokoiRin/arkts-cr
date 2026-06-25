@@ -1,8 +1,8 @@
 """Task output problem extraction for the interactive browser.
 
-This module owns lightweight file-location extraction from already captured
-task output. It does not manage task processes, render browser pages, open
-editors, or persist diagnostics.
+This module owns lightweight file-location extraction and handoff text for
+already captured task output. It does not manage task processes, render browser
+pages, open editors, copy to clipboards, or persist diagnostics.
 """
 
 from __future__ import annotations
@@ -28,6 +28,32 @@ class TaskProblem:
     column: int | None
     summary: str
     output_line: int
+
+
+def problem_location(problem: TaskProblem) -> str:
+    column = f":{problem.column}" if problem.column is not None else ""
+    return f"{problem.path}:{problem.line}{column}"
+
+
+def problem_handoff_text(problem: TaskProblem) -> str:
+    return "\n".join(
+        [
+            problem_location(problem),
+            problem.summary,
+        ]
+    )
+
+
+def problems_handoff_text(problems: list[TaskProblem]) -> str:
+    lines = ["# Task problems", ""]
+    for index, problem in enumerate(problems, start=1):
+        lines.extend(
+            [
+                f"{index}. {problem_location(problem)}",
+                f"   {problem.summary}",
+            ]
+        )
+    return "\n".join(lines)
 
 
 def extract_task_problems(repo: Path, lines: list[str]) -> list[TaskProblem]:

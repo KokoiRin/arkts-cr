@@ -405,7 +405,13 @@ Status: implemented.
 
 `problems` / `task problems` opens a current-task Problems page that extracts repo-local `path:line[:column]` anchors from captured task output. The page supports selection, scrolling, page history, and Enter-to-open through the existing editor handoff. It intentionally avoids severity parsing, build-tool-specific formats, history search, and diagnostics persistence.
 
-This is output-panel handoff, not diagnostics. `cr.ui.tasks` owns the text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
+### P0: Task Problems handoff
+
+Status: implemented.
+
+`copy problem` copies the selected Task Problems entry, while `copy problems` copies every current Task Problems entry in output order. `cr.ui.task_problems` owns location and handoff text formatting; Browser Action Execution owns clipboard side effects through existing file actions. This intentionally stays lighter than diagnostics: no severity parsing, tool-specific formats, history search, persistence, or `save problems`.
+
+Task output handoff remains output-panel handoff, not diagnostics. `cr.ui.tasks` owns the task output text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 
 ### P0: Review progress flow
 

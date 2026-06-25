@@ -178,6 +178,33 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(problems, [])
 
+    def test_task_problems_renders_selected_and_all_handoff_text(self):
+        problems = [
+            task_problems.TaskProblem(
+                path="src/Foo.ets",
+                line=12,
+                column=3,
+                summary="src/Foo.ets:12:3 error: bad call",
+                output_line=1,
+            ),
+            task_problems.TaskProblem(
+                path="src/Bar.ets",
+                line=8,
+                column=None,
+                summary="src/Bar.ets:8 warning",
+                output_line=2,
+            ),
+        ]
+
+        selected = task_problems.problem_handoff_text(problems[0])
+        all_text = task_problems.problems_handoff_text(problems)
+
+        self.assertIn("src/Foo.ets:12:3", selected)
+        self.assertIn("bad call", selected)
+        self.assertIn("# Task problems", all_text)
+        self.assertIn("1. src/Foo.ets:12:3", all_text)
+        self.assertIn("2. src/Bar.ets:8", all_text)
+
     def test_file_detail_navigation_jumps_between_hunk_headers(self):
         lines = [
             "File 1/1  src/Sample.ts",
@@ -868,6 +895,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("save task", commands)
         self.assertIn("task output", commands)
         self.assertIn("problems", commands)
+        self.assertIn("copy problem", commands)
+        self.assertIn("copy problems", commands)
         self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
@@ -957,6 +986,8 @@ class CliTests(unittest.TestCase):
         )
         self.assertIn("Enter open", task_problems)
         self.assertIn("task output", task_problems)
+        self.assertIn("copy problem", task_problems)
+        self.assertIn("copy problems", task_problems)
         self.assertIn("b back", task_problems)
         self.assertNotEqual(changed_files, file_detail)
 
@@ -1431,6 +1462,14 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("task problems").action,
             BrowserCommandAction.SHOW_TASK_PROBLEMS,
+        )
+        self.assertEqual(
+            parse_browser_command("copy problem").action,
+            BrowserCommandAction.COPY_TASK_PROBLEM,
+        )
+        self.assertEqual(
+            parse_browser_command("copy problems").action,
+            BrowserCommandAction.COPY_TASK_PROBLEMS,
         )
         save_prompt = parse_browser_command("save prompt")
         self.assertEqual(save_prompt.action, BrowserCommandAction.SAVE_PROMPT)
@@ -4046,6 +4085,132 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
         open_path.assert_called_once_with(second, 22, "editor {fileline}")
         self.assertIn("Opened problem src/Two.ets:22", state.status_message)
+
+    def test_browser_command_executor_copies_selected_task_problem(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "One.ets"
+            second = repo / "src" / "Two.ets"
+            first.parent.mkdir(parents=True)
+            first.write_text("sample", encoding="utf-8")
+            second.write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=1,
+                problem_scroll=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:22:4 error: bad call",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(state.problem_selected, 1)
+        self.assertEqual(state.problem_scroll, 1)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("src/Two.ets:22:4", copied)
+        self.assertIn("bad call", copied)
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertIn("Copied task problem.", state.status_message)
+
+    def test_browser_command_executor_copies_all_task_problems(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_OUTPUT,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:22:4 warning",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy problems"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("# Task problems", copied)
+        self.assertIn("1. src/One.ets:1:1", copied)
+        self.assertIn("2. src/Two.ets:22:4", copied)
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertIn("Copied 2 task problems.", state.status_message)
+
+    def test_browser_command_executor_does_not_copy_empty_task_problems(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(copy_cmd="copy-tool"),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+            result = executor.execute(parse_browser_command("copy problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertIn("No task problem to copy.", state.status_message)
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+            result = executor.execute(parse_browser_command("copy problems"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertIn("No task problems to copy.", state.status_message)
 
     def test_browser_command_executor_scrolls_task_output_page(self):
         from cr.ui.browser import parse_browser_command

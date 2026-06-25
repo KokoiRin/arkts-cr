@@ -99,8 +99,8 @@ owns project-local task preset discovery from `.cr/tasks.json`; CLI arguments
 and environment variables remain higher priority overrides.
 `cr.ui.task_problems` owns lightweight file-location extraction from current
 task output. It recognizes repo-local `path:line[:column]` anchors and returns
-Task Problem facts; it does not manage task lifecycle, render pages, open
-editors, parse severity, or persist diagnostics.
+Task Problem facts and handoff text; it does not manage task lifecycle, render
+pages, open editors, copy to clipboards, parse severity, or persist diagnostics.
 
 Product navigation terms:
 
@@ -212,9 +212,10 @@ Product navigation terms:
   history or parse diagnostics.
 - `Task Problems`: within Task Problems Page, `problems` / `task problems`
   lists repo-local file anchors extracted from current task output. Enter opens
-  the selected problem through File Actions. This is intentionally lighter than
-  a full diagnostics parser: no severity, no error codes, no history, and no
-  workspace persistence.
+  the selected problem through File Actions, while `copy problem` and
+  `copy problems` hand off selected/all current problems through the existing
+  clipboard action. This is intentionally lighter than a full diagnostics
+  parser: no severity, no error codes, no history, and no workspace persistence.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

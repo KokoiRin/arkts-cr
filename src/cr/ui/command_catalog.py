@@ -77,6 +77,8 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("tasks help", "show .cr/tasks.json format", "tasks help"),
                 CommandEntry("task output", "open current task output", "task output"),
                 CommandEntry("problems", "open current task problems", "problems"),
+                CommandEntry("copy problem", "copy selected task problem", "copy problem"),
+                CommandEntry("copy problems", "copy all current task problems", "copy problems"),
                 CommandEntry("copy task", "copy current task output", "copy task"),
                 CommandEntry("save task", "save current task output", "save task"),
                 CommandEntry("stop / cancel", "stop running task", "stop"),
@@ -307,6 +309,21 @@ def ensure_window(scroll: int, selected: int, total: int, capacity: int) -> int:
 
 
 def command_list_lines(style: TerminalStyle, max_lines: int) -> list[str]:
+    lines = _command_list_lines(style, include_group_spacing=True)
+    if len(lines) > max_lines:
+        lines = _command_list_lines(style, include_group_spacing=False)
+    if len(lines) <= max_lines:
+        return lines
+    clipped = lines[: max(1, max_lines - 1)]
+    clipped.append(style.dim(f"showing 1-{len(clipped)}/{len(lines)}"))
+    return clipped
+
+
+def _command_list_lines(
+    style: TerminalStyle,
+    *,
+    include_group_spacing: bool,
+) -> list[str]:
     lines = [
         style.bold("Commands"),
         "Use : then type a command. b/back returns to the file list.",
@@ -323,9 +340,6 @@ def command_list_lines(style: TerminalStyle, max_lines: int) -> list[str]:
             lines.append(
                 f"  {entry.command.ljust(command_width)}  {entry.description}"
             )
-        lines.append("")
-    if len(lines) <= max_lines:
-        return lines
-    clipped = lines[: max(1, max_lines - 1)]
-    clipped.append(style.dim(f"showing 1-{len(clipped)}/{len(lines)}"))
-    return clipped
+        if include_group_spacing:
+            lines.append("")
+    return lines

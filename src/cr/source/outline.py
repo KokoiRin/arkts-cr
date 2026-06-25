@@ -41,12 +41,13 @@ CONTAINER_RE = re.compile(
 )
 FUNCTION_RE = re.compile(
     r"^\s*(?:export\s+)?(?:async\s+)?function\s+"
-    r"(?P<name>[A-Za-z_$][\w$]*)\s*\("
+    r"(?P<name>[A-Za-z_$][\w$]*)\s*(?:<[^>{}]+>)?\s*\("
 )
 METHOD_RE = re.compile(
     r"^\s*(?:(?:public|private|protected)\s+)?"
     r"(?:(?:static|async|override)\s+)*"
-    r"(?P<name>[A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::[^={;]+)?[;{]?\s*$"
+    r"(?P<name>[A-Za-z_$][\w$]*)\s*(?:<[^>{}]+>)?\s*\([^)]*\)"
+    r"\s*(?::[^={;]+)?[;{]?\s*$"
 )
 ACCESSOR_RE = re.compile(
     r"^\s*(?:(?:public|private|protected)\s+)?"
@@ -56,7 +57,7 @@ ACCESSOR_RE = re.compile(
 )
 ARROW_FUNCTION_RE = re.compile(
     r"^\s*(?:const|let|var)\s+(?P<name>[A-Za-z_$][\w$]*)\s*="
-    r"\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>"
+    r"\s*(?:async\s*)?(?:<[^>{}]+>\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>"
 )
 FIELD_ARROW_HEADER_RE = re.compile(
     r"^\s*(?:(?:public|private|protected)\s+)?"
@@ -64,7 +65,8 @@ FIELD_ARROW_HEADER_RE = re.compile(
     r"(?P<name>[A-Za-z_$][\w$]*)(?P<tail>.*)$"
 )
 ARROW_VALUE_RE = re.compile(
-    r"^(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*(?::[^=]+)?=>"
+    r"^(?:async\s*)?(?:<[^>{}]+>\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)"
+    r"\s*(?::[^=]+)?=>"
 )
 
 

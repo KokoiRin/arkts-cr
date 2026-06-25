@@ -86,6 +86,37 @@ class OutlineTests(unittest.TestCase):
         self.assertEqual(modified_symbols(symbols, {3}), ["aboutToAppear"])
         self.assertEqual(modified_symbols(symbols, {6}), ["title"])
 
+    def test_parses_generic_function_like_symbols(self):
+        symbols = parse_outline(
+            "\n".join(
+                [
+                    "class Store {",
+                    "  createModel<T extends BaseModel>(value: T): T {",
+                    "    return value",
+                    "  }",
+                    "  makeModel = <T>(value: T) => {",
+                    "    return value",
+                    "  }",
+                    "}",
+                    "function parseModel<T>(value: T): T {",
+                    "  return value",
+                    "}",
+                    "const loadModel = <T>(value: T) => {",
+                    "  return value",
+                    "}",
+                ]
+            )
+        )
+
+        self.assertEqual(
+            [child.name for child in symbols[0].children],
+            ["createModel", "makeModel"],
+        )
+        self.assertEqual(symbols[1].name, "parseModel")
+        self.assertEqual(symbols[2].name, "loadModel")
+        self.assertEqual(modified_symbols(symbols, {3}), ["createModel"])
+        self.assertEqual(modified_symbols(symbols, {10}), ["parseModel"])
+
 
 if __name__ == "__main__":
     unittest.main()

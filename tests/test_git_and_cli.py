@@ -455,6 +455,38 @@ class CliTests(unittest.TestCase):
         self.assertEqual(getter, "class FeedCard > method title")
         self.assertEqual(setter, "class FeedCard > method title")
 
+    def test_source_outline_labels_generic_symbols(self):
+        symbols = outline.parse_outline(
+            "\n".join(
+                [
+                    "class Store {",
+                    "  private createModel<T extends BaseModel>(value: T): T {",
+                    "    return value",
+                    "  }",
+                    "  private makeModel = <T>(value: T) => {",
+                    "    return value",
+                    "  }",
+                    "}",
+                    "function parseModel<T>(value: T): T {",
+                    "  return value",
+                    "}",
+                    "const loadModel = <T>(value: T) => {",
+                    "  return value",
+                    "}",
+                ]
+            )
+        )
+
+        generic_method = outline.symbol_label_at_line(symbols, 3)
+        field_arrow = outline.symbol_label_at_line(symbols, 6)
+        generic_function = outline.symbol_label_at_line(symbols, 10)
+        top_level_arrow = outline.symbol_label_at_line(symbols, 13)
+
+        self.assertEqual(generic_method, "class Store > method createModel")
+        self.assertEqual(field_arrow, "class Store > method makeModel")
+        self.assertEqual(generic_function, "function parseModel")
+        self.assertEqual(top_level_arrow, "function loadModel")
+
     def test_source_file_view_reads_repo_file_and_windows_target_line(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -8184,6 +8216,57 @@ class CliTests(unittest.TestCase):
         self.assertIn("src/Foo.ets:2-4", copied)
         self.assertIn("Symbol: class Foo > method title", copied)
         self.assertIn("get title(): string", copied)
+        self.assertNotIn("other() {", copied)
+        self.assertIn("Copied source symbol src/Foo.ets:2-4.", state.status_message)
+
+    def test_browser_command_executor_copies_source_generic_method_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "class Foo {",
+                        "  private createModel<T extends BaseModel>(value: T): T {",
+                        "    return value",
+                        "  }",
+                        "  other() {",
+                        "    Text('nope')",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=3,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy source symbol"))
+
+        copied = copy_text.call_args.args[0]
+        self.assertTrue(result.handled)
+        self.assertIn("src/Foo.ets:2-4", copied)
+        self.assertIn("Symbol: class Foo > method createModel", copied)
+        self.assertIn("private createModel<T extends BaseModel>", copied)
         self.assertNotIn("other() {", copied)
         self.assertIn("Copied source symbol src/Foo.ets:2-4.", state.status_message)
 

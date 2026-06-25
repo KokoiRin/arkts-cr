@@ -240,6 +240,47 @@ class CliTests(unittest.TestCase):
         self.assertEqual(missing.message, 'No matches for "owner".')
         self.assertFalse(missing.found)
 
+    def test_file_detail_navigation_repeats_find_with_wraparound(self):
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  target first",
+            "  context",
+            "  Target second",
+            "  context",
+            "  target third",
+        ]
+
+        next_result = file_detail_navigation.find_next_text(
+            lines,
+            "target",
+            1,
+            "next",
+        )
+        next_wrap = file_detail_navigation.find_next_text(
+            lines,
+            "target",
+            4,
+            "next",
+        )
+        previous_result = file_detail_navigation.find_next_text(
+            lines,
+            "target",
+            3,
+            "previous",
+        )
+        previous_wrap = file_detail_navigation.find_next_text(
+            lines,
+            "target",
+            0,
+            "previous",
+        )
+
+        self.assertEqual(next_result.scroll, 2)
+        self.assertEqual(next_result.message, 'Found "target" at line 3.')
+        self.assertEqual(next_wrap.scroll, 0)
+        self.assertEqual(previous_result.scroll, 2)
+        self.assertEqual(previous_wrap.scroll, 4)
+
     def test_handoff_module_saves_repo_relative_and_absolute_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -565,6 +606,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("open hunk", text)
         self.assertIn("copy hunk", text)
         self.assertIn("find TEXT", text)
+        self.assertIn("next match", text)
+        self.assertIn("prev match", text)
         self.assertIn("save diff", text)
         self.assertIn("next hunk", text)
         self.assertIn("prev hunk", text)
@@ -586,6 +629,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("open hunk", commands)
         self.assertIn("copy hunk", commands)
         self.assertIn("find TEXT", commands)
+        self.assertIn("next match", commands)
+        self.assertIn("prev match", commands)
         self.assertIn("save diff", commands)
         self.assertIn("next hunk", commands)
         self.assertIn("prev hunk", commands)
@@ -839,6 +884,14 @@ class CliTests(unittest.TestCase):
         find_command = parse_browser_command("find TargetValue")
         self.assertEqual(find_command.action, BrowserCommandAction.FIND_IN_FILE)
         self.assertEqual(find_command.value, "TargetValue")
+        self.assertEqual(
+            parse_browser_command("next match").action,
+            BrowserCommandAction.NEXT_MATCH,
+        )
+        self.assertEqual(
+            parse_browser_command("prev match").action,
+            BrowserCommandAction.PREVIOUS_MATCH,
+        )
         save_diff = parse_browser_command("save diff")
         self.assertEqual(save_diff.action, BrowserCommandAction.SAVE_DIFF)
         self.assertEqual(save_diff.value, "")
@@ -1960,7 +2013,60 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 3)
         self.assertEqual(state.review_notes["src/Sample.ts"], "keep note")
         self.assertIsNotNone(state.task)
+        self.assertEqual(state.file_find_text, "targetvalue")
         self.assertIn('Found "targetvalue" at line 4.', state.status_message)
+
+    def test_browser_command_executor_repeats_file_detail_find_matches(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=0,
+            review_notes={"src/Sample.ts": "keep note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  target first",
+            "  context",
+            "  Target second",
+            "  context",
+            "  target third",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch("cr.ui.browser._max_file_scroll", return_value=10):
+                find = executor.execute(
+                    parse_browser_command("find target", raw_keys=True)
+                )
+                next_match = executor.execute(
+                    parse_browser_command("next match", raw_keys=True)
+                )
+                previous_match = executor.execute(
+                    parse_browser_command("prev match", raw_keys=True)
+                )
+
+        self.assertTrue(find.needs_redraw)
+        self.assertTrue(next_match.needs_redraw)
+        self.assertTrue(previous_match.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(state.file_scroll, 0)
+        self.assertEqual(state.file_find_text, "target")
+        self.assertEqual(state.review_notes["src/Sample.ts"], "keep note")
+        self.assertIsNotNone(state.task)
+        self.assertIn('Found "target" at line 1.', state.status_message)
 
     def test_browser_command_executor_reports_find_outside_file_detail(self):
         from cr.ui.browser import parse_browser_command
@@ -1976,6 +2082,27 @@ class CliTests(unittest.TestCase):
         )
 
         result = executor.execute(parse_browser_command("find target", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertIn("Open a file detail to find text.", state.status_message)
+
+    def test_browser_command_executor_reports_repeat_find_outside_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        state.file_find_text = "target"
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("next match", raw_keys=True))
 
         self.assertTrue(result.handled)
         self.assertTrue(result.needs_redraw)
@@ -2008,6 +2135,62 @@ class CliTests(unittest.TestCase):
 
         self.assertTrue(empty.needs_redraw)
         self.assertTrue(missing.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertEqual(state.file_find_text, "owner")
+        self.assertIn('No matches for "owner".', state.status_message)
+
+    def test_browser_command_executor_reports_repeat_find_without_query(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            file_scroll=2,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("next match", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIn("Run find TEXT first.", state.status_message)
+
+    def test_browser_command_executor_reports_repeat_find_without_matches(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            file_scroll=2,
+        )
+        state.file_find_text = "owner"
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch(
+            "cr.ui.browser._cached_file_lines",
+            return_value=["File 1/1  src/Sample.ts", "  context"],
+        ):
+            result = executor.execute(parse_browser_command("next match", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 2)
         self.assertIn('No matches for "owner".', state.status_message)
@@ -6839,6 +7022,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("open hunk", text)
         self.assertIn("copy hunk", text)
         self.assertIn("find TEXT", text)
+        self.assertIn("next match", text)
+        self.assertIn("prev match", text)
         self.assertIn("save diff", text)
         self.assertIn("next hunk", text)
         self.assertIn("prev hunk", text)
@@ -6866,6 +7051,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("open hunk", commands)
         self.assertIn("copy hunk", commands)
         self.assertIn("find TEXT", commands)
+        self.assertIn("next match", commands)
+        self.assertIn("prev match", commands)
         self.assertIn("save diff", commands)
         self.assertIn("next hunk", commands)
         self.assertIn("prev hunk", commands)

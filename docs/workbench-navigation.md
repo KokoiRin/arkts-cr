@@ -127,6 +127,7 @@ File Detail
     BrowserPage.FILE_DETAIL -> "file"
     cached file lines
     file_scroll
+    file_find_text
     n/p navigation
 
 Command Palette
@@ -330,7 +331,7 @@ Status: implemented.
 
 Status: implemented.
 
-`next hunk` / `]` and `prev hunk` / `[` now move within the current File Detail diff by jumping between rendered hunk headers. `find TEXT` searches the current rendered File Detail text and jumps to the first match. `open hunk` opens the active hunk's new-file line in the editor through the existing open command configuration. `copy hunk` copies the active rendered hunk as line-numbered Markdown review context. These commands stay inside the selected file and preserve Review Scope, filters, notes, progress, and task state. `cr.ui.file_detail_navigation` owns hunk header detection, target scroll calculation, active hunk line resolution, active hunk extraction, and rendered text find. `cr.ui.selected_file_actions` owns selected hunk open/copy workflows, while `BrowserCommandExecutor` keeps page checks, cached File Detail line retrieval, status feedback, and redraw control.
+`next hunk` / `]` and `prev hunk` / `[` now move within the current File Detail diff by jumping between rendered hunk headers. `find TEXT` searches the current rendered File Detail text and jumps to the first match; `next match` / `prev match` repeat that last non-empty query with wraparound. `open hunk` opens the active hunk's new-file line in the editor through the existing open command configuration. `copy hunk` copies the active rendered hunk as line-numbered Markdown review context. These commands stay inside the selected file and preserve Review Scope, filters, notes, progress, and task state. `cr.ui.file_detail_navigation` owns hunk header detection, target scroll calculation, active hunk line resolution, active hunk extraction, rendered text find, and repeated match navigation. `cr.ui.selected_file_actions` owns selected hunk open/copy workflows, while `BrowserCommandExecutor` keeps page checks, cached File Detail line retrieval, status feedback, and redraw control.
 
 ### P0: File action configuration
 

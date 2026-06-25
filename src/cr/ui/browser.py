@@ -75,6 +75,7 @@ class BrowserState:
     page: str = BrowserPage.CHANGED_FILES
     filter_text: str = ""
     source_filter: str = ""
+    file_find_text: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
     review_notes: dict[str, str] = field(default_factory=dict)
@@ -625,6 +626,14 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.FIND_IN_FILE:
             message = _find_in_current_file(state, args, style, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.NEXT_MATCH:
+            message = _find_next_match(state, args, style, "next")
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.PREVIOUS_MATCH:
+            message = _find_next_match(state, args, style, "previous")
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.HOME:
@@ -1363,7 +1372,44 @@ def _find_in_current_file(
         args,
         style,
     )
+    text_query = query.strip()
+    if text_query:
+        state.file_find_text = text_query
     result = file_detail_navigation.find_text(lines, query)
+    if result.found:
+        state.file_scroll = min(result.scroll, _max_file_scroll(state, args, style))
+    return result.message
+
+
+def _find_next_match(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    direction: str,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to find text."
+    text_query = state.file_find_text.strip()
+    if not text_query:
+        return "Run find TEXT first."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to find text."
+    state.clamp_selection()
+    lines = _cached_file_lines(
+        state,
+        visible[state.selected],
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    result = file_detail_navigation.find_next_text(
+        lines,
+        text_query,
+        state.file_scroll,
+        direction,
+    )
     if result.found:
         state.file_scroll = min(result.scroll, _max_file_scroll(state, args, style))
     return result.message

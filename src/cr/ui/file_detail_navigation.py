@@ -79,6 +79,40 @@ def find_text(lines: list[str], query: str) -> FileFindResult:
     return FileFindResult(0, f'No matches for "{text_query}".', False)
 
 
+def find_next_text(
+    lines: list[str],
+    query: str,
+    current_scroll: int,
+    direction: str,
+) -> FileFindResult:
+    text_query = query.strip()
+    if not text_query:
+        return FileFindResult(current_scroll, "Run find TEXT first.", False)
+    matches = _find_match_positions(lines, text_query)
+    if not matches:
+        return FileFindResult(current_scroll, f'No matches for "{text_query}".', False)
+    if direction == "previous":
+        before = [position for position in matches if position < current_scroll]
+        target = before[-1] if before else matches[-1]
+    else:
+        after = [position for position in matches if position > current_scroll]
+        target = after[0] if after else matches[0]
+    return FileFindResult(
+        target,
+        f'Found "{text_query}" at line {target + 1}.',
+        True,
+    )
+
+
+def _find_match_positions(lines: list[str], query: str) -> list[int]:
+    normalized = query.casefold()
+    return [
+        index
+        for index, line in enumerate(lines[1:])
+        if normalized in _plain_text(line).casefold()
+    ]
+
+
 def hunk_scroll_positions(lines: list[str]) -> list[int]:
     positions: list[int] = []
     body = lines[1:]

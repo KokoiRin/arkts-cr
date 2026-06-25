@@ -471,6 +471,10 @@ class BrowserCommandExecutor:
                 message = _copy_current_line(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_SOURCE_CONTEXT:
+            message = _copy_source_context(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_CHANGE:
             message = _copy_current_change(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
@@ -1949,6 +1953,30 @@ def _copy_source_line(
     if error:
         return error
     return f"Copied source line {anchor}."
+
+
+def _copy_source_context(
+    state: BrowserState,
+    args: argparse.Namespace,
+) -> str:
+    if state.page != BrowserPage.SOURCE_FILE or not state.source_file_path:
+        return "No source file to copy."
+    content = source_file_module.load_source_file_content(
+        git.repo_root(),
+        state.source_file_path,
+    )
+    if content.error:
+        return content.error
+    target_line = max(1, state.source_file_line)
+    text = source_file_module.source_context_markdown(
+        content,
+        target_line=target_line,
+    )
+    error = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if error:
+        return error
+    target_line = max(1, min(target_line, len(content.lines)))
+    return f"Copied source context {content.path}:{target_line}."
 
 
 def _copy_current_change(

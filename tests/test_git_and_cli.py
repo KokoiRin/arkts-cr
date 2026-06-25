@@ -355,6 +355,26 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(content.error)
         self.assertEqual(missing.error, "Source file not found.")
 
+    def test_source_file_formats_target_context_snippet(self):
+        content = source_file.SourceFileContent(
+            "src/Foo.ets",
+            [f"line {index}" for index in range(1, 11)],
+        )
+
+        snippet = source_file.source_context_markdown(
+            content,
+            target_line=5,
+            context_lines=2,
+        )
+
+        self.assertIn("src/Foo.ets:5", snippet)
+        self.assertIn("```text", snippet)
+        self.assertIn("  3  line 3", snippet)
+        self.assertIn("> 5  line 5", snippet)
+        self.assertIn("  7  line 7", snippet)
+        self.assertNotIn("line 2", snippet)
+        self.assertNotIn("line 8", snippet)
+
     def test_file_detail_navigation_jumps_between_hunk_headers(self):
         lines = [
             "File 1/1  src/Sample.ts",
@@ -1014,6 +1034,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open line", text)
         self.assertIn("copy hunk", text)
         self.assertIn("copy line", text)
+        self.assertIn("copy source", text)
         self.assertIn("copy change", text)
         self.assertIn("find TEXT", text)
         self.assertIn("next match", text)
@@ -1058,6 +1079,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open line", commands)
         self.assertIn("copy hunk", commands)
         self.assertIn("copy line", commands)
+        self.assertIn("copy source", commands)
         self.assertIn("copy change", commands)
         self.assertNotIn("note change TEXT", commands)
         self.assertIn("find TEXT", commands)
@@ -1158,6 +1180,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("next match", source_file_bar)
         self.assertIn("open", source_file_bar)
         self.assertIn("copy line", source_file_bar)
+        self.assertIn("copy source", source_file_bar)
         self.assertIn("b back", source_file_bar)
         self.assertNotEqual(changed_files, file_detail)
 
@@ -1614,6 +1637,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy line").action,
             BrowserCommandAction.COPY_LINE,
+        )
+        self.assertEqual(
+            parse_browser_command("copy source").action,
+            BrowserCommandAction.COPY_SOURCE_CONTEXT,
         )
         self.assertEqual(
             parse_browser_command("copy change").action,
@@ -4724,6 +4751,100 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_line, 20)
         self.assertEqual(state.source_file_scroll, 7)
         self.assertIn("Copied source line src/Foo.ets:20", state.status_message)
+
+    def test_browser_command_executor_copies_source_file_context(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 11)),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=5,
+                source_file_scroll=2,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy source"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("src/Foo.ets:5", copied)
+        self.assertIn("> 5  line 5", copied)
+        self.assertIn("  8  line 8", copied)
+        self.assertNotIn("line 1", copied)
+        copy_text.assert_called_once_with(copied, "copy {text}")
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_line, 5)
+        self.assertEqual(state.source_file_scroll, 2)
+        self.assertIn("Copied source context src/Foo.ets:5", state.status_message)
+
+    def test_browser_command_executor_reports_empty_source_context_copy(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([], page=BrowserPage.SOURCE_FILE)
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(copy_cmd="copy {text}"),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+            result = executor.execute(parse_browser_command("copy source"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertIn("No source file to copy.", state.status_message)
+
+    def test_browser_command_executor_reports_missing_source_context_copy(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Missing.ets",
+                source_file_line=5,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+                    result = executor.execute(parse_browser_command("copy source"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertIn("Source file not found.", state.status_message)
 
     def test_browser_command_executor_reports_empty_source_file_line_copy(self):
         from cr.ui.browser import parse_browser_command

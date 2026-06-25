@@ -206,6 +206,7 @@ Task Problems Page is now explicit as a lightweight current-task Problems panel.
 Source File Page is now explicit as a cross-layer read-only source preview. It can be opened from Task Problems with `view problem`, keeps its own source path, target line, and scroll state, and does not change Review Scope or require the file to be in Changed Files.
 Source File Page find is explicit as page-local text navigation. `find TEXT`, `next match`, and `prev match` search only the current source preview, update the Source File Page target line, and keep File Detail find and Task Output find state separate.
 Source File Page copy-line is explicit as source-preview handoff. `copy line` copies the current Source File Page target `path:line`, reusing the same command vocabulary as File Detail without adding source snippets or multi-line selection.
+Source File Page source-snippet handoff is explicit as AI/review handoff. `copy source` copies Markdown source context around the current target line without adding selection state or editing behavior.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
@@ -453,6 +454,12 @@ Source File Page supports `find TEXT`, `next match`, and `prev match` over the c
 Status: implemented.
 
 Source File Page supports `copy line` for the current target-line marker. It copies the repo-relative `path:line` anchor through the configured copy command, preserves Source File Page state, and reports an empty state if no source file is active. It intentionally avoids copying source text snippets, multi-line selections, editing, and File Detail line-resolution changes.
+
+### P0: Source File Page source-snippet handoff
+
+Status: implemented.
+
+Source File Page supports `copy source` for the current target-line marker. It copies a compact Markdown snippet headed by `path:line`, including up to three lines before and after the target and a `>` marker on the target line. `cr.ui.source_file` owns snippet formatting; Browser Action Execution owns clipboard side effects and unreadable-source feedback. It intentionally avoids multi-line interactive selection, syntax highlighting, source editing, cross-file snippets, and persistence.
 
 Task output handoff remains output-panel handoff, not diagnostics. `cr.ui.tasks` owns the task output text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 

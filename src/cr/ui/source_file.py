@@ -90,6 +90,35 @@ def load_source_file_view(
     )
 
 
+def source_context_markdown(
+    content: SourceFileContent,
+    *,
+    target_line: int,
+    context_lines: int = 3,
+) -> str:
+    if content.error:
+        return content.error
+    lines = content.lines or [""]
+    target_line = max(1, min(target_line, len(lines)))
+    context_lines = max(0, context_lines)
+    start = max(1, target_line - context_lines)
+    end = min(len(lines), target_line + context_lines)
+    width = len(str(end))
+    body = []
+    for line_number in range(start, end + 1):
+        marker = ">" if line_number == target_line else " "
+        body.append(f"{marker} {str(line_number).rjust(width)}  {lines[line_number - 1]}")
+    return "\n".join(
+        [
+            f"{content.path}:{target_line}",
+            "",
+            "```text",
+            *body,
+            "```",
+        ]
+    )
+
+
 def _error_content(path: str, error: str) -> SourceFileContent:
     return SourceFileContent(Path(path).as_posix(), [], error)
 

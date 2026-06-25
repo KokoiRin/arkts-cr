@@ -161,6 +161,7 @@ def contextual_action_bar(
             "next match",
             "open",
             "copy line",
+            "copy source",
             "b back",
         ),
     }

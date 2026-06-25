@@ -8,6 +8,46 @@
 
 目标用户是已经主要让 AI 写代码的人。用户最常见的工作不是从零写代码，而是接管 AI 产物：查看这次改了哪些文件，阅读 diff 和相关源码，做简单跳转，偶尔运行 build/test/lint，查看失败问题和日志，再把最小必要上下文交给 AI 或 reviewer 继续处理。
 
+## Codex 持续执行 Goal
+
+下面这段适合直接作为 Codex Goal 使用。它的重点不是描述愿景，而是约束 Codex 每一轮都能自己选择 P0、实现、验证并提交：
+
+```text
+持续推进 /Users/bytedance/Documents/Codex/arkts-cr，把它做成 terminal-first 的 AI change workbench。
+
+产品最终目标：服务“AI 写完代码后，人接管、理解、验证、交还上下文”的 95% 高频流程。核心流程是：
+Review Scope -> Changed Files -> File Detail -> Task Output -> Task Problems -> Source File -> Handoff。
+
+每一轮都先阅读 docs/product-goal.md、docs/p0.md、README.md 和当前 git 状态，然后从真实使用摩擦中选择一个最小 P0 垂直切片。P0 只能来自这些方向：
+1. 更快查看本轮变更和文件层级。
+2. 更顺畅阅读单文件 diff / 源码。
+3. 更直接在文件、hunk、改动行、问题、源码之间跳转。
+4. 更可靠运行 build/test/lint 并查看 5-10 行任务状态。
+5. 更容易从日志和 Problems 定位失败。
+6. 更方便复制或保存给 AI / reviewer 的最小上下文。
+
+优先做能减少 IDE、终端、AI 聊天之间来回找上下文的能力。暂时不要做完整 GUI、代码编辑器、语言服务、补全、重构、调试器、大型日志平台或通用任务编排系统。IDE 继续负责编辑；cr 负责变更接管、阅读、验证、导航和 handoff。
+
+每个 P0 必须满足：
+- 可以一句话说明它服务哪条核心流程。
+- 是一个端到端可用的最小切片，而不是半截基础设施。
+- 保持 TUI 简洁，主视图稳定，不重新刷乱用户输入区。
+- 核心逻辑尽量沉到 core/domain/helper 层，TUI 只做呈现和输入。
+- 不写具体业务仓库特例，仓库命令走配置或已有任务边界。
+- 有聚焦测试；风险较高时补回归测试。
+- 更新 README 或 docs/p0.md，让产品状态不会漂。
+
+工作方式：
+1. 先检查当前实现和未提交改动，不覆盖用户修改。
+2. 写或更新一个很小的 OpenSpec/design 记录本轮 P0。
+3. 用 TDD 做红绿重构，优先测公开行为。
+4. 实现后运行聚焦测试、必要的全量测试、diff check。
+5. 用 Warden/自审确认没有越界、过度设计或破坏主流程。
+6. 提交并推送，最终用中文汇报：做了什么、为什么是 P0、怎么验证、commit。
+
+如果没有用户新指令，就按 docs/p0.md 的 Next P0 candidates 继续推进；如果发现候选不再是最大摩擦，先更新 docs/p0.md 的判断，再实现新的最小 P0。
+```
+
 产品主线应该覆盖这 95% 的日常需求：
 
 ```text

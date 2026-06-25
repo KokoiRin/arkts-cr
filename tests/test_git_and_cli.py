@@ -1706,6 +1706,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("save source symbol", file_detail_text)
         self.assertIn("copy problem context", file_detail_text)
         self.assertIn("save problem context", file_detail_text)
+        self.assertIn("next problem", file_detail_text)
+        self.assertIn("prev problem", file_detail_text)
 
     def test_page_content_help_screen_lists_source_file_commands(self):
         state = BrowserState([], page=BrowserPage.HELP, help_topic_page=BrowserPage.SOURCE_FILE)
@@ -8470,6 +8472,197 @@ class CliTests(unittest.TestCase):
         self.assertIn("Opened problem diff src/Two.ets:2.", state.status_message)
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+
+    def test_browser_command_executor_steps_file_detail_problem_to_visible_diff_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "Foo.ets").write_text("one\ntwo\nthree\n", encoding="utf-8")
+            (source_dir / "Other.ets").write_text("one\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 1, 0)],
+                page=BrowserPage.FILE_DETAIL,
+                selected=0,
+                problem_selected=0,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/Other.ets:1:1 error",
+                        "src/Foo.ets:2:1 error",
+                        "src/Foo.ets:3:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 1/1  src/Foo.ets",
+                "  @@ -1,3 +1,4 @@",
+                "     1    1 | one",
+                "          2 | +two",
+                "     2    3 | three",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    with patch("cr.ui.browser._max_file_scroll", return_value=10):
+                        result = executor.execute(parse_browser_command("next problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.problem_selected, 1)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIn("已选择当前文件问题 1/2 src/Foo.ets:2。", state.status_message)
+
+    def test_browser_command_executor_steps_file_detail_previous_problem(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "Foo.ets").write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 1, 0)],
+                page=BrowserPage.FILE_DETAIL,
+                selected=0,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/Foo.ets:2:1 error",
+                        "src/Foo.ets:3:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 1/1  src/Foo.ets",
+                "  @@ -1,3 +1,4 @@",
+                "     1    1 | one",
+                "          2 | +two",
+                "     2    3 | three",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    with patch("cr.ui.browser._max_file_scroll", return_value=10):
+                        result = executor.execute(parse_browser_command("prev problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.problem_selected, 0)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIn("已选择当前文件问题 1/2 src/Foo.ets:2。", state.status_message)
+
+    def test_browser_command_executor_steps_file_detail_problem_without_visible_diff_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "Foo.ets").write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 1, 0)],
+                page=BrowserPage.FILE_DETAIL,
+                selected=0,
+                file_scroll=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Foo.ets:3:1 error"],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 1/1  src/Foo.ets",
+                "  @@ -1,1 +1,2 @@",
+                "          2 | +two",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    result = executor.execute(parse_browser_command("next problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.problem_selected, 0)
+        self.assertEqual(state.file_scroll, 1)
+        self.assertIn(
+            "已选择当前文件问题 1/1 src/Foo.ets:3，但当前 diff 不显示该行。",
+            state.status_message,
+        )
+
+    def test_browser_command_executor_reports_file_detail_without_file_problems(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "Foo.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Other.ets").write_text("one\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 1, 0)],
+                page=BrowserPage.FILE_DETAIL,
+                selected=0,
+                file_scroll=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Other.ets:1:1 error"],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("next problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 1)
+        self.assertIn("当前文件没有任务问题。", state.status_message)
 
     def test_browser_command_executor_views_selected_task_output_problem_diff(self):
         from cr.ui.browser import parse_browser_command

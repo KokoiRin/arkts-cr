@@ -123,6 +123,8 @@ prev match       上一个查找匹配
 open line        用编辑器打开当前渲染行
 view source      在 TUI 中查看当前源码行
 view source symbol 查看当前源码行并选中函数或方法范围
+next problem     跳到当前文件的下一个任务问题
+prev problem     跳到当前文件的上一个任务问题
 copy source      复制当前源码行附近上下文
 copy source symbol 复制当前函数或方法范围
 save source      保存当前源码行附近上下文

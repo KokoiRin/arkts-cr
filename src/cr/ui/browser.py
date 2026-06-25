@@ -679,12 +679,18 @@ class BrowserCommandExecutor:
             BrowserNavigation.show_task_problems(state)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.NEXT_TASK_PROBLEM:
-            message = _jump_task_problem(state, "next")
+            if state.page == BrowserPage.FILE_DETAIL:
+                message = _jump_file_detail_task_problem(state, args, style, "next")
+            else:
+                message = _jump_task_problem(state, "next")
             if message:
                 _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.PREVIOUS_TASK_PROBLEM:
-            message = _jump_task_problem(state, "previous")
+            if state.page == BrowserPage.FILE_DETAIL:
+                message = _jump_file_detail_task_problem(state, args, style, "previous")
+            else:
+                message = _jump_task_problem(state, "previous")
             if message:
                 _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
@@ -2319,6 +2325,81 @@ def _jump_task_problem_file(state: BrowserState, direction: str) -> str:
             state.problem_selected = index
             return ""
     return "已经在第一个问题文件。"
+
+
+def _jump_file_detail_task_problem(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    direction: str,
+) -> str:
+    visible = state.visible_changes
+    if not visible:
+        return "当前文件没有任务问题。"
+    state.clamp_selection()
+    change = visible[state.selected]
+    problems = _current_task_problems(state)
+    file_problems = [
+        (index, problem)
+        for index, problem in enumerate(problems)
+        if problem.path == change.path
+    ]
+    if not file_problems:
+        return "当前文件没有任务问题。"
+
+    target_position = _file_problem_step_position(
+        file_problems,
+        max(0, min(state.problem_selected, len(problems) - 1)),
+        direction,
+    )
+    if target_position is None:
+        if direction == "next":
+            return "已经在当前文件最后一个问题。"
+        return "已经在当前文件第一个问题。"
+
+    global_index, problem = file_problems[target_position]
+    state.problem_selected = global_index
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    position = file_detail_navigation.new_line_position(lines, problem.line)
+    label = (
+        f"已选择当前文件问题 {target_position + 1}/{len(file_problems)} "
+        f"{problem.path}:{problem.line}"
+    )
+    if position is None:
+        return f"{label}，但当前 diff 不显示该行。"
+    state.file_scroll = max(0, min(position, _max_file_scroll(state, args, style)))
+    return f"{label}。"
+
+
+def _file_problem_step_position(
+    file_problems: list[tuple[int, task_problems_module.TaskProblem]],
+    selected: int,
+    direction: str,
+) -> int | None:
+    indices = [index for index, _problem in file_problems]
+    if selected in indices:
+        current = indices.index(selected)
+        if len(indices) == 1:
+            return current
+        if direction == "next":
+            return current + 1 if current < len(indices) - 1 else None
+        return current - 1 if current > 0 else None
+    if direction == "next":
+        for position, index in enumerate(indices):
+            if index > selected:
+                return position
+        return 0
+    for position in range(len(indices) - 1, -1, -1):
+        if indices[position] < selected:
+            return position
+    return len(indices) - 1
 
 
 def _scroll_source_file(state: BrowserState, delta: int) -> None:

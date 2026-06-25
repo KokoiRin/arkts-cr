@@ -244,7 +244,8 @@ source mark          标记当前源码行
 source select to     选择标记行到当前行
 source select A B    选择指定源码范围
 source select symbol 选择当前函数或方法范围
-copy problem context 复制问题 + 源码选区/上下文 + diff 上下文
+copy problem context 复制源码选区/上下文 + diff；命中任务问题时带问题和输出
+save problem context 保存源码选区/上下文 + diff；命中任务问题时带问题和输出
 ```
 
 ### Help：每个页面都有中文帮助

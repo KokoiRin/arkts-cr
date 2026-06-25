@@ -1833,11 +1833,23 @@ def _problem_context_target(
             task_output_text=_task_problem_output_excerpt(state, problem),
         )
     if state.page == BrowserPage.SOURCE_FILE and state.source_file_path:
+        current = _source_file_task_problem(state)
+        problem = current[0] if current is not None else None
         return ProblemContextTarget(
             path=state.source_file_path,
             line=max(1, state.source_file_line),
             context_lines=state.source_context_lines,
             source_range=_source_selection_range(state),
+            problem_text=(
+                task_problems_module.problem_handoff_text(problem)
+                if problem is not None
+                else ""
+            ),
+            task_output_text=(
+                _task_problem_output_excerpt(state, problem)
+                if problem is not None
+                else ""
+            ),
         )
     if state.page == BrowserPage.FILE_DETAIL:
         target = _file_detail_source_target(

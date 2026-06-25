@@ -78,6 +78,7 @@ from cr.ui import workspace_persistence
 from cr.ui.terminal import TerminalStyle
 from cr.vcs import git
 from cr.vcs.git import CommitSummary, FileChange
+from cr.source import outline
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -371,6 +372,31 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("## Problem", no_diff)
         self.assertIn("No diff in current review scope.", no_diff)
 
+    def test_source_outline_labels_current_symbol_at_line(self):
+        symbols = outline.parse_outline(
+            "\n".join(
+                [
+                    "struct FeedCard {",
+                    "  build() {",
+                    "    Text('hello')",
+                    "  }",
+                    "}",
+                    "function helper() {",
+                    "  return 1",
+                    "}",
+                    "const loose = 1",
+                ]
+            )
+        )
+
+        method = outline.symbol_label_at_line(symbols, 3)
+        function = outline.symbol_label_at_line(symbols, 7)
+        outside = outline.symbol_label_at_line(symbols, 9)
+
+        self.assertEqual(method, "struct FeedCard > method build")
+        self.assertEqual(function, "function helper")
+        self.assertEqual(outside, "")
+
     def test_source_file_view_reads_repo_file_and_windows_target_line(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -468,6 +494,17 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("line 2", snippet)
         self.assertNotIn("line 8", snippet)
 
+        labeled = source_file.source_context_markdown(
+            content,
+            target_line=5,
+            context_lines=1,
+            symbol_label="struct Foo > method build",
+        )
+
+        self.assertIn("Symbol: struct Foo > method build", labeled)
+        self.assertIn("> 5  line 5", labeled)
+        self.assertNotIn("line 3", labeled)
+
     def test_source_file_marks_selected_rows_and_formats_range_snippet(self):
         content = source_file.SourceFileContent(
             "src/Foo.ets",
@@ -508,6 +545,18 @@ class CliTests(unittest.TestCase):
         self.assertIn("  4  line 4", snippet)
         self.assertNotIn("line 1", snippet)
         self.assertNotIn("line 5", snippet)
+
+        labeled = source_file.source_range_markdown(
+            content,
+            start_line=2,
+            end_line=4,
+            target_line=3,
+            symbol_label="struct Foo > method build",
+        )
+
+        self.assertIn("Symbol: struct Foo > method build", labeled)
+        self.assertIn("src/Foo.ets:2-4", labeled)
+        self.assertNotIn("line 5", labeled)
 
     def test_file_detail_navigation_jumps_between_hunk_headers(self):
         lines = [
@@ -1730,6 +1779,7 @@ class CliTests(unittest.TestCase):
             selection_start=1,
             selection_end=3,
             mark_line=2,
+            symbol_label="struct Foo > method build",
         )
         text = "\n".join(lines)
 
@@ -1737,6 +1787,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("context: 8", text)
         self.assertIn("selection: 1-3", text)
         self.assertIn("mark: 2", text)
+        self.assertIn("symbol: struct Foo > method build", text)
         self.assertIn("* 1  first", text)
         self.assertIn("> 2  target", text)
         self.assertIn("* 3  third", text)
@@ -1759,6 +1810,41 @@ class CliTests(unittest.TestCase):
 
         self.assertIn("Source src/Missing.ets", error_text)
         self.assertIn("Source file not found.", error_text)
+
+    def test_browse_source_file_screen_lines_show_current_symbol(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "struct Foo {",
+                        "  build() {",
+                        "    Text('hello')",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=3,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                lines = browser_module._browse_source_file_screen_lines(
+                    state,
+                    TerminalStyle(False),
+                    max_lines=8,
+                )
+
+        text = "\n".join(lines)
+        self.assertIn("symbol: struct Foo > method build", text)
+        self.assertIn("> 3", text)
 
     def test_browser_page_model_names_current_pages(self):
         self.assertEqual(BrowserPage.SCOPE_HOME, "scopes")
@@ -6483,6 +6569,53 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_line, 5)
         self.assertEqual(state.source_file_scroll, 2)
         self.assertIn("Copied source context src/Foo.ets:5", state.status_message)
+
+    def test_browser_command_executor_copies_source_file_context_with_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "struct Foo {",
+                        "  build() {",
+                        "    Text('hello')",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=3,
+                source_context_lines=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy source"))
+
+        copied = copy_text.call_args.args[0]
+        self.assertTrue(result.handled)
+        self.assertIn("Symbol: struct Foo > method build", copied)
+        self.assertIn("> 3  ", copied)
+        self.assertIn("Copied source context src/Foo.ets:3", state.status_message)
 
     def test_browser_command_executor_sets_source_context_lines(self):
         from cr.ui.browser import parse_browser_command

@@ -29,6 +29,7 @@ from ..review.prompt import render_prompt_handoff
 from ..review.risk import risk_hints
 from ..review.snippet import render_file_diff_snippet
 from ..review.tree import shorten_path
+from ..source import outline as source_outline
 from ..source.purpose import describe_file
 from ..vcs import git
 from .commands import BrowserCommand, BrowserCommandAction, parse_browser_command
@@ -2295,11 +2296,13 @@ def _copy_source_context(
         return content.error
     target_line = max(1, state.source_file_line)
     selection = _source_selection_range(state)
+    symbol_label = _source_symbol_label_for_content(content, target_line)
     if selection is None:
         text = source_file_module.source_context_markdown(
             content,
             target_line=target_line,
             context_lines=state.source_context_lines,
+            symbol_label=symbol_label,
         )
     else:
         text = source_file_module.source_range_markdown(
@@ -2307,6 +2310,7 @@ def _copy_source_context(
             start_line=selection[0],
             end_line=selection[1],
             target_line=target_line,
+            symbol_label=symbol_label,
         )
     error = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
     if error:
@@ -2316,6 +2320,26 @@ def _copy_source_context(
         start, end = _clamp_source_range(selection[0], selection[1], len(content.lines))
         return f"Copied selected source {content.path}:{start}-{end}."
     return f"Copied source context {content.path}:{target_line}."
+
+
+def _source_symbol_label(state: BrowserState) -> str:
+    if not state.source_file_path:
+        return ""
+    content = source_file_module.load_source_file_content(
+        git.repo_root(),
+        state.source_file_path,
+    )
+    return _source_symbol_label_for_content(content, max(1, state.source_file_line))
+
+
+def _source_symbol_label_for_content(
+    content: source_file_module.SourceFileContent,
+    target_line: int,
+) -> str:
+    if content.error:
+        return ""
+    symbols = source_outline.parse_outline("\n".join(content.lines))
+    return source_outline.symbol_label_at_line(symbols, target_line)
 
 
 def _set_source_context_lines(state: BrowserState, raw_value: str) -> str:
@@ -3045,6 +3069,7 @@ def _browse_source_file_screen_lines(
         selection_start=state.source_selection_start,
         selection_end=state.source_selection_end,
         mark_line=state.source_mark_line,
+        symbol_label=_source_symbol_label(state),
     )
 
 

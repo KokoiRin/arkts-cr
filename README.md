@@ -176,6 +176,30 @@ copy problem context     复制问题、源码片段、同文件 diff 上下文
 save problem context     保存同一份上下文
 ```
 
+### Source File：从问题跳进源码阅读
+
+从 Problems 页执行 `view problem` 后，会进入只读 Source File 页面。这里用于看问题附近源码，不要求文件一定在当前 changed files 里。
+
+页面顶部会显示当前源码行的阅读上下文：
+
+- `context: N`：复制源码时包含的上下文行数。
+- `selection: A-B`：当前选中的源码范围。
+- `mark: N`：用于 `source select to` 的临时标记。
+- `symbol: ...`：当前行所在的 class / struct / function / method，基于轻量 outline 推断。
+
+常用动作：
+
+```text
+find TEXT            在源码预览里查找
+copy line            复制当前源码行锚点
+copy source          复制当前源码上下文，包含 symbol 提示
+source context N     设置复制源码的上下文行数
+source mark          标记当前源码行
+source select to     选择标记行到当前行
+source select A B    选择指定源码范围
+copy problem context 复制问题 + 源码 + diff 上下文
+```
+
 ### Help：每个页面都有中文帮助
 
 ![Help](docs/assets/cr-help.png)

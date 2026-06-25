@@ -206,7 +206,7 @@ Commit Picker
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Task Output Page is now explicit as a current-task output detail page. It can be opened with `task output` / `output`, keeps its own scroll and find state, and returns through page history; it does not change the three review layers or persist task logs.
 Task Problems Page is now explicit as a lightweight current-task Problems panel. It can be opened with `problems` / `task problems`, keeps its own selection, scroll, and severity filter state, shows visible severity counts plus generic severity/code/message facts when common log text contains them, and opens repo-local `path:line[:column]` anchors through the existing editor handoff.
-Source File Page is now explicit as a cross-layer read-only source preview. It can be opened from Task Problems with `view problem`, keeps its own source path, target line, and scroll state, and does not change Review Scope or require the file to be in Changed Files.
+Source File Page is now explicit as a cross-layer read-only source preview. It can be opened from Task Problems with `view problem`, keeps its own source path, target line, and scroll state, shows a best-effort current-symbol hint when available, and does not change Review Scope or require the file to be in Changed Files.
 Source File Page find is explicit as page-local text navigation. `find TEXT`, `next match`, and `prev match` search only the current source preview, update the Source File Page target line, and keep File Detail find and Task Output find state separate.
 Source File Page copy-line is explicit as source-preview handoff. `copy line` copies the current Source File Page target `path:line`, reusing the same command vocabulary as File Detail without adding source snippets or multi-line selection.
 Source File Page source-snippet handoff is explicit as AI/review handoff. `copy source` copies Markdown source context around the current target line, while `source context N` adjusts the copied context radius without adding selection state or editing behavior.
@@ -511,6 +511,12 @@ Source File Page supports `source select START END` to select an exact repo-loca
 ### P0: Source File Page mark selection
 
 Source File Page supports `source mark`, `source select to`, and `source clear mark` so users can select a range without typing both line numbers. The mark is page-local, shown in the header as `mark: N`, restored through in-session page history, cleared when a different Source File Page opens, and does not clear or overwrite an existing selection until `source select to` runs. `source select to` normalizes direction, so marking line 9 and selecting to line 3 produces `selection: 3-9`. This intentionally avoids syntax-aware expansion, mouse/shift selection, multiple marks, cross-file marks, source editing, and workspace persistence.
+
+### P0: Source File current-symbol hint
+
+Status: implemented.
+
+Source File Page now shows a best-effort `symbol: ...` label in the header when the target line belongs to a parsed class, struct, interface, function, or method. `copy source` includes the same `Symbol: ...` metadata for both context snippets and selected ranges while keeping the copied line window unchanged. The feature reuses `cr.source.outline` and intentionally avoids language-server dependencies, syntax-aware range expansion, source editing, new persistent state, or File Detail behavior changes.
 
 ### P0: Problem Context handoff
 

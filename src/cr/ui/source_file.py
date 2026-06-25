@@ -103,6 +103,7 @@ def source_context_markdown(
     *,
     target_line: int,
     context_lines: int = 3,
+    symbol_label: str = "",
 ) -> str:
     if content.error:
         return content.error
@@ -116,9 +117,12 @@ def source_context_markdown(
     for line_number in range(start, end + 1):
         marker = ">" if line_number == target_line else " "
         body.append(f"{marker} {str(line_number).rjust(width)}  {lines[line_number - 1]}")
+    header = [f"{content.path}:{target_line}"]
+    if symbol_label.strip():
+        header.append(f"Symbol: {symbol_label.strip()}")
     return "\n".join(
         [
-            f"{content.path}:{target_line}",
+            *header,
             "",
             "```text",
             *body,
@@ -133,6 +137,7 @@ def source_range_markdown(
     start_line: int,
     end_line: int,
     target_line: int = 0,
+    symbol_label: str = "",
 ) -> str:
     if content.error:
         return content.error
@@ -147,9 +152,12 @@ def source_range_markdown(
     for line_number in range(start, end + 1):
         marker = ">" if line_number == target_line else " "
         body.append(f"{marker} {str(line_number).rjust(width)}  {lines[line_number - 1]}")
+    header = [f"{content.path}:{start}-{end}"]
+    if symbol_label.strip():
+        header.append(f"Symbol: {symbol_label.strip()}")
     return "\n".join(
         [
-            f"{content.path}:{start}-{end}",
+            *header,
             "",
             "```text",
             *body,

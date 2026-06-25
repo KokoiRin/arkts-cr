@@ -988,6 +988,7 @@ def source_file_screen_lines(
     selection_start: int = 0,
     selection_end: int = 0,
     mark_line: int = 0,
+    symbol_label: str = "",
 ) -> list[str]:
     source_labels = [f"context: {context_lines}"]
     if selection_start > 0 and selection_end > 0:
@@ -1001,6 +1002,8 @@ def source_file_screen_lines(
         if view.total_lines > 0:
             mark = max(1, min(mark, view.total_lines))
         source_labels.append(f"mark: {mark}")
+    if symbol_label.strip():
+        source_labels.append(f"symbol: {symbol_label.strip()}")
     lines = [
         f"{style.bold('Source')} {style.file_path(view.path)}  "
         f"{style.dim('; '.join(source_labels))}",

@@ -97,6 +97,33 @@ def flatten_symbols(symbols: list[Symbol]) -> list[Symbol]:
     return result
 
 
+def symbol_path_at_line(symbols: list[Symbol], line: int) -> list[Symbol]:
+    if line <= 0:
+        return []
+    for symbol in symbols:
+        path = _symbol_path_at_line(symbol, line)
+        if path:
+            return path
+    return []
+
+
+def symbol_label_at_line(symbols: list[Symbol], line: int) -> str:
+    path = symbol_path_at_line(symbols, line)
+    if not path:
+        return ""
+    return " > ".join(f"{symbol.kind} {symbol.name}" for symbol in path)
+
+
+def _symbol_path_at_line(symbol: Symbol, line: int) -> list[Symbol]:
+    if not symbol.line <= line <= symbol.end_line:
+        return []
+    for child in symbol.children:
+        child_path = _symbol_path_at_line(child, line)
+        if child_path:
+            return [symbol, *child_path]
+    return [symbol]
+
+
 def modified_symbols(symbols: list[Symbol], changed_lines: set[int]) -> list[str]:
     if not changed_lines:
         return ["unknown"]

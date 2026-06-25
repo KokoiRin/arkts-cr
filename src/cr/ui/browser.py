@@ -587,6 +587,10 @@ class BrowserCommandExecutor:
             message = _copy_task_output_match(state, args)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_PROBLEM_DIFF:
+            message = _copy_problem_diff(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_TASK_PROBLEM:
             message = _copy_selected_task_problem(state, args)
             _show_browser_message(state, message, raw_keys, frame)
@@ -727,6 +731,10 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_TASK_PROBLEM:
             message = _save_selected_task_problem(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_PROBLEM_DIFF:
+            message = _save_problem_diff(state, args, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_TASK_PROBLEMS:
@@ -1483,6 +1491,75 @@ def _save_selected_task_problem(state: BrowserState, requested_path: str = "") -
     return f"Saved task problem to {result.display_path}."
 
 
+def _copy_problem_diff(state: BrowserState, args: argparse.Namespace) -> str:
+    text, problem, error = _problem_diff_text(
+        state,
+        args,
+        task_empty_message="No task problem diff to copy.",
+        source_empty_message="No current source problem diff to copy.",
+    )
+    if error:
+        return error
+    assert problem is not None
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return f"Copied problem diff {problem.path}:{problem.line}."
+
+
+def _save_problem_diff(
+    state: BrowserState,
+    args: argparse.Namespace,
+    requested_path: str = "",
+) -> str:
+    text, problem, error = _problem_diff_text(
+        state,
+        args,
+        task_empty_message="No task problem diff to save.",
+        source_empty_message="No current source problem diff to save.",
+    )
+    if error:
+        return error
+    assert problem is not None
+    result = handoff_module.save_problem_diff_text(
+        text,
+        git.repo_root(),
+        requested_path,
+    )
+    if result.error:
+        return result.error
+    return f"Saved problem diff {problem.path}:{problem.line} to {result.display_path}."
+
+
+def _problem_diff_text(
+    state: BrowserState,
+    args: argparse.Namespace,
+    *,
+    task_empty_message: str,
+    source_empty_message: str,
+) -> tuple[str, task_problems_module.TaskProblem | None, str]:
+    if state.page == BrowserPage.SOURCE_FILE:
+        current = _source_file_task_problem(state)
+        if current is None:
+            return "", None, source_empty_message
+        problem, _selected, _total = current
+    else:
+        problem = _current_task_problem_for_action(state)
+        if problem is None:
+            return "", None, task_empty_message
+    change = next(
+        (change for change in state.changes if change.path == problem.path),
+        None,
+    )
+    if change is None:
+        return (
+            "",
+            problem,
+            f"No diff for problem {problem.path}:{problem.line} in current review scope.",
+        )
+    return _diff_snippet_for_change(state, args, change), problem, ""
+
+
 def _copy_task_problems(state: BrowserState, args: argparse.Namespace) -> str:
     problems = _current_task_problems(state)
     if not problems:
@@ -1701,6 +1778,14 @@ def _problem_context_diff(
     change = next((change for change in state.changes if change.path == path), None)
     if change is None:
         return ""
+    return _diff_snippet_for_change(state, args, change)
+
+
+def _diff_snippet_for_change(
+    state: BrowserState,
+    args: argparse.Namespace,
+    change: git.FileChange,
+) -> str:
     review_notes = {}
     note = state.review_notes.get(change.path, "").strip()
     if note:

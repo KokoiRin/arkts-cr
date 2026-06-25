@@ -63,6 +63,7 @@ class BrowserCommandAction:
     COPY_TASK_OUTPUT_TAIL = "copy_task_output_tail"
     COPY_TASK_OUTPUT_MATCH = "copy_task_output_match"
     COPY_TASK_PROBLEM = "copy_task_problem"
+    COPY_PROBLEM_DIFF = "copy_problem_diff"
     COPY_TASK_PROBLEMS = "copy_task_problems"
     COPY_FILE_TASK_PROBLEMS = "copy_file_task_problems"
     COPY_PROBLEM_CONTEXT = "copy_problem_context"
@@ -87,6 +88,7 @@ class BrowserCommandAction:
     SAVE_TASK_OUTPUT_TAIL = "save_task_output_tail"
     SAVE_TASK_OUTPUT_MATCH = "save_task_output_match"
     SAVE_TASK_PROBLEM = "save_task_problem"
+    SAVE_PROBLEM_DIFF = "save_problem_diff"
     SAVE_TASK_PROBLEMS = "save_task_problems"
     SAVE_FILE_TASK_PROBLEMS = "save_file_task_problems"
     SAVE_SOURCE_CONTEXT = "save_source_context"
@@ -271,6 +273,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_TASK_OUTPUT_MATCH)
     if command in {"copy task", "copy task output"}:
         return BrowserCommand(BrowserCommandAction.COPY_TASK_OUTPUT)
+    if command in {"copy problem diff", "copy task problem diff"}:
+        return BrowserCommand(BrowserCommandAction.COPY_PROBLEM_DIFF)
     if command in {"copy problem", "copy task problem"}:
         return BrowserCommand(BrowserCommandAction.COPY_TASK_PROBLEM)
     if command in {"copy problems", "copy task problems"}:
@@ -413,6 +417,13 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(
             BrowserCommandAction.SAVE_TASK_OUTPUT,
             command.removeprefix("save task ").strip(),
+        )
+    if command == "save problem diff":
+        return BrowserCommand(BrowserCommandAction.SAVE_PROBLEM_DIFF)
+    if command.startswith("save problem diff "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_PROBLEM_DIFF,
+            command.removeprefix("save problem diff ").strip(),
         )
     if command == "save problem":
         return BrowserCommand(BrowserCommandAction.SAVE_TASK_PROBLEM)

@@ -151,6 +151,8 @@ prev problem             切换到上一个解析出的问题
 problems                 从输出进入 Problems 页
 view problem             直接查看当前问题源码
 view problem diff        查看当前问题对应的文件 diff
+copy problem diff        复制当前问题对应的文件 diff
+save problem diff        保存当前问题对应的文件 diff
 save problem             保存当前问题到 .cr/handoff/task-problem.md
 copy problem context     复制当前问题 + 任务输出片段 + 源码 + diff 上下文
 save problem context     保存当前问题 + 任务输出片段 + 源码 + diff 上下文
@@ -186,6 +188,8 @@ next problem file        跳到下一个问题文件
 prev problem file        跳到上一个问题文件
 view problem             在 TUI 里查看问题附近源码
 view problem diff        打开当前问题对应的文件 diff
+copy problem diff        复制当前问题对应的文件 diff
+save problem diff        保存当前问题对应的文件 diff 到 .cr/handoff/problem-diff.md
 copy problem             复制当前问题
 save problem             保存当前问题到 .cr/handoff/task-problem.md
 copy problems            复制当前可见问题列表
@@ -220,6 +224,8 @@ copy line            复制当前源码行锚点
 view diff            查看当前源码行对应的文件 diff
 copy problem         复制当前源码行对应的任务问题
 save problem         保存当前源码行对应的任务问题
+copy problem diff    复制当前源码行问题对应的文件 diff
+save problem diff    保存当前源码行问题对应的文件 diff
 copy source          复制当前源码上下文，包含 symbol 提示
 copy source symbol   复制当前函数或方法范围
 save source          保存当前源码上下文到 .cr/handoff/source.md
@@ -359,6 +365,7 @@ copy prompt file       复制当前文件的 AI review handoff
 copy notes             复制 review 备注汇总
 copy problem           复制当前问题
 save problem           保存当前问题
+copy problem diff      复制当前问题对应的文件 diff
 copy problems          复制当前可见问题列表
 copy file problems     复制当前文件的问题列表
 copy problem context   复制问题 + 源码 + 同文件 diff
@@ -373,6 +380,7 @@ save source symbol [PATH]
 save prompt [PATH]
 save prompt file [PATH]
 save problem [PATH]
+save problem diff [PATH]
 save problem context [PATH]
 save task [PATH]
 ```

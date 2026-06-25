@@ -1085,6 +1085,32 @@ class CliTests(unittest.TestCase):
                 "requested task problem",
             )
 
+    def test_handoff_module_saves_problem_diff_default_and_requested_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            default = handoff_module.save_problem_diff_text(
+                "default problem diff",
+                repo,
+            )
+            requested = handoff_module.save_problem_diff_text(
+                "requested problem diff",
+                repo,
+                "tmp/problem-diff.md",
+            )
+
+            self.assertIsNone(default.error)
+            self.assertEqual(default.display_path, ".cr/handoff/problem-diff.md")
+            self.assertEqual(
+                default.path.read_text(encoding="utf-8"),
+                "default problem diff",
+            )
+            self.assertIsNone(requested.error)
+            self.assertEqual(requested.display_path, "tmp/problem-diff.md")
+            self.assertEqual(
+                requested.path.read_text(encoding="utf-8"),
+                "requested problem diff",
+            )
+
     def test_browser_frame_module_renders_task_panel_lines(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
@@ -1451,6 +1477,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy task", text)
         self.assertIn("save task", text)
         self.assertIn("save problem", text)
+        self.assertIn("copy/save problem diff", text)
         self.assertIn("save problems", text)
         self.assertIn("save file problems", text)
         self.assertIn("save problem context", text)
@@ -1482,6 +1509,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("task output", commands)
         self.assertIn("problems", commands)
         self.assertIn("save problem", commands)
+        self.assertIn("copy problem diff", commands)
+        self.assertIn("save problem diff", commands)
         self.assertIn("problems errors", commands)
         self.assertIn("problems warnings", commands)
         self.assertIn("problems all", commands)
@@ -1568,6 +1597,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("problems group file", text)
         self.assertIn("view problem diff", text)
         self.assertIn("save problem", text)
+        self.assertIn("copy problem diff", text)
+        self.assertIn("save problem diff", text)
         self.assertIn("save problems", text)
         self.assertIn("save file problems", text)
         self.assertIn("copy problem context", text)
@@ -1585,6 +1616,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("view problem", task_output_text)
         self.assertIn("view problem diff", task_output_text)
         self.assertIn("save problem", task_output_text)
+        self.assertIn("copy problem diff", task_output_text)
+        self.assertIn("save problem diff", task_output_text)
         self.assertIn("copy problem context", task_output_text)
         self.assertIn("save problem context", task_output_text)
         self.assertIn("copy task tail", task_output_text)
@@ -1634,6 +1667,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("view diff", text)
         self.assertIn("copy problem", text)
         self.assertIn("save problem", text)
+        self.assertIn("copy problem diff", text)
+        self.assertIn("save problem diff", text)
         self.assertIn("选择源码行范围", text)
 
     def test_page_content_contextual_action_bar_matches_current_page(self):
@@ -1688,7 +1723,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("next/prev problem 切换问题", task_output)
         self.assertIn("view problem 查看选中问题", task_output)
         self.assertIn("view problem diff 查看 diff", task_output)
+        self.assertIn("copy problem diff 复制 diff", task_output)
         self.assertIn("save problem 保存问题", task_output)
+        self.assertIn("save problem diff 保存 diff", task_output)
         self.assertIn("copy context 复制选中问题", task_output)
         self.assertIn("save context 保存选中问题", task_output)
         self.assertIn("find 查找", task_output)
@@ -1711,6 +1748,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("task output 任务输出", task_problems)
         self.assertIn("copy problem 复制问题", task_problems)
         self.assertIn("save problem 保存问题", task_problems)
+        self.assertIn("copy problem diff 复制 diff", task_problems)
+        self.assertIn("save problem diff 保存 diff", task_problems)
         self.assertIn("copy problems 复制列表", task_problems)
         self.assertIn("copy file problems 当前文件", task_problems)
         self.assertIn("copy context 复制上下文", task_problems)
@@ -1732,6 +1771,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy source 复制源码", source_file_bar)
         self.assertIn("copy problem 复制问题", source_file_bar)
         self.assertIn("save problem 保存问题", source_file_bar)
+        self.assertIn("copy problem diff 复制 diff", source_file_bar)
+        self.assertIn("save problem diff 保存 diff", source_file_bar)
         self.assertIn("view diff 查看 diff", source_file_bar)
         self.assertIn("copy context 复制上下文", source_file_bar)
         self.assertIn("save context 保存上下文", source_file_bar)
@@ -2906,6 +2947,24 @@ class CliTests(unittest.TestCase):
             parse_browser_command("view problem diff").action,
             BrowserCommandAction.VIEW_TASK_PROBLEM_DIFF,
         )
+        self.assertEqual(
+            parse_browser_command("copy problem diff").action,
+            BrowserCommandAction.COPY_PROBLEM_DIFF,
+        )
+        save_problem_diff = parse_browser_command("save problem diff")
+        self.assertEqual(
+            save_problem_diff.action,
+            BrowserCommandAction.SAVE_PROBLEM_DIFF,
+        )
+        self.assertEqual(save_problem_diff.value, "")
+        save_problem_diff_path = parse_browser_command(
+            "save problem diff tmp/problem-diff.md"
+        )
+        self.assertEqual(
+            save_problem_diff_path.action,
+            BrowserCommandAction.SAVE_PROBLEM_DIFF,
+        )
+        self.assertEqual(save_problem_diff_path.value, "tmp/problem-diff.md")
         self.assertEqual(
             parse_browser_command("view diff").action,
             BrowserCommandAction.VIEW_TASK_PROBLEM_DIFF,
@@ -8365,6 +8424,263 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.selected, 0)
         self.assertIn(
             "No diff for problem src/Two.ets:2 in current review scope.",
+            state.status_message,
+        )
+
+    def test_browser_command_executor_copies_selected_task_problem_diff(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("one\ntwo\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/One.ets", 1, 0), FileChange("src/Two.ets", 1, 0)],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=1,
+                problem_scroll=1,
+                selected=0,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:2:1 error TS2: bad",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.build_review_data",
+                    return_value={"files": [{"path": "src/Two.ets"}]},
+                ) as build_data:
+                    with patch(
+                        "cr.ui.browser.render_file_diff_snippet",
+                        return_value="# File Diff: src/Two.ets\n\n```diff\n+two\n```",
+                    ):
+                        with patch(
+                            "cr.ui.browser.file_actions.copy_text",
+                            return_value=None,
+                        ) as copy_text:
+                            result = executor.execute(
+                                parse_browser_command("copy problem diff")
+                            )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(state.problem_selected, 1)
+        self.assertEqual(state.problem_scroll, 1)
+        self.assertEqual(state.selected, 0)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("# File Diff: src/Two.ets", copied)
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertEqual(build_data.call_args.args[0][0].path, "src/Two.ets")
+        self.assertIn("Copied problem diff src/Two.ets:2.", state.status_message)
+
+    def test_browser_command_executor_saves_task_output_problem_diff_default_path(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("one\ntwo\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/One.ets", 1, 0), FileChange("src/Two.ets", 1, 0)],
+                page=BrowserPage.TASK_OUTPUT,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:2:1 error TS2: bad",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.build_review_data",
+                    return_value={"files": [{"path": "src/Two.ets"}]},
+                ):
+                    with patch(
+                        "cr.ui.browser.render_file_diff_snippet",
+                        return_value="# File Diff: src/Two.ets\n\n```diff\n+two\n```",
+                    ):
+                        result = executor.execute(
+                            parse_browser_command("save problem diff")
+                        )
+
+            saved = repo / ".cr" / "handoff" / "problem-diff.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("# File Diff: src/Two.ets", text)
+        self.assertIn(
+            "Saved problem diff src/Two.ets:2 to .cr/handoff/problem-diff.md.",
+            state.status_message,
+        )
+
+    def test_browser_command_executor_does_not_copy_problem_diff_without_changed_file(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("two\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/One.ets", 1, 0)],
+                page=BrowserPage.TASK_PROBLEMS,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Two.ets:2:1 error TS2: bad"],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+                    result = executor.execute(
+                        parse_browser_command("copy problem diff")
+                    )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertIn(
+            "No diff for problem src/Two.ets:2 in current review scope.",
+            state.status_message,
+        )
+
+    def test_browser_command_executor_does_not_save_stale_source_file_problem_diff(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 1, 0)],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=3,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Foo.ets:2:1 error TS123: bad value"],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(
+                    parse_browser_command("save problem diff tmp/problem-diff.md")
+                )
+
+            saved = repo / "tmp" / "problem-diff.md"
+            self.assertFalse(saved.exists())
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("No current source problem diff to save.", state.status_message)
+
+    def test_browser_command_executor_saves_source_file_current_problem_diff(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 1, 0)],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=2,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Foo.ets:2:1 error TS123: bad value"],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.build_review_data",
+                    return_value={"files": [{"path": "src/Foo.ets"}]},
+                ):
+                    with patch(
+                        "cr.ui.browser.render_file_diff_snippet",
+                        return_value="# File Diff: src/Foo.ets\n\n```diff\n+two\n```",
+                    ):
+                        result = executor.execute(
+                            parse_browser_command(
+                                "save problem diff tmp/source-problem-diff.md"
+                            )
+                        )
+
+            saved = repo / "tmp" / "source-problem-diff.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("# File Diff: src/Foo.ets", text)
+        self.assertIn(
+            "Saved problem diff src/Foo.ets:2 to tmp/source-problem-diff.md.",
             state.status_message,
         )
 

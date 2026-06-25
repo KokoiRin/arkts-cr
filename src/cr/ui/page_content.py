@@ -145,6 +145,9 @@ def contextual_action_bar(
         BrowserPage.TASK_PROBLEMS: (
             "Enter open",
             "↑/↓ select",
+            "errors",
+            "warnings",
+            "all",
             "view problem",
             "task output",
             "copy problem",
@@ -707,15 +710,26 @@ def task_problems_screen_lines(
     style: TerminalStyle,
     max_lines: int,
 ) -> list[str]:
+    problem_filter = getattr(state, "problem_filter", "")
     if not problems:
+        if problem_filter:
+            return [
+                style.bold(f"Task problems: {problem_filter}"),
+                f"No {problem_filter} task problems found.",
+                "Run problems all to show all task problems.",
+                "",
+            ][:max_lines]
         return [
             style.bold("Task problems"),
             "No task problems found.",
             "Run build, test, or lint, then open problems from task output.",
             "",
         ][:max_lines]
+    title = "Task problems"
+    if problem_filter:
+        title = f"{title}: {problem_filter}"
     lines = [
-        f"{style.bold('Task problems')} ({len(problems)} found)",
+        f"{style.bold(title)} ({len(problems)} found)",
         "Enter: open problem   task output: logs   b: back",
     ]
     row_capacity = max(1, max_lines - len(lines) - 1)

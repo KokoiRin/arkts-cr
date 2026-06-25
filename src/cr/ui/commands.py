@@ -52,6 +52,8 @@ class BrowserCommandAction:
     COPY_TASK_PROBLEMS = "copy_task_problems"
     SHOW_TASK_OUTPUT = "show_task_output"
     SHOW_TASK_PROBLEMS = "show_task_problems"
+    SET_TASK_PROBLEM_FILTER = "set_task_problem_filter"
+    CLEAR_TASK_PROBLEM_FILTER = "clear_task_problem_filter"
     VIEW_TASK_PROBLEM = "view_task_problem"
     SAVE_DIFF = "save_diff"
     SAVE_PROMPT = "save_prompt"
@@ -198,6 +200,25 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.SHOW_TASK_OUTPUT)
     if command in {"problems", "task problems", BrowserPage.TASK_PROBLEMS}:
         return BrowserCommand(BrowserCommandAction.SHOW_TASK_PROBLEMS)
+    if command in {"problems all", "all problems", "clear problems"}:
+        return BrowserCommand(BrowserCommandAction.CLEAR_TASK_PROBLEM_FILTER)
+    problem_filter_aliases = {
+        "errors": "error",
+        "problems errors": "error",
+        "task problems errors": "error",
+        "warnings": "warning",
+        "problems warnings": "warning",
+        "task problems warnings": "warning",
+        "problems info": "info",
+        "task problems info": "info",
+        "problems note": "note",
+        "task problems note": "note",
+    }
+    if command in problem_filter_aliases:
+        return BrowserCommand(
+            BrowserCommandAction.SET_TASK_PROBLEM_FILTER,
+            problem_filter_aliases[command],
+        )
     if command in {"view problem", "view task problem"}:
         return BrowserCommand(BrowserCommandAction.VIEW_TASK_PROBLEM)
     if command == "save diff":

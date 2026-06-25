@@ -37,6 +37,7 @@ class BrowserPageSnapshot:
     task_scroll: int = 0
     problem_selected: int = 0
     problem_scroll: int = 0
+    problem_filter: str = ""
     source_file_path: str = ""
     source_file_line: int = 1
     source_file_scroll: int = 0
@@ -57,6 +58,7 @@ class _BrowserNavigationState(Protocol):
     task_scroll: int
     problem_selected: int
     problem_scroll: int
+    problem_filter: str
     source_file_path: str
     source_file_line: int
     source_file_scroll: int
@@ -92,11 +94,16 @@ class BrowserNavigation:
         state.task_scroll = 0
 
     @staticmethod
-    def show_task_problems(state: _BrowserNavigationState) -> None:
+    def show_task_problems(
+        state: _BrowserNavigationState,
+        *,
+        problem_filter: str = "",
+    ) -> None:
         BrowserNavigation._record_transition(state, BrowserPage.TASK_PROBLEMS)
         state.page = BrowserPage.TASK_PROBLEMS
         state.problem_selected = 0
         state.problem_scroll = 0
+        state.problem_filter = problem_filter
 
     @staticmethod
     def show_source_file(
@@ -200,6 +207,7 @@ class BrowserNavigation:
             task_scroll=state.task_scroll,
             problem_selected=state.problem_selected,
             problem_scroll=state.problem_scroll,
+            problem_filter=state.problem_filter,
             source_file_path=state.source_file_path,
             source_file_line=state.source_file_line,
             source_file_scroll=state.source_file_scroll,
@@ -224,6 +232,7 @@ class BrowserNavigation:
         state.task_scroll = snapshot.task_scroll
         state.problem_selected = snapshot.problem_selected
         state.problem_scroll = snapshot.problem_scroll
+        state.problem_filter = snapshot.problem_filter
         state.source_file_path = snapshot.source_file_path
         state.source_file_line = snapshot.source_file_line
         state.source_file_scroll = snapshot.source_file_scroll

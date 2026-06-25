@@ -85,6 +85,16 @@ def problems_handoff_text(problems: list[TaskProblem]) -> str:
     return "\n".join(lines)
 
 
+def filter_task_problems(
+    problems: list[TaskProblem],
+    severity: str,
+) -> list[TaskProblem]:
+    normalized = severity.strip().lower()
+    if not normalized:
+        return list(problems)
+    return [problem for problem in problems if problem.severity == normalized]
+
+
 def extract_task_problems(repo: Path, lines: list[str]) -> list[TaskProblem]:
     repo = repo.resolve()
     problems: list[TaskProblem] = []

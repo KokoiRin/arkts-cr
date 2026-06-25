@@ -195,6 +195,20 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(problems[4].code)
         self.assertEqual(problems[4].message, "bad Foo1")
 
+    def test_task_problems_filters_by_severity_preserving_order(self):
+        problems = [
+            task_problems.TaskProblem("src/A.ets", 1, None, "a", 1, severity="warning"),
+            task_problems.TaskProblem("src/B.ets", 2, None, "b", 2, severity="error"),
+            task_problems.TaskProblem("src/C.ets", 3, None, "c", 3),
+            task_problems.TaskProblem("src/D.ets", 4, None, "d", 4, severity="error"),
+        ]
+
+        errors = task_problems.filter_task_problems(problems, "error")
+        all_problems = task_problems.filter_task_problems(problems, "")
+
+        self.assertEqual([problem.path for problem in errors], ["src/B.ets", "src/D.ets"])
+        self.assertEqual(all_problems, problems)
+
     def test_task_problems_ignores_urls_missing_files_and_outside_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -997,6 +1011,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy task", text)
         self.assertIn("save task", text)
         self.assertIn("task output", text)
+        self.assertIn("problems errors", text)
+        self.assertIn("problems all", text)
 
     def test_command_catalog_module_filters_executable_palette_entries(self):
         commands = [entry.command for entry in command_catalog.command_palette_entries()]
@@ -1015,6 +1031,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("save task", commands)
         self.assertIn("task output", commands)
         self.assertIn("problems", commands)
+        self.assertIn("problems errors", commands)
+        self.assertIn("problems warnings", commands)
+        self.assertIn("problems all", commands)
         self.assertIn("copy problem", commands)
         self.assertIn("copy problems", commands)
         self.assertIn("view problem", commands)
@@ -1106,6 +1125,9 @@ class CliTests(unittest.TestCase):
             style,
         )
         self.assertIn("Enter open", task_problems)
+        self.assertIn("errors", task_problems)
+        self.assertIn("warnings", task_problems)
+        self.assertIn("all", task_problems)
         self.assertIn("task output", task_problems)
         self.assertIn("copy problem", task_problems)
         self.assertIn("copy problems", task_problems)
@@ -1208,6 +1230,25 @@ class CliTests(unittest.TestCase):
         self.assertIn("ERROR TS2322", text)
         self.assertIn("bad call", text)
         self.assertIn("src/Bar.ets:8", text)
+
+    def test_page_content_task_problems_screen_lines_render_filtered_state(self):
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_PROBLEMS,
+            problem_filter="error",
+        )
+
+        lines = page_content.task_problems_screen_lines(
+            state,
+            [],
+            TerminalStyle(False),
+            max_lines=6,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("Task problems: error", text)
+        self.assertIn("No error task problems found.", text)
+        self.assertIn("problems all", text)
 
     def test_page_content_task_problems_screen_lines_render_empty_state(self):
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
@@ -1312,6 +1353,7 @@ class CliTests(unittest.TestCase):
             command_scroll=6,
             file_scroll=7,
             task_scroll=8,
+            problem_filter="warning",
             scope_selected=2,
             command_selected=3,
             page=BrowserPage.FILE_DETAIL,
@@ -1352,6 +1394,11 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
         self.assertEqual(state.problem_selected, 0)
         self.assertEqual(state.problem_scroll, 0)
+        self.assertEqual(state.problem_filter, "")
+
+        BrowserNavigation.show_task_problems(state, problem_filter="error")
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(state.problem_filter, "error")
 
         BrowserNavigation.show_source_file(state, "src/Foo.ets", 12)
         self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
@@ -1464,6 +1511,17 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_line, 3)
         self.assertEqual(state.source_file_scroll, 2)
         self.assertEqual(state.source_find_text, "needle")
+
+        BrowserNavigation.show_task_problems(state, problem_filter="warning")
+        state.problem_selected = 2
+        state.problem_scroll = 1
+        BrowserNavigation.go_back(state)
+        BrowserNavigation.go_forward(state)
+
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(state.problem_filter, "warning")
+        self.assertEqual(state.problem_selected, 2)
+        self.assertEqual(state.problem_scroll, 1)
 
     def test_browser_navigation_back_returns_to_page_that_opened_command_palette(self):
         state = BrowserState(
@@ -1672,6 +1730,23 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy problems").action,
             BrowserCommandAction.COPY_TASK_PROBLEMS,
+        )
+        problem_errors = parse_browser_command("problems errors")
+        self.assertEqual(
+            problem_errors.action,
+            BrowserCommandAction.SET_TASK_PROBLEM_FILTER,
+        )
+        self.assertEqual(problem_errors.value, "error")
+        warning_alias = parse_browser_command("warnings")
+        self.assertEqual(
+            warning_alias.action,
+            BrowserCommandAction.SET_TASK_PROBLEM_FILTER,
+        )
+        self.assertEqual(warning_alias.value, "warning")
+        clear_problem_filter = parse_browser_command("problems all")
+        self.assertEqual(
+            clear_problem_filter.action,
+            BrowserCommandAction.CLEAR_TASK_PROBLEM_FILTER,
         )
         self.assertEqual(
             parse_browser_command("view problem").action,
@@ -4201,6 +4276,39 @@ class CliTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
 
+    def test_browser_command_executor_filters_task_problems_by_severity(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_OUTPUT,
+            problem_selected=3,
+            problem_scroll=4,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        show_errors = executor.execute(parse_browser_command("problems errors"))
+        filter_after_errors = state.problem_filter
+        selected_after_errors = state.problem_selected
+        scroll_after_errors = state.problem_scroll
+        clear_filter = executor.execute(parse_browser_command("problems all"))
+
+        self.assertTrue(show_errors.handled)
+        self.assertTrue(show_errors.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(filter_after_errors, "error")
+        self.assertEqual(selected_after_errors, 0)
+        self.assertEqual(scroll_after_errors, 0)
+        self.assertTrue(clear_filter.handled)
+        self.assertTrue(clear_filter.needs_redraw)
+        self.assertEqual(state.problem_filter, "")
+
     def test_browser_command_executor_moves_task_problem_selection(self):
         from cr.ui.browser import parse_browser_command
 
@@ -4289,6 +4397,50 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertTrue(result.needs_redraw)
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        open_path.assert_called_once_with(second, 22, "editor {fileline}")
+        self.assertIn("Opened problem src/Two.ets:22", state.status_message)
+
+    def test_browser_command_executor_opens_filtered_task_problem(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "One.ets"
+            second = repo / "src" / "Two.ets"
+            first.parent.mkdir(parents=True)
+            first.write_text("sample", encoding="utf-8")
+            second.write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_filter="warning",
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error E1: bad",
+                        "src/Two.ets:22:4 warning W1: noisy",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(open_cmd="editor {fileline}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.open_path",
+                    return_value=None,
+                ) as open_path:
+                    result = executor.execute(parse_browser_command("enter", raw_keys=True))
+
+        self.assertTrue(result.handled)
         open_path.assert_called_once_with(second, 22, "editor {fileline}")
         self.assertIn("Opened problem src/Two.ets:22", state.status_message)
 
@@ -4389,6 +4541,50 @@ class CliTests(unittest.TestCase):
         self.assertIn("2. src/Two.ets:22:4", copied)
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied 2 task problems.", state.status_message)
+
+    def test_browser_command_executor_copies_filtered_task_problems(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_filter="error",
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error E1: bad",
+                        "src/Two.ets:22:4 warning W1: noisy",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy problems"))
+
+        self.assertTrue(result.handled)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("src/One.ets:1:1", copied)
+        self.assertNotIn("src/Two.ets", copied)
+        self.assertIn("Copied 1 task problems.", state.status_message)
 
     def test_browser_command_executor_views_selected_task_problem_source(self):
         from cr.ui.browser import parse_browser_command
@@ -9665,7 +9861,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(_normalize_command_query(" build "), "build")
 
     def test_command_list_lines_group_commands_by_purpose(self):
-        lines = _browse_command_lines(TerminalStyle(False), max_lines=80)
+        lines = _browse_command_lines(TerminalStyle(False), max_lines=100)
         text = "\n".join(lines)
 
         self.assertIn("Commands", text)

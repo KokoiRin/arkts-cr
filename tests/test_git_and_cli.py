@@ -507,6 +507,28 @@ class CliTests(unittest.TestCase):
         self.assertEqual(exported_const, "function loadModel")
         self.assertEqual(exported_let, "function normalize")
 
+    def test_source_outline_labels_default_export_symbols(self):
+        symbols = outline.parse_outline(
+            "\n".join(
+                [
+                    "export default class FeedStore {",
+                    "  hydrate() {",
+                    "    this.ready = true",
+                    "  }",
+                    "}",
+                    "export default function createStore() {",
+                    "  return new FeedStore()",
+                    "}",
+                ]
+            )
+        )
+
+        method = outline.symbol_label_at_line(symbols, 3)
+        default_function = outline.symbol_label_at_line(symbols, 7)
+
+        self.assertEqual(method, "class FeedStore > method hydrate")
+        self.assertEqual(default_function, "function createStore")
+
     def test_source_file_view_reads_repo_file_and_windows_target_line(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)

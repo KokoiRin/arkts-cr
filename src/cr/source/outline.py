@@ -36,11 +36,12 @@ class Symbol:
 
 
 CONTAINER_RE = re.compile(
-    r"^\s*(?:export\s+)?(?:abstract\s+)?(?P<kind>class|struct|interface)\s+"
+    r"^\s*(?:export\s+(?:default\s+)?)?"
+    r"(?:abstract\s+)?(?P<kind>class|struct|interface)\s+"
     r"(?P<name>[A-Za-z_$][\w$]*)"
 )
 FUNCTION_RE = re.compile(
-    r"^\s*(?:export\s+)?(?:async\s+)?function\s+"
+    r"^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+"
     r"(?P<name>[A-Za-z_$][\w$]*)\s*(?:<[^>{}]+>)?\s*\("
 )
 METHOD_RE = re.compile(

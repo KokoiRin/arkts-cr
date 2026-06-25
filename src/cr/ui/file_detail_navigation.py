@@ -31,6 +31,14 @@ class ActiveHunk:
 
 
 @dataclass(frozen=True)
+class ChangedRow:
+    kind: str
+    old_line: int | None
+    new_line: int | None
+    text: str
+
+
+@dataclass(frozen=True)
 class FileFindResult:
     scroll: int
     message: str
@@ -174,6 +182,13 @@ def current_new_line(lines: list[str], current_scroll: int) -> int | None:
     return _rendered_row_new_line(line)
 
 
+def current_changed_row(lines: list[str], current_scroll: int) -> ChangedRow | None:
+    body = lines[1:]
+    if current_scroll < 0 or current_scroll >= len(body):
+        return None
+    return _rendered_changed_row(body[current_scroll])
+
+
 def active_hunk(lines: list[str], current_scroll: int) -> ActiveHunk | None:
     body = lines[1:]
     hunk_headers = _hunk_headers(body)
@@ -234,6 +249,40 @@ def _rendered_row_new_line(line: str) -> int | None:
         marker = text.lstrip()[:1]
         if marker == "+":
             return int(columns[0])
+    return None
+
+
+def _rendered_changed_row(line: str) -> ChangedRow | None:
+    text = _plain_text(line)
+    if "|" not in text:
+        return None
+    prefix, content = text.split("|", 1)
+    marker = content.lstrip()[:1]
+    columns = prefix.split()
+    if marker == "+":
+        new_line = _last_digit(columns)
+        if new_line is None:
+            return None
+        return ChangedRow("added", None, new_line, _clean_hunk_line(line))
+    if marker == "-":
+        old_line = _first_digit(columns)
+        if old_line is None:
+            return None
+        return ChangedRow("deleted", old_line, None, _clean_hunk_line(line))
+    return None
+
+
+def _first_digit(columns: list[str]) -> int | None:
+    for column in columns:
+        if column.isdigit():
+            return int(column)
+    return None
+
+
+def _last_digit(columns: list[str]) -> int | None:
+    for column in reversed(columns):
+        if column.isdigit():
+            return int(column)
     return None
 
 

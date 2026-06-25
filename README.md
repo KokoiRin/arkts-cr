@@ -78,7 +78,7 @@ o             用编辑器打开当前文件
 q             退出
 ```
 
-在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`]` / `[` 会跳到下一个 / 上一个 diff hunk；`: next change` / `: prev change` 会跳到下一条 / 上一条实际 `+` 或 `-` 改动行；`: find TEXT` 会在当前文件详情里查找文本，`: next match` / `: prev match` 会继续跳到下一个 / 上一个匹配；`: open line` / `: copy line` 会对当前渲染行的新文件行号执行打开或复制锚点；`: open hunk` 会打开当前 hunk，`: copy hunk` 会复制当前 hunk review 片段；`r` 刷新后如果当前文件仍在当前 scope/filter 里，会留在这个文件详情；`n/p` 仍然用于切到下一个 / 上一个文件。
+在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`]` / `[` 会跳到下一个 / 上一个 diff hunk；`: next change` / `: prev change` 会跳到下一条 / 上一条实际 `+` 或 `-` 改动行；`: copy change` 会复制当前实际改动行的轻量 review 片段；`: find TEXT` 会在当前文件详情里查找文本，`: next match` / `: prev match` 会继续跳到下一个 / 上一个匹配；`: open line` / `: copy line` 会对当前渲染行的新文件行号执行打开或复制锚点；`: open hunk` 会打开当前 hunk，`: copy hunk` 会复制当前 hunk review 片段；`r` 刷新后如果当前文件仍在当前 scope/filter 里，会留在这个文件详情；`n/p` 仍然用于切到下一个 / 上一个文件。
 
 打开 command palette：
 
@@ -151,6 +151,7 @@ copy notes QUERY       复制过滤后的 review 备注汇总
 copy diff              复制当前文件的轻量 diff review 片段
 copy hunk              复制当前 diff hunk review 片段
 copy line              复制当前文件详情行的 path:line
+copy change            复制当前实际改动行 review 片段
 save diff [PATH]       保存当前文件的轻量 diff review 片段
 find TEXT              在当前文件详情里查找渲染文本
 next match             跳到当前 find 的下一个匹配
@@ -167,7 +168,7 @@ save prompt [PATH]     保存当前可见改动的 AI review handoff
 save prompt file [PATH] 保存当前文件的 AI review handoff
 ```
 
-文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。有备注的文件行会显示 `note` 标记；单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`，并在有备注时显示完整 `note: ...`。`notes` 会按当前 changed-file 顺序汇总备注，并把不在当前变更里的持久化备注追加到末尾；`notes QUERY` 会按路径或备注文本做大小写不敏感过滤。`copy notes` / `notes copy` 会复制完整汇总文本，`copy notes QUERY` 会复制过滤后的汇总文本。`copy diff` 会复制当前文件的轻量 Markdown diff 片段，包含当前 scope 下的 hunk、anchor、seen 状态和 review 备注，但不带 AI prompt 请求文案；`copy hunk` 会复制当前 File Detail hunk 的行号化 review 文本，适合只贴一个变更块；`save diff` 会把同样的片段保存成文件，默认路径是 `.cr/handoff/review-diff.md`，也可以在命令后传入自定义路径。`copy prompt` 会复制当前可见改动的 Markdown review handoff，并带上这些文件对应的 review 备注；`copy prompt file` 只复制当前文件及其备注，方便贴到聊天、AI prompt 或 PR comment。`save prompt` 和 `save prompt file` 会把同样的 Markdown 保存成文件，默认路径分别是 `.cr/handoff/review-prompt.md` 和 `.cr/handoff/review-prompt-file.md`，也可以在命令后传入自定义路径。
+文件列表会显示整体进度，比如 `Progress: 3/12 seen`，每个文件前也会显示 `[x]` 或 `[ ]`。有备注的文件行会显示 `note` 标记；单文件 diff 顶部会显示当前文件是 `seen` 还是 `todo`，并在有备注时显示完整 `note: ...`。`notes` 会按当前 changed-file 顺序汇总备注，并把不在当前变更里的持久化备注追加到末尾；`notes QUERY` 会按路径或备注文本做大小写不敏感过滤。`copy notes` / `notes copy` 会复制完整汇总文本，`copy notes QUERY` 会复制过滤后的汇总文本。`copy diff` 会复制当前文件的轻量 Markdown diff 片段，包含当前 scope 下的 hunk、anchor、seen 状态和 review 备注，但不带 AI prompt 请求文案；`copy hunk` 会复制当前 File Detail hunk 的行号化 review 文本，适合只贴一个变更块；`copy change` 会复制当前 File Detail 中实际 `+` 或 `-` 改动行的单行 review 片段，added 行带 `path:line`，deleted 行只带旧行号；`save diff` 会把同样的片段保存成文件，默认路径是 `.cr/handoff/review-diff.md`，也可以在命令后传入自定义路径。`copy prompt` 会复制当前可见改动的 Markdown review handoff，并带上这些文件对应的 review 备注；`copy prompt file` 只复制当前文件及其备注，方便贴到聊天、AI prompt 或 PR comment。`save prompt` 和 `save prompt file` 会把同样的 Markdown 保存成文件，默认路径分别是 `.cr/handoff/review-prompt.md` 和 `.cr/handoff/review-prompt-file.md`，也可以在命令后传入自定义路径。
 
 切换 review scope：
 
@@ -195,7 +196,7 @@ cr --open-cmd 'code -g {fileline}'
 cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 ```
 
-`copy path` / `copy anchor` / `copy diff` / `copy hunk` / `copy notes` / `copy notes QUERY` / `copy prompt` / `copy prompt file` 会把复制文本传给 copy 命令的 stdin，也支持 `{text}` 占位。`save diff` / `save prompt` / `save prompt file` 直接写入文件，不依赖剪贴板命令。`reveal` 支持 `{file}` 和 `{dir}` 占位。对应环境变量是 `CR_COPY_CMD` 和 `CR_REVEAL_CMD`。
+`copy path` / `copy anchor` / `copy diff` / `copy hunk` / `copy line` / `copy change` / `copy notes` / `copy notes QUERY` / `copy prompt` / `copy prompt file` 会把复制文本传给 copy 命令的 stdin，也支持 `{text}` 占位。`save diff` / `save prompt` / `save prompt file` 直接写入文件，不依赖剪贴板命令。`reveal` 支持 `{file}` 和 `{dir}` 占位。对应环境变量是 `CR_COPY_CMD` 和 `CR_REVEAL_CMD`。
 如果文件动作失败，错误信息会带上当前使用的是 CLI、环境变量、平台 fallback 还是 missing；也可以在浏览器里输入 `: file actions` 主动查看 `open` / `copy` / `reveal` 的解析来源。
 
 常用文件动作：
@@ -208,6 +209,7 @@ cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 : copy diff    复制当前文件的轻量 diff review 片段
 : copy hunk    复制当前 diff hunk review 片段
 : copy line    复制当前文件详情行的 path:line
+: copy change  复制当前实际改动行 review 片段
 : save diff    保存当前文件的轻量 diff review 片段
 : find TEXT    在当前文件详情里查找渲染文本
 : next match   跳到当前 find 的下一个匹配

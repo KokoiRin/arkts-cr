@@ -199,6 +199,33 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(metadata_line)
         self.assertIsNone(out_of_range)
 
+    def test_file_detail_navigation_resolves_current_changed_row(self):
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1,2 +10,2 @@",
+            "     1   10 | context",
+            "     \033[32m11 | +added\033[0m",
+            "    2      | -deleted",
+        ]
+
+        added = file_detail_navigation.current_changed_row(lines, 2)
+        deleted = file_detail_navigation.current_changed_row(lines, 3)
+        context = file_detail_navigation.current_changed_row(lines, 1)
+        out_of_range = file_detail_navigation.current_changed_row(lines, 99)
+
+        self.assertIsNotNone(added)
+        self.assertEqual(added.kind, "added")
+        self.assertIsNone(added.old_line)
+        self.assertEqual(added.new_line, 11)
+        self.assertEqual(added.text, "   11 | +added")
+        self.assertIsNotNone(deleted)
+        self.assertEqual(deleted.kind, "deleted")
+        self.assertEqual(deleted.old_line, 2)
+        self.assertIsNone(deleted.new_line)
+        self.assertEqual(deleted.text, "  2      | -deleted")
+        self.assertIsNone(context)
+        self.assertIsNone(out_of_range)
+
     def test_file_detail_navigation_extracts_active_hunk_lines(self):
         lines = [
             "File 1/1  src/Sample.ts",
@@ -668,6 +695,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open line", text)
         self.assertIn("copy hunk", text)
         self.assertIn("copy line", text)
+        self.assertIn("copy change", text)
         self.assertIn("find TEXT", text)
         self.assertIn("next match", text)
         self.assertIn("prev match", text)
@@ -695,6 +723,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open line", commands)
         self.assertIn("copy hunk", commands)
         self.assertIn("copy line", commands)
+        self.assertIn("copy change", commands)
         self.assertIn("find TEXT", commands)
         self.assertIn("next match", commands)
         self.assertIn("prev match", commands)
@@ -949,6 +978,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy line").action,
             BrowserCommandAction.COPY_LINE,
+        )
+        self.assertEqual(
+            parse_browser_command("copy change").action,
+            BrowserCommandAction.COPY_CHANGE,
         )
         self.assertEqual(
             parse_browser_command("open hunk").action,
@@ -1536,6 +1569,64 @@ class CliTests(unittest.TestCase):
 
         copy_text.assert_called_once_with("src/Sample.ts:32", "copy-tool")
         self.assertEqual(message, "Copied line src/Sample.ts:32")
+
+    def test_selected_file_actions_copies_current_added_change_row(self):
+        args = argparse_namespace(copy_cmd="copy-tool")
+        change = FileChange("src/Sample.ts", 1, 0)
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch(
+            "cr.ui.selected_file_actions.file_actions.copy_text",
+            return_value=None,
+        ) as copy_text:
+            message = selected_file_actions.copy_selected_change(
+                change,
+                lines,
+                2,
+                args,
+            )
+
+        copied = copy_text.call_args.args[0]
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertEqual(message, "Copied change for src/Sample.ts:32")
+        self.assertIn("# Changed Row: src/Sample.ts", copied)
+        self.assertIn("- anchor: src/Sample.ts:32", copied)
+        self.assertIn("- kind: added", copied)
+        self.assertIn("        32 | +second", copied)
+
+    def test_selected_file_actions_copies_current_deleted_change_row(self):
+        args = argparse_namespace(copy_cmd="copy-tool")
+        change = FileChange("src/Sample.ts", 0, 1)
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,0 @@",
+            "    20      | -gone",
+        ]
+
+        with patch(
+            "cr.ui.selected_file_actions.file_actions.copy_text",
+            return_value=None,
+        ) as copy_text:
+            message = selected_file_actions.copy_selected_change(
+                change,
+                lines,
+                1,
+                args,
+            )
+
+        copied = copy_text.call_args.args[0]
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertEqual(message, "Copied deleted change for src/Sample.ts:20")
+        self.assertIn("# Changed Row: src/Sample.ts", copied)
+        self.assertIn("- old line: 20", copied)
+        self.assertIn("- kind: deleted", copied)
+        self.assertIn("  20      | -gone", copied)
+        self.assertNotIn("- anchor:", copied)
 
     def test_selected_file_actions_copies_selected_hunk(self):
         args = argparse_namespace(copy_cmd="copy-tool")
@@ -2143,6 +2234,114 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 2)
         self.assertIn("No current new-file line in File Detail.", state.status_message)
+
+    def test_browser_command_executor_copies_current_change_in_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+            review_notes={"src/Sample.ts": "keep note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch(
+                "cr.ui.browser.file_actions.copy_text",
+                return_value=None,
+            ) as copy_text:
+                result = executor.execute(
+                    parse_browser_command("copy change", raw_keys=True)
+                )
+
+        copied = copy_text.call_args.args[0]
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertIn("# Changed Row: src/Sample.ts", copied)
+        self.assertIn("- anchor: src/Sample.ts:32", copied)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertEqual(state.review_notes["src/Sample.ts"], "keep note")
+        self.assertIsNotNone(state.task)
+        self.assertIn("Copied change for src/Sample.ts:32", state.status_message)
+
+    def test_browser_command_executor_reports_copy_change_without_changed_row(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=1,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+                result = executor.execute(
+                    parse_browser_command("copy change", raw_keys=True)
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 1)
+        self.assertIn("No current changed row in File Detail.", state.status_message)
+
+    def test_browser_command_executor_reports_copy_change_outside_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+            result = executor.execute(
+                parse_browser_command("copy change", raw_keys=True)
+            )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertIn("Open a file detail to copy change.", state.status_message)
 
     def test_browser_command_executor_copies_current_hunk_in_file_detail(self):
         from cr.ui.browser import parse_browser_command
@@ -7416,6 +7615,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open line", text)
         self.assertIn("copy hunk", text)
         self.assertIn("copy line", text)
+        self.assertIn("copy change", text)
         self.assertIn("find TEXT", text)
         self.assertIn("next match", text)
         self.assertIn("prev match", text)
@@ -7449,6 +7649,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open line", commands)
         self.assertIn("copy hunk", commands)
         self.assertIn("copy line", commands)
+        self.assertIn("copy change", commands)
         self.assertIn("find TEXT", commands)
         self.assertIn("next match", commands)
         self.assertIn("prev match", commands)

@@ -442,6 +442,10 @@ class BrowserCommandExecutor:
             message = _copy_current_line(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_CHANGE:
+            message = _copy_current_change(state, args, style)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_DIFF:
             message = selected_file_actions.save_selected_diff_snippet(
                 state,
@@ -1565,6 +1569,34 @@ def _copy_current_line(
         style,
     )
     return selected_file_actions.copy_selected_line(
+        change,
+        lines,
+        state.file_scroll,
+        args,
+    )
+
+
+def _copy_current_change(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to copy change."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to copy change."
+    state.clamp_selection()
+    change = visible[state.selected]
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    return selected_file_actions.copy_selected_change(
         change,
         lines,
         state.file_scroll,

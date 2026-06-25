@@ -239,6 +239,27 @@ def copy_selected_line(
     return f"Copied line {shorten_path(change.path)}:{line}"
 
 
+def copy_selected_change(
+    change,
+    lines: list[str],
+    current_scroll: int,
+    args,
+    *,
+    copy_text=None,
+) -> str:
+    copy_text = file_actions.copy_text if copy_text is None else copy_text
+    row = file_detail_navigation.current_changed_row(lines, current_scroll)
+    if row is None:
+        return "No current changed row in File Detail."
+    text = _render_changed_row_copy_text(change.path, row)
+    message = copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    if row.new_line is not None:
+        return f"Copied change for {shorten_path(change.path)}:{row.new_line}"
+    return f"Copied deleted change for {shorten_path(change.path)}:{row.old_line}"
+
+
 def _render_hunk_copy_text(path: str, hunk: file_detail_navigation.ActiveHunk) -> str:
     return "\n".join(
         [
@@ -249,6 +270,29 @@ def _render_hunk_copy_text(path: str, hunk: file_detail_navigation.ActiveHunk) -
             "",
             "```text",
             *hunk.lines,
+            "```",
+            "",
+        ]
+    )
+
+
+def _render_changed_row_copy_text(
+    path: str,
+    row: file_detail_navigation.ChangedRow,
+) -> str:
+    details = [f"- kind: {row.kind}"]
+    if row.new_line is not None:
+        details.insert(0, f"- anchor: {path}:{row.new_line}")
+    if row.old_line is not None:
+        details.insert(0, f"- old line: {row.old_line}")
+    return "\n".join(
+        [
+            f"# Changed Row: {path}",
+            "",
+            *details,
+            "",
+            "```text",
+            row.text,
             "```",
             "",
         ]

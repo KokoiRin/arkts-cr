@@ -222,8 +222,9 @@ Product navigation terms:
   `reveal`, surfaced by `file actions` and failure messages without executing
   diagnostics commands.
 - `Task Runtime`: the internal module behind Task Panel behavior. It owns
-  process lifecycle and task history, while terminal layout and panel
-  presentation stay with Browser Frame.
+  process lifecycle, task history, and current task output handoff text, while
+  terminal layout and panel presentation stay with Browser Frame. Clipboard and
+  file writes for task output remain UI edge behavior outside Task Runtime.
 - `Task Presets`: project-local default build/test/lint commands read from
   `.cr/tasks.json` by Task Runtime. Presets are defaults, not overrides for
   explicit CLI arguments or environment variables.

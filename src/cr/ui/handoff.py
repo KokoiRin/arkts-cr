@@ -14,6 +14,7 @@ from pathlib import Path
 DEFAULT_PROMPT_PATH = Path(".cr") / "handoff" / "review-prompt.md"
 DEFAULT_FILE_PROMPT_PATH = Path(".cr") / "handoff" / "review-prompt-file.md"
 DEFAULT_DIFF_SNIPPET_PATH = Path(".cr") / "handoff" / "review-diff.md"
+DEFAULT_TASK_OUTPUT_PATH = Path(".cr") / "handoff" / "task-output.md"
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,15 @@ def save_diff_text(
     return _save_text(text, path, repo, label="diff")
 
 
+def save_task_output_text(
+    text: str,
+    repo: Path,
+    requested_path: str = "",
+) -> HandoffSaveResult:
+    path = task_output_save_path(repo, requested_path)
+    return _save_text(text, path, repo, label="task output")
+
+
 def prompt_save_path(
     repo: Path,
     requested_path: str = "",
@@ -67,6 +77,14 @@ def default_prompt_path(*, selected_only: bool) -> Path:
 def diff_save_path(repo: Path, requested_path: str = "") -> Path:
     text_path = requested_path.strip()
     path = Path(text_path) if text_path else DEFAULT_DIFF_SNIPPET_PATH
+    if path.is_absolute():
+        return path
+    return repo / path
+
+
+def task_output_save_path(repo: Path, requested_path: str = "") -> Path:
+    text_path = requested_path.strip()
+    path = Path(text_path) if text_path else DEFAULT_TASK_OUTPUT_PATH
     if path.is_absolute():
         return path
     return repo / path

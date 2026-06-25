@@ -68,6 +68,7 @@ from cr.ui import command_catalog
 from cr.ui import file_detail_navigation
 from cr.ui import frame as frame_module
 from cr.ui import handoff as handoff_module
+from cr.ui import tasks as task_runtime
 from cr.ui import review_notes as review_notes_module
 from cr.ui import workspace_persistence
 from cr.ui.terminal import TerminalStyle
@@ -412,6 +413,26 @@ class CliTests(unittest.TestCase):
                 "requested diff",
             )
 
+    def test_handoff_module_saves_task_output_default_and_requested_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            default = handoff_module.save_task_output_text("default task", repo)
+            requested = handoff_module.save_task_output_text(
+                "requested task",
+                repo,
+                "tmp/task.md",
+            )
+
+            self.assertIsNone(default.error)
+            self.assertEqual(default.display_path, ".cr/handoff/task-output.md")
+            self.assertEqual(default.path.read_text(encoding="utf-8"), "default task")
+            self.assertIsNone(requested.error)
+            self.assertEqual(requested.display_path, "tmp/task.md")
+            self.assertEqual(
+                requested.path.read_text(encoding="utf-8"),
+                "requested task",
+            )
+
     def test_browser_frame_module_renders_task_panel_lines(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
@@ -442,6 +463,36 @@ class CliTests(unittest.TestCase):
         self.assertIn("Build succeeded", text)
         self.assertIn("Recent: build succeeded ./old-build.sh", text)
         self.assertIn("compile line", text)
+
+    def test_task_runtime_renders_task_output_handoff_text(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        task = TaskState(
+            ["npm", "test"],
+            process,
+            kind="test",
+            lines=["first line", "second line"],
+            returncode=1,
+        )
+
+        text = task_runtime.task_output_handoff_text(task)
+
+        self.assertIn("# Test output", text)
+        self.assertIn("Status: failed (1)", text)
+        self.assertIn("Command: npm test", text)
+        self.assertIn("```text\nfirst line\nsecond line\n```", text)
+
+    def test_task_runtime_renders_empty_task_output_handoff_text(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        self.addCleanup(process.wait, timeout=1)
+        task = TaskState(["./build.sh"], process, kind="build")
+
+        text = task_runtime.task_output_handoff_text(task)
+
+        self.assertIn("# Build output", text)
+        self.assertIn("Status: running", text)
+        self.assertIn("Command: ./build.sh", text)
+        self.assertIn("(no output captured)", text)
 
     def test_browser_frame_module_draws_task_panel_without_full_clear(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -708,6 +759,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("next hunk", text)
         self.assertIn("prev hunk", text)
         self.assertIn("save prompt file", text)
+        self.assertIn("copy task", text)
+        self.assertIn("save task", text)
 
     def test_command_catalog_module_filters_executable_palette_entries(self):
         commands = [entry.command for entry in command_catalog.command_palette_entries()]
@@ -722,6 +775,8 @@ class CliTests(unittest.TestCase):
 
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
+        self.assertIn("copy task", commands)
+        self.assertIn("save task", commands)
         self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
@@ -787,6 +842,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Enter open", changed_files)
         self.assertIn("done next", changed_files)
         self.assertIn("build", changed_files)
+        self.assertIn("copy task", changed_files)
         self.assertIn("]/[ hunk", file_detail)
         self.assertIn("find", file_detail)
         self.assertIn("copy line", file_detail)
@@ -1144,6 +1200,10 @@ class CliTests(unittest.TestCase):
             parse_browser_command("copy prompt file").action,
             BrowserCommandAction.COPY_FILE_PROMPT,
         )
+        self.assertEqual(
+            parse_browser_command("copy task").action,
+            BrowserCommandAction.COPY_TASK_OUTPUT,
+        )
         save_prompt = parse_browser_command("save prompt")
         self.assertEqual(save_prompt.action, BrowserCommandAction.SAVE_PROMPT)
         self.assertEqual(save_prompt.value, "")
@@ -1159,6 +1219,12 @@ class CliTests(unittest.TestCase):
             BrowserCommandAction.SAVE_FILE_PROMPT,
         )
         self.assertEqual(save_file_prompt_path.value, "tmp/file.md")
+        save_task = parse_browser_command("save task")
+        self.assertEqual(save_task.action, BrowserCommandAction.SAVE_TASK_OUTPUT)
+        self.assertEqual(save_task.value, "")
+        save_task_path = parse_browser_command("save task tmp/task.md")
+        self.assertEqual(save_task_path.action, BrowserCommandAction.SAVE_TASK_OUTPUT)
+        self.assertEqual(save_task_path.value, "tmp/task.md")
         self.assertEqual(
             parse_browser_command("tasks").action,
             BrowserCommandAction.SHOW_TASK_DIAGNOSTICS,
@@ -3379,6 +3445,123 @@ class CliTests(unittest.TestCase):
         self.assertIn("open: cli code -g", text)
         self.assertIn("copy: cli copy-tool", text)
         self.assertIn("reveal: cli reveal-tool", text)
+
+    def test_browser_command_executor_copies_task_output(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState(
+            [],
+            task=TaskState(
+                ["npm", "test"],
+                process,
+                kind="test",
+                lines=["failed test"],
+                returncode=1,
+            ),
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text", return_value=None) as copy:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy task"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        copied_text = copy.call_args.args[0]
+        self.assertIn("# Test output", copied_text)
+        self.assertIn("failed test", copied_text)
+        self.assertEqual(copy.call_args.args[1], "copy-tool")
+        self.assertIn("Copied task output.", output.getvalue())
+
+    def test_browser_command_executor_copy_task_reports_empty_state(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy task"))
+
+        self.assertTrue(result.handled)
+        copy.assert_not_called()
+        self.assertIn("No task output to copy.", output.getvalue())
+
+    def test_browser_command_executor_saves_task_output(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                kind="build",
+                lines=["compile line"],
+                returncode=0,
+            ),
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with redirect_stdout(output):
+                    result = executor.execute(parse_browser_command("save task tmp/task.md"))
+
+            target = repo / "tmp" / "task.md"
+            self.assertTrue(result.handled)
+            self.assertIn("# Build output", target.read_text(encoding="utf-8"))
+            self.assertIn("Saved task output to tmp/task.md", output.getvalue())
+
+    def test_browser_command_executor_save_task_reports_empty_state(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with redirect_stdout(output):
+                    result = executor.execute(parse_browser_command("save task"))
+
+            self.assertTrue(result.handled)
+            self.assertFalse((repo / ".cr").exists())
+            self.assertIn("No task output to save.", output.getvalue())
 
     def test_browser_file_actions_report_when_no_changed_file_is_available(self):
         from cr.ui.browser import parse_browser_command

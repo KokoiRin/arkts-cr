@@ -87,6 +87,7 @@ def contextual_action_bar(
             "done next",
             "stage",
             "build",
+            "copy task",
             "commands",
         ),
         BrowserPage.FILE_DETAIL: (

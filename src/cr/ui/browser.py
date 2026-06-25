@@ -474,6 +474,10 @@ class BrowserCommandExecutor:
             message = _copy_prompt_handoff(state, args, selected_only=True)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_TASK_OUTPUT:
+            message = _copy_task_output(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_PROMPT:
             message = _save_prompt_handoff(
                 state,
@@ -490,6 +494,10 @@ class BrowserCommandExecutor:
                 parsed_command.value,
                 selected_only=True,
             )
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_TASK_OUTPUT:
+            message = _save_task_output(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.REVEAL_FILE:
@@ -1057,6 +1065,16 @@ def _copy_prompt_handoff(
     )
 
 
+def _copy_task_output(state: BrowserState, args: argparse.Namespace) -> str:
+    if state.task is None:
+        return "No task output to copy."
+    text = task_runtime.task_output_handoff_text(state.task)
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return "Copied task output."
+
+
 def _save_prompt_handoff(
     state: BrowserState,
     args: argparse.Namespace,
@@ -1073,6 +1091,20 @@ def _save_prompt_handoff(
         save_prompt_text=handoff_module.save_prompt_text,
         handoff_text=_prompt_handoff_text,
     )
+
+
+def _save_task_output(state: BrowserState, requested_path: str = "") -> str:
+    if state.task is None:
+        return "No task output to save."
+    text = task_runtime.task_output_handoff_text(state.task)
+    result = handoff_module.save_task_output_text(
+        text,
+        git.repo_root(),
+        requested_path,
+    )
+    if result.error:
+        return result.error
+    return f"Saved task output to {result.display_path}"
 
 
 def _prompt_handoff_text(

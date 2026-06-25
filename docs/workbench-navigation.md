@@ -360,6 +360,14 @@ Status: implemented.
 
 `tasks help` now shows the expected `.cr/tasks.json` shape, supported build/test/lint string commands, task command precedence, and a compact JSON example. Malformed preset diagnostics point to this help without making preset parsing fatal.
 
+### P0: Task output handoff
+
+Status: implemented.
+
+`copy task` copies the current Task Panel output as Markdown, including task kind, status, command, and captured output lines. `save task [PATH]` writes the same text to disk, defaulting to `.cr/handoff/task-output.md`.
+
+This is output-panel handoff, not diagnostics. `cr.ui.tasks` owns the text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
+
 ### P0: Review progress flow
 
 Status: implemented.

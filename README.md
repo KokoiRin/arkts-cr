@@ -249,6 +249,8 @@ build
 : lint     运行 lint
 : tasks    查看 build/test/lint 命令来源
 : tasks help  查看 .cr/tasks.json 格式
+: copy task 复制当前任务输出
+: save task [PATH] 保存当前任务输出，默认 .cr/handoff/task-output.md
 : stop     停止正在运行的任务
 : rerun    重跑最近一次任务
 ```

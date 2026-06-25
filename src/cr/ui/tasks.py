@@ -245,6 +245,25 @@ def task_status(task: TaskState) -> str:
     return f"failed ({task.returncode})"
 
 
+def task_output_handoff_text(task: TaskState) -> str:
+    command = _format_command(task.command) if task.command else "(no command)"
+    output = "\n".join(task.lines).strip()
+    if not output:
+        output = "(no output captured)"
+    return "\n".join(
+        [
+            f"# {task_label(task.kind)} output",
+            "",
+            f"Status: {task_status(task)}",
+            f"Command: {command}",
+            "",
+            "```text",
+            output,
+            "```",
+        ]
+    )
+
+
 def record_completed_task(state: TaskRuntimeState) -> None:
     task = state.task
     if (

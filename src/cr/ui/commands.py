@@ -47,9 +47,11 @@ class BrowserCommandAction:
     COPY_REVIEW_NOTES = "copy_review_notes"
     COPY_PROMPT = "copy_prompt"
     COPY_FILE_PROMPT = "copy_file_prompt"
+    COPY_TASK_OUTPUT = "copy_task_output"
     SAVE_DIFF = "save_diff"
     SAVE_PROMPT = "save_prompt"
     SAVE_FILE_PROMPT = "save_file_prompt"
+    SAVE_TASK_OUTPUT = "save_task_output"
     REVEAL_FILE = "reveal_file"
     STAGE_FILE = "stage_file"
     UNSTAGE_FILE = "unstage_file"
@@ -181,6 +183,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_PROMPT)
     if command in {"copy prompt file", "copy file prompt"}:
         return BrowserCommand(BrowserCommandAction.COPY_FILE_PROMPT)
+    if command in {"copy task", "copy task output"}:
+        return BrowserCommand(BrowserCommandAction.COPY_TASK_OUTPUT)
     if command == "save diff":
         return BrowserCommand(BrowserCommandAction.SAVE_DIFF)
     if command.startswith("save diff "):
@@ -201,6 +205,13 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(
             BrowserCommandAction.SAVE_PROMPT,
             command.removeprefix("save prompt ").strip(),
+        )
+    if command == "save task":
+        return BrowserCommand(BrowserCommandAction.SAVE_TASK_OUTPUT)
+    if command.startswith("save task "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_TASK_OUTPUT,
+            command.removeprefix("save task ").strip(),
         )
     if command in {"reveal", "show in finder"}:
         return BrowserCommand(BrowserCommandAction.REVEAL_FILE)

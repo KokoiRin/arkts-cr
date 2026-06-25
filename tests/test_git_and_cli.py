@@ -1366,6 +1366,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy problem context", commands)
         self.assertIn("save problem context", commands)
         self.assertIn("view problem", commands)
+        self.assertIn("view problem diff", commands)
         self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
@@ -1429,6 +1430,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("这个页面能做什么", text)
         self.assertIn("按文件分组", text)
         self.assertIn("problems group file", text)
+        self.assertIn("view problem diff", text)
         self.assertIn("copy problem context", text)
         self.assertIn("save problem context", text)
 
@@ -1442,6 +1444,7 @@ class CliTests(unittest.TestCase):
         )
         self.assertIn("Task Output 帮助", task_output_text)
         self.assertIn("view problem", task_output_text)
+        self.assertIn("view problem diff", task_output_text)
         self.assertIn("copy problem context", task_output_text)
         self.assertIn("save problem context", task_output_text)
         self.assertIn("copy task tail", task_output_text)
@@ -1532,6 +1535,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("save task 保存任务", task_output)
         self.assertIn("next/prev problem 切换问题", task_output)
         self.assertIn("view problem 查看选中问题", task_output)
+        self.assertIn("view problem diff 查看 diff", task_output)
         self.assertIn("copy context 复制选中问题", task_output)
         self.assertIn("save context 保存选中问题", task_output)
         self.assertIn("find 查找", task_output)
@@ -1558,6 +1562,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy context 复制上下文", task_problems)
         self.assertIn("save context 保存上下文", task_problems)
         self.assertIn("view problem 查看源码", task_problems)
+        self.assertIn("view problem diff 查看 diff", task_problems)
         self.assertIn("b 返回", task_problems)
         source_file_bar = page_content.contextual_action_bar(
             BrowserPage.SOURCE_FILE,
@@ -2615,6 +2620,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("view problem").action,
             BrowserCommandAction.VIEW_TASK_PROBLEM,
+        )
+        self.assertEqual(
+            parse_browser_command("view problem diff").action,
+            BrowserCommandAction.VIEW_TASK_PROBLEM_DIFF,
         )
         save_prompt = parse_browser_command("save prompt")
         self.assertEqual(save_prompt.action, BrowserCommandAction.SAVE_PROMPT)
@@ -7339,6 +7348,153 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_line, 2)
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+
+    def test_browser_command_executor_views_selected_task_problem_diff(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("one\ntwo\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/One.ets", 1, 0), FileChange("src/Two.ets", 1, 0)],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:2:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 2/2  src/Two.ets",
+                "  @@ -1,2 +1,3 @@",
+                "     1    1 | one",
+                "          2 | +two",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    with patch("cr.ui.browser._max_file_scroll", return_value=10):
+                        result = executor.execute(
+                            parse_browser_command("view problem diff")
+                        )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIn("Opened problem diff src/Two.ets:2.", state.status_message)
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+
+    def test_browser_command_executor_views_selected_task_output_problem_diff(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("one\ntwo\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/One.ets", 1, 0), FileChange("src/Two.ets", 1, 0)],
+                page=BrowserPage.TASK_OUTPUT,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:2:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 2/2  src/Two.ets",
+                "  @@ -1,2 +1,3 @@",
+                "     1    1 | one",
+                "          2 | +two",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    with patch("cr.ui.browser._max_file_scroll", return_value=10):
+                        result = executor.execute(
+                            parse_browser_command("view problem diff")
+                        )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.selected, 1)
+        self.assertEqual(state.file_scroll, 2)
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+
+    def test_browser_command_executor_reports_problem_diff_without_changed_file(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("one\ntwo\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/One.ets", 1, 0)],
+                page=BrowserPage.TASK_PROBLEMS,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Two.ets:2:1 error"],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("view problem diff"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(state.selected, 0)
+        self.assertIn(
+            "No diff for problem src/Two.ets:2 in current review scope.",
+            state.status_message,
+        )
 
     def test_browser_command_executor_views_sorted_task_problem_source(self):
         from cr.ui.browser import parse_browser_command

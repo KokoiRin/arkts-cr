@@ -78,6 +78,7 @@ class BrowserCommandAction:
     NEXT_TASK_PROBLEM_FILE = "next_task_problem_file"
     PREVIOUS_TASK_PROBLEM_FILE = "previous_task_problem_file"
     VIEW_TASK_PROBLEM = "view_task_problem"
+    VIEW_TASK_PROBLEM_DIFF = "view_task_problem_diff"
     SAVE_DIFF = "save_diff"
     SAVE_PROMPT = "save_prompt"
     SAVE_FILE_PROMPT = "save_file_prompt"
@@ -339,6 +340,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         )
     if command in {"view problem", "view task problem"}:
         return BrowserCommand(BrowserCommandAction.VIEW_TASK_PROBLEM)
+    if command in {"view problem diff", "view task problem diff", "problem diff"}:
+        return BrowserCommand(BrowserCommandAction.VIEW_TASK_PROBLEM_DIFF)
     if command == "save diff":
         return BrowserCommand(BrowserCommandAction.SAVE_DIFF)
     if command.startswith("save diff "):

@@ -678,6 +678,11 @@ class BrowserCommandExecutor:
             if message:
                 _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.VIEW_TASK_PROBLEM_DIFF:
+            message = _view_selected_task_problem_diff(state, args, style)
+            if message:
+                _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SAVE_PROMPT:
             message = _save_prompt_handoff(
                 state,
@@ -2787,6 +2792,65 @@ def _view_selected_task_problem(state: BrowserState) -> str:
         return "No task problem to view."
     BrowserNavigation.show_source_file(state, problem.path, problem.line)
     return ""
+
+
+def _view_selected_task_problem_diff(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    problem = _current_task_problem_for_action(state)
+    if problem is None:
+        return "No task problem to view diff."
+    change = _select_changed_file_for_problem_diff(state, problem.path)
+    if change is None:
+        return (
+            f"No diff for problem {problem.path}:{problem.line} "
+            "in current review scope."
+        )
+    BrowserNavigation.open_file_detail(state)
+    visible = state.visible_changes
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    position = file_detail_navigation.new_line_position(lines, problem.line)
+    if position is not None:
+        state.file_scroll = min(position, _max_file_scroll(state, args, style))
+        return f"Opened problem diff {problem.path}:{problem.line}."
+    return f"Opened problem diff {problem.path}; line {problem.line} is not visible in diff."
+
+
+def _select_changed_file_for_problem_diff(
+    state: BrowserState,
+    path: str,
+) -> git.FileChange | None:
+    visible = state.visible_changes
+    for index, change in enumerate(visible):
+        if change.path == path:
+            state.selected = index
+            state._sync_to_workspace()
+            return change
+    for index, change in enumerate(state.changes):
+        if change.path != path:
+            continue
+        state.filter_text = ""
+        state.source_filter = ""
+        state.remaining_only = False
+        state.selected = index
+        state._sync_to_workspace()
+        visible = state.visible_changes
+        for visible_index, visible_change in enumerate(visible):
+            if visible_change.path == path:
+                state.selected = visible_index
+                state._sync_to_workspace()
+                return visible_change
+        return None
+    return None
 
 
 def _open_source_file(state: BrowserState, args: argparse.Namespace) -> str:

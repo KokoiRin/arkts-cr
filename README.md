@@ -148,6 +148,7 @@ next problem             切换到下一个解析出的问题
 prev problem             切换到上一个解析出的问题
 problems                 从输出进入 Problems 页
 view problem             直接查看当前问题源码
+view problem diff        查看当前问题对应的文件 diff
 copy problem context     复制当前问题 + 任务输出片段 + 源码 + diff 上下文
 save problem context     保存当前问题 + 任务输出片段 + 源码 + diff 上下文
 copy task                复制完整任务输出
@@ -179,6 +180,7 @@ problems group none      恢复平铺
 next problem file        跳到下一个问题文件
 prev problem file        跳到上一个问题文件
 view problem             在 TUI 里查看问题附近源码
+view problem diff        打开当前问题对应的文件 diff
 copy problem             复制当前问题
 copy problems            复制当前可见问题列表
 copy file problems       复制当前选中文件的可见问题

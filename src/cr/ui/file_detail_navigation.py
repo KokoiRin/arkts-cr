@@ -156,6 +156,15 @@ def current_changed_row(lines: list[str], current_scroll: int) -> ChangedRow | N
     return _rendered_changed_row(body[current_scroll])
 
 
+def new_line_position(lines: list[str], target_line: int) -> int | None:
+    if target_line < 1:
+        return None
+    for index, _line in enumerate(lines[1:]):
+        if current_new_line(lines, index) == target_line:
+            return index
+    return None
+
+
 def active_hunk(lines: list[str], current_scroll: int) -> ActiveHunk | None:
     body = lines[1:]
     hunk_headers = _hunk_headers(body)

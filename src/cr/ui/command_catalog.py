@@ -140,6 +140,11 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("next problem", "选择下一个任务问题", "next problem"),
                 CommandEntry("prev problem", "选择上一个任务问题", "prev problem"),
                 CommandEntry("view problem", "查看选中问题的源码位置", "view problem"),
+                CommandEntry(
+                    "view problem diff",
+                    "查看选中问题对应的文件 diff",
+                    "view problem diff",
+                ),
                 CommandEntry("copy problem", "复制选中问题", "copy problem"),
                 CommandEntry("copy problems", "复制当前问题列表", "copy problems"),
                 CommandEntry(

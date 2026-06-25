@@ -23,6 +23,7 @@ CONTROL_WORDS = {
     "try",
     "while",
 }
+MODIFIED_SYMBOL_KINDS = {"function", "method", "enum"}
 
 
 @dataclass
@@ -38,6 +39,10 @@ class Symbol:
 CONTAINER_RE = re.compile(
     r"^\s*(?:export\s+(?:default\s+)?)?"
     r"(?:abstract\s+)?(?P<kind>class|struct|interface)\s+"
+    r"(?P<name>[A-Za-z_$][\w$]*)"
+)
+ENUM_RE = re.compile(
+    r"^\s*(?:export\s+)?(?:const\s+)?enum\s+"
     r"(?P<name>[A-Za-z_$][\w$]*)"
 )
 FUNCTION_RE = re.compile(
@@ -155,13 +160,15 @@ def modified_symbols(symbols: list[Symbol], changed_lines: set[int]) -> list[str
     leaves = [
         symbol
         for symbol in matched
-        if symbol.kind in {"function", "method"}
+        if symbol.kind in MODIFIED_SYMBOL_KINDS
         and not any(
-            child in matched and child.kind in {"function", "method"}
+            child in matched and child.kind in MODIFIED_SYMBOL_KINDS
             for child in symbol.children
         )
     ]
-    selected = leaves or [symbol for symbol in matched if symbol.kind in {"function", "method"}]
+    selected = leaves or [
+        symbol for symbol in matched if symbol.kind in MODIFIED_SYMBOL_KINDS
+    ]
     names = _unique(symbol.name for symbol in selected)
     return names or ["unknown"]
 
@@ -212,6 +219,16 @@ def _match_symbol(lines: list[str], index: int, line: str) -> Symbol | None:
         return Symbol(
             kind=container.group("kind"),
             name=container.group("name"),
+            line=index,
+            indent=indent,
+            end_line=_estimate_end_line(lines, index),
+        )
+
+    enum = ENUM_RE.match(line)
+    if enum:
+        return Symbol(
+            kind="enum",
+            name=enum.group("name"),
             line=index,
             indent=indent,
             end_line=_estimate_end_line(lines, index),

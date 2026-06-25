@@ -117,6 +117,35 @@ class OutlineTests(unittest.TestCase):
         self.assertEqual(modified_symbols(symbols, {3}), ["createModel"])
         self.assertEqual(modified_symbols(symbols, {10}), ["parseModel"])
 
+    def test_parses_enum_blocks_as_symbols(self):
+        symbols = parse_outline(
+            "\n".join(
+                [
+                    "export const enum FeedStatus {",
+                    "  Loading = 'loading',",
+                    "  Ready = 'ready',",
+                    "}",
+                    "export enum LoadState {",
+                    "  Idle,",
+                    "  Done,",
+                    "}",
+                    "enum CardKind {",
+                    "  Video,",
+                    "  Image,",
+                    "}",
+                ]
+            )
+        )
+
+        self.assertEqual([symbol.kind for symbol in symbols], ["enum", "enum", "enum"])
+        self.assertEqual(
+            [symbol.name for symbol in symbols],
+            ["FeedStatus", "LoadState", "CardKind"],
+        )
+        self.assertEqual(modified_symbols(symbols, {2}), ["FeedStatus"])
+        self.assertEqual(modified_symbols(symbols, {6}), ["LoadState"])
+        self.assertEqual(modified_symbols(symbols, {10}), ["CardKind"])
+
 
 if __name__ == "__main__":
     unittest.main()

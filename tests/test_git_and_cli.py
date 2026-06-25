@@ -563,6 +563,87 @@ class CliTests(unittest.TestCase):
         self.assertEqual(method, "class FeedStore > method hydrate")
         self.assertEqual(default_function, "function createStore")
 
+    def test_source_outline_labels_enum_symbols(self):
+        symbols = outline.parse_outline(
+            "\n".join(
+                [
+                    "export const enum FeedStatus {",
+                    "  Loading = 'loading',",
+                    "  Ready = 'ready',",
+                    "}",
+                    "export enum LoadState {",
+                    "  Idle,",
+                    "  Done,",
+                    "}",
+                    "enum CardKind {",
+                    "  Video,",
+                    "  Image,",
+                    "}",
+                ]
+            )
+        )
+
+        exported_const_enum = outline.symbol_label_at_line(symbols, 2)
+        exported_enum = outline.symbol_label_at_line(symbols, 6)
+        plain_enum = outline.symbol_label_at_line(symbols, 10)
+
+        self.assertEqual(exported_const_enum, "enum FeedStatus")
+        self.assertEqual(exported_enum, "enum LoadState")
+        self.assertEqual(plain_enum, "enum CardKind")
+
+    def test_browser_command_executor_copies_source_enum_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / ".git").mkdir()
+            source = repo / "src" / "Status.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "export const enum FeedStatus {",
+                        "  Loading = 'loading',",
+                        "  Ready = 'ready',",
+                        "}",
+                        "function after() {",
+                        "  return FeedStatus.Ready",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            change = FileChange("src/Status.ets", 1, 0)
+            copied: list[str] = []
+            state = browser_module.BrowserState(
+                [change],
+                page=browser_module.BrowserPage.SOURCE_FILE,
+                source_file_path="src/Status.ets",
+                source_file_line=2,
+                selected=0,
+            )
+            executor = browser_module.BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    side_effect=lambda text, _cmd: copied.append(text),
+                ):
+                    result = executor.execute(parse_browser_command("copy source symbol"))
+
+        self.assertTrue(result.handled)
+        self.assertIn("Copied source symbol src/Status.ets:1-4.", state.status_message)
+        self.assertEqual(len(copied), 1)
+        self.assertIn("Symbol: enum FeedStatus", copied[0])
+        self.assertIn("  Loading = 'loading',", copied[0])
+        self.assertNotIn("function after", copied[0])
+
     def test_source_file_view_reads_repo_file_and_windows_target_line(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)

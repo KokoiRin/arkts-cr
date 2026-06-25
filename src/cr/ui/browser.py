@@ -1431,6 +1431,16 @@ def _task_output_tail_line_count(raw_value: str, default: int = 40) -> int | Non
 
 
 def _copy_selected_task_problem(state: BrowserState, args: argparse.Namespace) -> str:
+    if state.page == BrowserPage.SOURCE_FILE:
+        current = _source_file_task_problem(state)
+        if current is None:
+            return "No current source problem to copy."
+        problem, _selected, _total = current
+        text = task_problems_module.problem_handoff_text(problem)
+        message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+        if message:
+            return message
+        return "Copied source problem."
     problems = _current_task_problems(state)
     if not problems:
         return "No task problem to copy."
@@ -3694,23 +3704,33 @@ def _browse_source_file_screen_lines(
 
 
 def _source_file_problem_label(state: BrowserState) -> str:
-    problem = _current_task_problem_for_action(state)
-    if problem is None:
+    current = _source_file_task_problem(state)
+    if current is None:
         return ""
-    if problem.path != state.source_file_path:
-        return ""
-    if problem.line != max(1, state.source_file_line):
-        return ""
-    problems = _current_task_problems(state)
-    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    problem, selected, total = current
     label = task_problems_module.problem_diagnostic_label(problem)
-    parts = [f"{selected + 1}/{len(problems)}"]
+    parts = [f"{selected + 1}/{total}"]
     if label:
         parts.append(label)
     detail = problem.message or problem.summary
     if detail:
         parts.append(detail)
     return " ".join(parts)
+
+
+def _source_file_task_problem(
+    state: BrowserState,
+) -> tuple[task_problems_module.TaskProblem, int, int] | None:
+    problems = _current_task_problems(state)
+    if not problems:
+        return None
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    problem = problems[selected]
+    if problem.path != state.source_file_path:
+        return None
+    if problem.line != max(1, state.source_file_line):
+        return None
+    return problem, selected, len(problems)
 
 
 def _current_task_problems(state: BrowserState) -> list[task_problems_module.TaskProblem]:

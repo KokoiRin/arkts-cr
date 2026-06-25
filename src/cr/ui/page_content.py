@@ -27,6 +27,7 @@ from ..source.purpose import describe_file as default_describe_file
 from ..vcs import git
 from . import commit_picker
 from .navigation import BrowserPage
+from . import source_file as source_file_module
 from . import tasks as task_runtime
 from . import task_problems as task_problems_module
 from .task_problems import TaskProblem
@@ -68,6 +69,8 @@ def browse_prompt(page: str) -> str:
         return "cr:task> "
     if page == BrowserPage.TASK_PROBLEMS:
         return "cr:problems> "
+    if page == BrowserPage.SOURCE_FILE:
+        return "cr:source> "
     return "cr:list> "
 
 
@@ -142,10 +145,16 @@ def contextual_action_bar(
         BrowserPage.TASK_PROBLEMS: (
             "Enter open",
             "↑/↓ select",
+            "view problem",
             "task output",
             "copy problem",
             "copy problems",
             "copy task",
+            "b back",
+        ),
+        BrowserPage.SOURCE_FILE: (
+            "↑/↓ scroll",
+            "open",
             "b back",
         ),
     }
@@ -201,6 +210,11 @@ def product_breadcrumb(state: Any, args: argparse.Namespace) -> str:
         return f"{label} > Task Output"
     if state.page == BrowserPage.TASK_PROBLEMS:
         return f"{label} > Task Problems"
+    if state.page == BrowserPage.SOURCE_FILE:
+        path = getattr(state, "source_file_path", "")
+        if path:
+            return f"{label} > Source > {path}"
+        return f"{label} > Source"
     if state.page == BrowserPage.FILE_DETAIL:
         visible = state.visible_changes
         if visible and 0 <= state.selected < len(visible):
@@ -722,6 +736,30 @@ def task_problems_screen_lines(
         )
     if len(problems) > row_capacity:
         lines.append(style.dim(f"showing {start + 1}-{end}/{len(problems)}"))
+    else:
+        lines.append("")
+    return lines[:max_lines]
+
+
+def source_file_screen_lines(
+    view: source_file_module.SourceFileView,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    lines = [
+        f"{style.bold('Source')} {style.file_path(view.path)}",
+    ]
+    if view.error:
+        lines.extend([view.error, ""])
+        return lines[:max_lines]
+    width = len(str(max(view.total_lines, 1)))
+    for row in view.rows:
+        marker = ">" if row.is_target else " "
+        lines.append(f"{marker} {str(row.line_number).rjust(width)}  {row.text}")
+    if view.total_lines > len(view.rows):
+        start = view.scroll + 1
+        end = view.scroll + len(view.rows)
+        lines.append(style.dim(f"showing {start}-{end}/{view.total_lines}"))
     else:
         lines.append("")
     return lines[:max_lines]

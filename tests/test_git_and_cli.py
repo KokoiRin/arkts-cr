@@ -16,6 +16,7 @@ from cr.ui import input as browser_input
 from cr.ui import commit_picker
 from cr.ui import page_content
 from cr.ui import selected_file_actions
+from cr.ui import source_file
 from cr.ui import task_problems
 from cr.ui.browser import (
     TaskState,
@@ -204,6 +205,69 @@ class CliTests(unittest.TestCase):
         self.assertIn("# Task problems", all_text)
         self.assertIn("1. src/Foo.ets:12:3", all_text)
         self.assertIn("2. src/Bar.ets:8", all_text)
+
+    def test_source_file_view_reads_repo_file_and_windows_target_line(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 21)),
+                encoding="utf-8",
+            )
+
+            view = source_file.load_source_file_view(
+                repo,
+                "src/Foo.ets",
+                target_line=10,
+                scroll=-1,
+                capacity=5,
+            )
+
+        self.assertIsNone(view.error)
+        self.assertEqual(view.path, "src/Foo.ets")
+        self.assertEqual(view.target_line, 10)
+        self.assertEqual(view.scroll, 7)
+        self.assertEqual([row.line_number for row in view.rows], [8, 9, 10, 11, 12])
+        self.assertEqual(view.rows[2].text, "line 10")
+        self.assertTrue(view.rows[2].is_target)
+
+    def test_source_file_view_reports_missing_non_utf8_and_clamps_line(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("only one line\n", encoding="utf-8")
+            binary = repo / "src" / "Blob.bin"
+            binary.write_bytes(b"\xff\xfe\x00")
+
+            clamped = source_file.load_source_file_view(
+                repo,
+                "src/Foo.ets",
+                target_line=99,
+                scroll=0,
+                capacity=5,
+            )
+            missing = source_file.load_source_file_view(
+                repo,
+                "src/Missing.ets",
+                target_line=1,
+                scroll=0,
+                capacity=5,
+            )
+            non_utf8 = source_file.load_source_file_view(
+                repo,
+                "src/Blob.bin",
+                target_line=1,
+                scroll=0,
+                capacity=5,
+            )
+
+        self.assertEqual(clamped.target_line, 1)
+        self.assertEqual(clamped.rows[0].line_number, 1)
+        self.assertIsNone(clamped.error)
+        self.assertEqual(missing.error, "Source file not found.")
+        self.assertEqual(non_utf8.error, "Source file is not UTF-8 text.")
 
     def test_file_detail_navigation_jumps_between_hunk_headers(self):
         lines = [
@@ -897,6 +961,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("problems", commands)
         self.assertIn("copy problem", commands)
         self.assertIn("copy problems", commands)
+        self.assertIn("view problem", commands)
         self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
@@ -988,7 +1053,15 @@ class CliTests(unittest.TestCase):
         self.assertIn("task output", task_problems)
         self.assertIn("copy problem", task_problems)
         self.assertIn("copy problems", task_problems)
+        self.assertIn("view problem", task_problems)
         self.assertIn("b back", task_problems)
+        source_file_bar = page_content.contextual_action_bar(
+            BrowserPage.SOURCE_FILE,
+            style,
+        )
+        self.assertIn("↑/↓ scroll", source_file_bar)
+        self.assertIn("open", source_file_bar)
+        self.assertIn("b back", source_file_bar)
         self.assertNotEqual(changed_files, file_detail)
 
     def test_page_content_contextual_action_bar_uses_line_fitting(self):
@@ -1087,6 +1160,50 @@ class CliTests(unittest.TestCase):
         self.assertIn("No task problems found.", text)
         self.assertIn("Run build, test, or lint", text)
 
+    def test_page_content_source_file_screen_lines_render_source_and_error(self):
+        view = source_file.SourceFileView(
+            path="src/Foo.ets",
+            target_line=2,
+            scroll=0,
+            total_lines=3,
+            rows=[
+                source_file.SourceFileRow(1, "first"),
+                source_file.SourceFileRow(2, "target", is_target=True),
+                source_file.SourceFileRow(3, "third"),
+            ],
+        )
+
+        lines = page_content.source_file_screen_lines(
+            view,
+            TerminalStyle(False),
+            max_lines=8,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("Source src/Foo.ets", text)
+        self.assertIn("  1  first", text)
+        self.assertIn("> 2  target", text)
+        self.assertIn("  3  third", text)
+
+        error = source_file.SourceFileView(
+            path="src/Missing.ets",
+            target_line=1,
+            scroll=0,
+            total_lines=0,
+            rows=[],
+            error="Source file not found.",
+        )
+        error_text = "\n".join(
+            page_content.source_file_screen_lines(
+                error,
+                TerminalStyle(False),
+                max_lines=5,
+            )
+        )
+
+        self.assertIn("Source src/Missing.ets", error_text)
+        self.assertIn("Source file not found.", error_text)
+
     def test_browser_page_model_names_current_pages(self):
         self.assertEqual(BrowserPage.SCOPE_HOME, "scopes")
         self.assertEqual(BrowserPage.COMMIT_PICKER, "commits")
@@ -1095,6 +1212,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(BrowserPage.COMMAND_PALETTE, "commands")
         self.assertEqual(BrowserPage.TASK_OUTPUT, "task-output")
         self.assertEqual(BrowserPage.TASK_PROBLEMS, "problems")
+        self.assertEqual(BrowserPage.SOURCE_FILE, "source")
 
         state = BrowserState([])
         self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
@@ -1116,6 +1234,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("BrowserPage.COMMAND_PALETTE", source)
         self.assertIn("BrowserPage.TASK_OUTPUT", source)
         self.assertIn("BrowserPage.TASK_PROBLEMS", source)
+        self.assertIn("BrowserPage.SOURCE_FILE", source)
         self.assertIn("BrowserNavigation.", source)
         self.assertNotIn('mode: str = "list"', source)
         self.assertNotIn("state.mode", source)
@@ -1169,6 +1288,12 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
         self.assertEqual(state.problem_selected, 0)
         self.assertEqual(state.problem_scroll, 0)
+
+        BrowserNavigation.show_source_file(state, "src/Foo.ets", 12)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_path, "src/Foo.ets")
+        self.assertEqual(state.source_file_line, 12)
+        self.assertEqual(state.source_file_scroll, -1)
 
     def test_browser_navigation_replaces_pages_without_history(self):
         state = BrowserState(
@@ -1470,6 +1595,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy problems").action,
             BrowserCommandAction.COPY_TASK_PROBLEMS,
+        )
+        self.assertEqual(
+            parse_browser_command("view problem").action,
+            BrowserCommandAction.VIEW_TASK_PROBLEM,
         )
         save_prompt = parse_browser_command("save prompt")
         self.assertEqual(save_prompt.action, BrowserCommandAction.SAVE_PROMPT)
@@ -4183,6 +4312,117 @@ class CliTests(unittest.TestCase):
         self.assertIn("2. src/Two.ets:22:4", copied)
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied 2 task problems.", state.status_message)
+
+    def test_browser_command_executor_views_selected_task_problem_source(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "One.ets"
+            second = repo / "src" / "Two.ets"
+            first.parent.mkdir(parents=True)
+            first.write_text("sample", encoding="utf-8")
+            second.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:2:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("view problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_path, "src/Two.ets")
+        self.assertEqual(state.source_file_line, 2)
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+
+    def test_browser_command_executor_scrolls_and_opens_source_file_page(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 40)),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=20,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(open_cmd="editor {fileline}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                down = executor.execute(parse_browser_command("down", raw_keys=True))
+                scroll_after_down = state.source_file_scroll
+                end = executor.execute(parse_browser_command("end", raw_keys=True))
+                scroll_after_end = state.source_file_scroll
+                home = executor.execute(parse_browser_command("home", raw_keys=True))
+                scroll_after_home = state.source_file_scroll
+                with patch(
+                    "cr.ui.browser.file_actions.open_path",
+                    return_value=None,
+                ) as open_path:
+                    opened = executor.execute(parse_browser_command("open"))
+
+        self.assertTrue(down.needs_redraw)
+        self.assertTrue(end.needs_redraw)
+        self.assertTrue(home.needs_redraw)
+        self.assertGreater(scroll_after_down, 0)
+        self.assertGreater(scroll_after_end, scroll_after_down)
+        self.assertEqual(scroll_after_home, 0)
+        self.assertTrue(opened.needs_redraw)
+        open_path.assert_called_once_with(source, 20, "editor {fileline}")
+        self.assertIn("Opened source src/Foo.ets:20", state.status_message)
+
+    def test_browser_command_executor_reports_no_task_problem_to_view(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("view problem"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertIn("No task problem to view.", state.status_message)
 
     def test_browser_command_executor_does_not_copy_empty_task_problems(self):
         from cr.ui.browser import parse_browser_command
@@ -6905,6 +7145,41 @@ class CliTests(unittest.TestCase):
         self.assertIn("src/Foo.ets:12:3", text)
         self.assertIn("bad call", text)
         self.assertIn("cr:problems> ", text)
+
+    def test_browse_screen_renders_source_file_page(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=2,
+            )
+            output = StringIO()
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.frame.shutil.get_terminal_size",
+                    return_value=os.terminal_size((120, 12)),
+                ):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("Scope: worktree > Source > src/Foo.ets", text)
+        self.assertIn("Source src/Foo.ets", text)
+        self.assertIn("> 2  two", text)
+        self.assertIn("cr:source> ", text)
 
     def test_build_start_records_process_group_id(self):
         with tempfile.TemporaryDirectory() as tmp:

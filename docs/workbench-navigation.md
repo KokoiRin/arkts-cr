@@ -105,6 +105,8 @@ File Detail 是三级对象：它展示某个文件在当前 Review Scope 中的
 - `Task Problems Page`: 当前任务输出中 repo-local `path:line[:column]`
   锚点的轻量 Problems 视图；它可以打开文件位置，但不新增 review 产品层级，
   也不是持久 diagnostics 模型。
+- `Source File Page`: repo-local 源文件的只读预览页，通常从 Task Problems
+  进入；它不要求文件属于当前 Review Scope，不是 File Detail，也不编辑文件。
 - `Browser Frame`: raw-key TTY 下的固定屏幕 frame，拥有 context/status、main content、task panel 和 prompt 四个渲染区域。
 
 ## Current Implementation Mapping
@@ -154,6 +156,12 @@ Task Problems Page
     problem_selected / problem_scroll
     current TaskState output anchors only
 
+Source File Page
+  current implementation:
+    BrowserPage.SOURCE_FILE -> "source"
+    source_file_path / source_file_line / source_file_scroll
+    repo-local UTF-8 file preview only
+
 Task Panel / Browser Frame
   current implementation:
     cr.ui.tasks owns TaskState, TaskRecord history, command resolution, project task presets, process lifecycle, output capture, stop, rerun, foreground run, and history recording
@@ -194,6 +202,7 @@ Commit Picker
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Task Output Page is now explicit as a current-task output detail page. It can be opened with `task output` / `output`, keeps its own scroll and find state, and returns through page history; it does not change the three review layers or persist task logs.
 Task Problems Page is now explicit as a lightweight current-task Problems panel. It can be opened with `problems` / `task problems`, keeps its own selection and scroll state, and opens repo-local `path:line[:column]` anchors through the existing editor handoff.
+Source File Page is now explicit as a cross-layer read-only source preview. It can be opened from Task Problems with `view problem`, keeps its own source path, target line, and scroll state, and does not change Review Scope or require the file to be in Changed Files.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
@@ -219,11 +228,12 @@ Commit Picker filtering is now explicit first-layer view state. `/`, `/QUERY`, a
 1. New review navigation features must identify which product layer they belong to: Review Scope, Changed Files, or File Detail.
 2. A new mode is acceptable only if it maps to a product layer or a cross-layer overlay such as Command Palette.
 3. Background task features belong to Task Panel, Task Output Page, or Task Problems Page and must not distort the review hierarchy.
-4. Raw-key terminal writes must go through Browser Frame ownership rules.
-5. Breadcrumb text should expose the product hierarchy, not internal mode names.
-6. Scope switching should reset Changed Files and File Detail state unless explicitly designed otherwise.
-7. File navigation should preserve the active Review Scope.
-8. Workspace persistence should store product navigation state, not incidental rendering details.
+4. Source File Page may preview repo-local files outside Changed Files, but it must stay read-only and cross-layer.
+5. Raw-key terminal writes must go through Browser Frame ownership rules.
+6. Breadcrumb text should expose the product hierarchy, not internal mode names.
+7. Scope switching should reset Changed Files and File Detail state unless explicitly designed otherwise.
+8. File navigation should preserve the active Review Scope.
+9. Workspace persistence should store product navigation state, not incidental rendering details.
 
 ## Near-Term Roadmap
 
@@ -411,6 +421,12 @@ Status: implemented.
 
 `copy problem` copies the selected Task Problems entry, while `copy problems` copies every current Task Problems entry in output order. `cr.ui.task_problems` owns location and handoff text formatting; Browser Action Execution owns clipboard side effects through existing file actions. This intentionally stays lighter than diagnostics: no severity parsing, tool-specific formats, history search, persistence, or `save problems`.
 
+### P0: Source File Page
+
+Status: implemented.
+
+`view problem` opens a read-only Source File Page for the selected Task Problems entry. The page renders repo-relative path, numbered source rows, and a target-line marker; movement keys scroll the file, `open` hands the target line to the configured editor, and `b` returns through page history. `cr.ui.source_file` owns repo-local UTF-8 reads and visible-window facts, while Page Content renders rows and Browser Action Execution owns navigation/editor side effects. This is a source preview, not File Detail, editing, syntax highlighting, diagnostics persistence, or task history.
+
 Task output handoff remains output-panel handoff, not diagnostics. `cr.ui.tasks` owns the task output text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 
 ### P0: Review progress flow
@@ -505,7 +521,7 @@ Commit Picker now supports local filtering over the loaded Recent commits list. 
 
 Use the architecture skill periodically, especially before changes that touch `src/cr/ui/browser.py`, `src/cr/review/changes.py`, or workspace persistence.
 
-Keep the product navigation terms language-neutral. `Review Scope`, `Changed Files`, `File Detail`, `Command Palette`, `Task Panel`, `Task Output Page`, `Task Problems Page`, and `Browser Frame` should remain stable even if the implementation later moves away from Python. Internal Python strings such as `mode="list"` or `mode="file"` are implementation details, not long-term product interfaces.
+Keep the product navigation terms language-neutral. `Review Scope`, `Changed Files`, `File Detail`, `Command Palette`, `Task Panel`, `Task Output Page`, `Task Problems Page`, `Source File Page`, and `Browser Frame` should remain stable even if the implementation later moves away from Python. Internal Python strings such as `mode="list"` or `mode="file"` are implementation details, not long-term product interfaces.
 
 Current architecture risk:
 

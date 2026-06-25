@@ -101,6 +101,10 @@ and environment variables remain higher priority overrides.
 task output. It recognizes repo-local `path:line[:column]` anchors and returns
 Task Problem facts and handoff text; it does not manage task lifecycle, render
 pages, open editors, copy to clipboards, parse severity, or persist diagnostics.
+`cr.ui.source_file` owns read-only repo-local source-file preview facts:
+UTF-8 file reads, target-line clamping, and visible-window rows. It does not
+render terminal pages, edit files, parse syntax, open editors, or persist
+source-view state.
 
 Product navigation terms:
 
@@ -119,6 +123,10 @@ Product navigation terms:
 - `Task Problems Page`: a browser page for current task output anchors that
   look like repo-local `path:line[:column]` locations. It is a lightweight
   Problems panel, not a persisted diagnostics model and not task history.
+- `Source File Page`: a cross-layer browser page for read-only repo-local
+  source previews, usually opened from Task Problems. It is not File Detail,
+  does not require the file to be changed in the current Review Scope, and does
+  not edit files.
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
   content, task panel, and prompt regions. Internally, `cr.ui.frame` owns the
   screen-layer layout and Task Panel presentation helpers.
@@ -128,8 +136,8 @@ Product navigation terms:
   reading, while `browser.py` decides how those tokens affect product state.
 - `Page Content`: the internal module that renders product-page main content
   for Scope Home, Commit Picker, Changed Files, empty states, File Detail, and
-  Task Output Page, and Task Problems Page. It owns page text and scroll-window
-  rendering rules, while Browser Frame owns screen placement.
+  Task Output Page, Task Problems Page, and Source File Page. It owns page text
+  and scroll-window rendering rules, while Browser Frame owns screen placement.
 - `Scope Home Counts`: temporary overview counts shown on Scope Home for
   Worktree, Staged, All local changes, and Recent commits. Browser
   orchestration samples these counts when Scope Home opens or refreshes; Page
@@ -161,8 +169,8 @@ Product navigation terms:
   not command state, workspace state, or persisted data.
 - `Browser Navigation`: the internal module that moves between Scope Home,
   Commit Picker, Changed Files, File Detail, Command Palette, Task Output Page,
-  and Task Problems Page, including in-session back/forward page history,
-  without loading Git data or rendering terminal output.
+  Task Problems Page, and Source File Page, including in-session back/forward
+  page history, without loading Git data or rendering terminal output.
 - `Review Workspace`: the internal module that owns the current Review Scope,
   changed files, path/source filter state, progress/note state, selected file,
   selected commit, previous scope, and persistence data mapping for `cr browse`.
@@ -212,10 +220,11 @@ Product navigation terms:
   history or parse diagnostics.
 - `Task Problems`: within Task Problems Page, `problems` / `task problems`
   lists repo-local file anchors extracted from current task output. Enter opens
-  the selected problem through File Actions, while `copy problem` and
-  `copy problems` hand off selected/all current problems through the existing
-  clipboard action. This is intentionally lighter than a full diagnostics
-  parser: no severity, no error codes, no history, and no workspace persistence.
+  the selected problem through File Actions, `view problem` opens the selected
+  problem in Source File Page, while `copy problem` and `copy problems` hand off
+  selected/all current problems through the existing clipboard action. This is
+  intentionally lighter than a full diagnostics parser: no severity, no error
+  codes, no history, and no workspace persistence.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

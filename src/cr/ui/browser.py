@@ -44,6 +44,7 @@ from .navigation import BrowserNavigation, BrowserPage, BrowserPageSnapshot
 from . import page_content
 from . import review_notes as review_notes_module
 from . import selected_file_actions
+from . import source_file as source_file_module
 from . import tasks as task_runtime
 from . import task_problems as task_problems_module
 from . import text_search
@@ -77,6 +78,9 @@ class BrowserState:
     task_scroll: int = 0
     problem_selected: int = 0
     problem_scroll: int = 0
+    source_file_path: str = ""
+    source_file_line: int = 1
+    source_file_scroll: int = 0
     page: str = BrowserPage.CHANGED_FILES
     filter_text: str = ""
     source_filter: str = ""
@@ -400,6 +404,10 @@ class BrowserCommandExecutor:
             _print_lines(_browse_help_lines(style))
             return BrowserActionResult()
         if action == BrowserCommandAction.OPEN_FILE:
+            if state.page == BrowserPage.SOURCE_FILE:
+                message = _open_source_file(state, args)
+                _show_browser_message(state, message, raw_keys, frame)
+                return BrowserActionResult(needs_redraw=raw_keys)
             visible = state.visible_changes
             if visible:
                 state.clamp_selection()
@@ -499,6 +507,11 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SHOW_TASK_PROBLEMS:
             BrowserNavigation.show_task_problems(state)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.VIEW_TASK_PROBLEM:
+            message = _view_selected_task_problem(state)
+            if message:
+                _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SAVE_PROMPT:
             message = _save_prompt_handoff(
@@ -658,6 +671,8 @@ class BrowserCommandExecutor:
                 _scroll_task_output(state, 1)
             elif state.page == BrowserPage.TASK_PROBLEMS:
                 _move_task_problem_selection(state, 1)
+            elif state.page == BrowserPage.SOURCE_FILE:
+                _scroll_source_file(state, 1)
             else:
                 _move_selection(state, 1)
             return BrowserActionResult(needs_redraw=True)
@@ -668,6 +683,8 @@ class BrowserCommandExecutor:
                 _scroll_task_output(state, -1)
             elif state.page == BrowserPage.TASK_PROBLEMS:
                 _move_task_problem_selection(state, -1)
+            elif state.page == BrowserPage.SOURCE_FILE:
+                _scroll_source_file(state, -1)
             else:
                 _move_selection(state, -1)
             return BrowserActionResult(needs_redraw=True)
@@ -678,6 +695,8 @@ class BrowserCommandExecutor:
                 _scroll_task_output(state, _page_step())
             elif state.page == BrowserPage.TASK_PROBLEMS:
                 _move_task_problem_selection(state, _page_step())
+            elif state.page == BrowserPage.SOURCE_FILE:
+                _scroll_source_file(state, _page_step())
             else:
                 _move_selection(state, _page_step())
             return BrowserActionResult(needs_redraw=True)
@@ -688,6 +707,8 @@ class BrowserCommandExecutor:
                 _scroll_task_output(state, -_page_step())
             elif state.page == BrowserPage.TASK_PROBLEMS:
                 _move_task_problem_selection(state, -_page_step())
+            elif state.page == BrowserPage.SOURCE_FILE:
+                _scroll_source_file(state, -_page_step())
             else:
                 _move_selection(state, -_page_step())
             return BrowserActionResult(needs_redraw=True)
@@ -732,6 +753,8 @@ class BrowserCommandExecutor:
             elif state.page == BrowserPage.TASK_PROBLEMS:
                 state.problem_selected = 0
                 state.problem_scroll = 0
+            elif state.page == BrowserPage.SOURCE_FILE:
+                state.source_file_scroll = 0
             elif state.page == BrowserPage.SCOPE_HOME:
                 state.scope_selected = 0
             elif state.page == BrowserPage.COMMAND_PALETTE:
@@ -748,6 +771,8 @@ class BrowserCommandExecutor:
                 total = len(_current_task_problems(state))
                 if total:
                     state.problem_selected = total - 1
+            elif state.page == BrowserPage.SOURCE_FILE:
+                state.source_file_scroll = _max_source_file_scroll(state)
             elif state.page == BrowserPage.SCOPE_HOME:
                 total = len(_scope_home_entries())
                 if total:
@@ -917,6 +942,14 @@ def run_browser(args: argparse.Namespace) -> int:
             elif state.page == BrowserPage.TASK_PROBLEMS:
                 _print_lines(
                     _browse_task_problems_screen_lines(
+                        state,
+                        style,
+                        _screen_height(),
+                    )
+                )
+            elif state.page == BrowserPage.SOURCE_FILE:
+                _print_lines(
+                    _browse_source_file_screen_lines(
                         state,
                         style,
                         _screen_height(),
@@ -1525,6 +1558,14 @@ def _move_task_problem_selection(state: BrowserState, delta: int) -> None:
     state.problem_selected = max(0, min(state.problem_selected + delta, total - 1))
 
 
+def _scroll_source_file(state: BrowserState, delta: int) -> None:
+    current = _current_source_file_view(state, _source_file_body_capacity(state.task))
+    state.source_file_scroll = max(
+        0,
+        min(current.scroll + delta, _max_source_file_scroll(state)),
+    )
+
+
 def _scroll_file(
     state: BrowserState,
     delta: int,
@@ -1875,6 +1916,30 @@ def _open_selected_task_problem(state: BrowserState, args: argparse.Namespace) -
     return f"Opened problem {problem.path}:{problem.line}"
 
 
+def _view_selected_task_problem(state: BrowserState) -> str:
+    problems = _current_task_problems(state)
+    if not problems:
+        return "No task problem to view."
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    problem = problems[selected]
+    BrowserNavigation.show_source_file(state, problem.path, problem.line)
+    return ""
+
+
+def _open_source_file(state: BrowserState, args: argparse.Namespace) -> str:
+    if not state.source_file_path:
+        return "No source file to open."
+    repo_file = git.repo_root() / state.source_file_path
+    message = file_actions.open_path(
+        repo_file,
+        state.source_file_line,
+        getattr(args, "open_cmd", None),
+    )
+    if message:
+        return message
+    return f"Opened source {state.source_file_path}:{state.source_file_line}"
+
+
 def _max_file_scroll(
     state: BrowserState,
     args: argparse.Namespace,
@@ -1902,6 +1967,19 @@ def _max_task_output_scroll(state: BrowserState) -> int:
     return page_content.max_task_output_scroll(state, body_lines)
 
 
+def _max_source_file_scroll(state: BrowserState) -> int:
+    view = source_file_module.load_source_file_view(
+        git.repo_root(),
+        state.source_file_path,
+        target_line=state.source_file_line,
+        scroll=10**9,
+        capacity=max(1, _source_file_body_capacity(state.task) - 2),
+    )
+    if view.error:
+        return 0
+    return view.scroll
+
+
 def _page_step() -> int:
     return max(5, _screen_height() - 8)
 
@@ -1912,6 +1990,11 @@ def _screen_height() -> int:
 
 def _file_body_capacity() -> int:
     return max(1, _screen_height() - 3)
+
+
+def _source_file_body_capacity(task: TaskState | None) -> int:
+    layout = _screen_layout(task)
+    return max(1, layout.content_height - 2)
 
 
 def _task_panel_height(task: TaskState | None, available_lines: int) -> int:
@@ -2012,6 +2095,15 @@ def _draw_browse_screen(
         lines = [
             *header_lines,
             *_browse_task_problems_screen_lines(
+                state,
+                style,
+                body_lines,
+            ),
+        ]
+    elif state.page == BrowserPage.SOURCE_FILE:
+        lines = [
+            *header_lines,
+            *_browse_source_file_screen_lines(
                 state,
                 style,
                 body_lines,
@@ -2397,12 +2489,35 @@ def _browse_task_problems_screen_lines(
     )
 
 
+def _browse_source_file_screen_lines(
+    state: BrowserState,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    view = _current_source_file_view(state, max_lines)
+    state.source_file_scroll = view.scroll
+    return page_content.source_file_screen_lines(view, style, max_lines)
+
+
 def _current_task_problems(state: BrowserState) -> list[task_problems_module.TaskProblem]:
     if state.task is None:
         return []
     return task_problems_module.extract_task_problems(
         git.repo_root(),
         state.task.lines,
+    )
+
+
+def _current_source_file_view(
+    state: BrowserState,
+    max_lines: int,
+) -> source_file_module.SourceFileView:
+    return source_file_module.load_source_file_view(
+        git.repo_root(),
+        state.source_file_path,
+        target_line=state.source_file_line,
+        scroll=state.source_file_scroll,
+        capacity=max(1, max_lines - 2),
     )
 
 

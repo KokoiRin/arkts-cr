@@ -353,6 +353,7 @@ class CliTests(unittest.TestCase):
             problem_text="src/Foo.ets:5:1\nSeverity: error\nbad call",
             source_text="src/Foo.ets:5\n\n```text\n> 5  bad()\n```",
             diff_text="# File Diff: src/Foo.ets\n\n```diff\n+bad()\n```",
+            task_output_text="```text\n> 8  src/Foo.ets:5:1 error bad call\n```",
         )
         no_diff = problem_context.problem_context_markdown(
             anchor="src/Foo.ets:5",
@@ -366,9 +367,12 @@ class CliTests(unittest.TestCase):
         self.assertIn("Severity: error", text)
         self.assertIn("## Source", text)
         self.assertIn("> 5  bad()", text)
+        self.assertIn("## Task Output", text)
+        self.assertIn("> 8  src/Foo.ets:5:1 error bad call", text)
         self.assertIn("## Diff", text)
         self.assertIn("# File Diff: src/Foo.ets", text)
         self.assertNotIn("No diff in current review scope.", text)
+        self.assertNotIn("## Task Output", no_diff)
         self.assertNotIn("## Problem", no_diff)
         self.assertIn("No diff in current review scope.", no_diff)
 
@@ -6367,7 +6371,11 @@ class CliTests(unittest.TestCase):
                 task=TaskState(
                     ["./build.sh"],
                     process,
-                    lines=["src/Foo.ets:5:1 error TS2322: bad call"],
+                    lines=[
+                        "compile started",
+                        "src/Foo.ets:5:1 error TS2322: bad call",
+                        "compile failed",
+                    ],
                 ),
             )
             executor = BrowserCommandExecutor(
@@ -6404,6 +6412,10 @@ class CliTests(unittest.TestCase):
         self.assertIn("bad call", copied)
         self.assertIn("## Source", copied)
         self.assertIn("> 5  line 5", copied)
+        self.assertIn("## Task Output", copied)
+        self.assertIn("  1  compile started", copied)
+        self.assertIn("> 2  src/Foo.ets:5:1 error TS2322: bad call", copied)
+        self.assertIn("  3  compile failed", copied)
         self.assertIn("## Diff", copied)
         self.assertIn("# File Diff: src/Foo.ets", copied)
         self.assertNotIn("No diff in current review scope.", copied)
@@ -6431,7 +6443,9 @@ class CliTests(unittest.TestCase):
                     ["./build.sh"],
                     process,
                     lines=[
+                        "compile started",
                         "src/One.ets:2:1 error TS1: first bad",
+                        "compile continued",
                         "src/Two.ets:2:1 error TS2: second bad",
                     ],
                 ),
@@ -6457,6 +6471,10 @@ class CliTests(unittest.TestCase):
         copied = copy_text.call_args.args[0]
         self.assertIn("# Problem Context: src/One.ets:2", copied)
         self.assertIn("first bad", copied)
+        self.assertIn("## Task Output", copied)
+        self.assertIn("  1  compile started", copied)
+        self.assertIn("> 2  src/One.ets:2:1 error TS1: first bad", copied)
+        self.assertIn("  3  compile continued", copied)
         self.assertIn("> 2  two", copied)
         self.assertNotIn("second bad", copied)
         self.assertIn("Copied problem context src/One.ets:2", state.status_message)
@@ -6499,6 +6517,8 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertIn("# Problem Context: src/Foo.ets:2", text)
         self.assertIn("bad", text)
+        self.assertIn("## Task Output", text)
+        self.assertIn("> 1  src/Foo.ets:2:1 error TS1: bad", text)
         self.assertIn("Saved problem context to tmp/task-first.md", state.status_message)
 
     def test_browser_command_executor_copies_source_page_problem_context(self):
@@ -6552,6 +6572,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("> 5  line 5", copied)
         self.assertIn("  6  line 6", copied)
         self.assertNotIn("line 3", copied)
+        self.assertNotIn("## Task Output", copied)
         self.assertIn("# File Diff: src/Foo.ets", copied)
 
     def test_browser_command_executor_copies_problem_context_without_diff(self):

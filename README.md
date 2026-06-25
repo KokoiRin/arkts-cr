@@ -144,8 +144,8 @@ find TEXT                在任务输出里查找
 next match               下一个匹配
 problems                 从输出进入 Problems 页
 view problem             直接查看首个解析出的问题源码
-copy problem context     复制首个问题 + 源码 + diff 上下文
-save problem context     保存首个问题 + 源码 + diff 上下文
+copy problem context     复制首个问题 + 任务输出片段 + 源码 + diff 上下文
+save problem context     保存首个问题 + 任务输出片段 + 源码 + diff 上下文
 copy task                复制完整任务输出
 copy task tail           复制最后 40 行任务输出
 copy task tail 80        复制最后 80 行任务输出
@@ -178,7 +178,7 @@ view problem             在 TUI 里查看问题附近源码
 copy problem             复制当前问题
 copy problems            复制当前可见问题列表
 copy file problems       复制当前选中文件的可见问题
-copy problem context     复制问题、源码片段、同文件 diff 上下文
+copy problem context     复制问题、任务输出片段、源码片段、同文件 diff 上下文
 save problem context     保存同一份上下文
 ```
 

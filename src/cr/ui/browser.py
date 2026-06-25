@@ -66,6 +66,15 @@ from .workspace import (
 SOURCE_CONTEXT_MAX_LINES = 50
 
 
+@dataclass(frozen=True)
+class ProblemContextTarget:
+    path: str
+    line: int
+    problem_text: str = ""
+    context_lines: int = 3
+    task_output_text: str = ""
+
+
 @dataclass
 class BrowserState:
     changes: list[git.FileChange]
@@ -1442,44 +1451,65 @@ def _problem_context_text(
     target = _problem_context_target(state)
     if target is None:
         return "", "", empty_message
-    path, line, problem_text, context_lines = target
-    content = source_file_module.load_source_file_content(git.repo_root(), path)
+    content = source_file_module.load_source_file_content(git.repo_root(), target.path)
     if content.error:
         return "", "", content.error
     source_text = source_file_module.source_context_markdown(
         content,
-        target_line=line,
-        context_lines=context_lines,
+        target_line=target.line,
+        context_lines=target.context_lines,
     )
-    anchor = f"{content.path}:{max(1, min(line, len(content.lines)))}"
+    anchor = f"{content.path}:{max(1, min(target.line, len(content.lines)))}"
     text = problem_context_module.problem_context_markdown(
         anchor=anchor,
-        problem_text=problem_text,
+        problem_text=target.problem_text,
         source_text=source_text,
+        task_output_text=target.task_output_text,
         diff_text=_problem_context_diff(state, args, content.path),
     )
     return text, anchor, ""
 
 
-def _problem_context_target(state: BrowserState) -> tuple[str, int, str, int] | None:
+def _problem_context_target(state: BrowserState) -> ProblemContextTarget | None:
     if state.page in {BrowserPage.TASK_OUTPUT, BrowserPage.TASK_PROBLEMS}:
         problem = _current_task_problem_for_action(state)
         if problem is None:
             return None
-        return (
-            problem.path,
-            problem.line,
-            task_problems_module.problem_handoff_text(problem),
-            3,
+        return ProblemContextTarget(
+            path=problem.path,
+            line=problem.line,
+            problem_text=task_problems_module.problem_handoff_text(problem),
+            context_lines=3,
+            task_output_text=_task_problem_output_excerpt(state, problem),
         )
     if state.page == BrowserPage.SOURCE_FILE and state.source_file_path:
-        return (
-            state.source_file_path,
-            max(1, state.source_file_line),
-            "",
-            state.source_context_lines,
+        return ProblemContextTarget(
+            path=state.source_file_path,
+            line=max(1, state.source_file_line),
+            context_lines=state.source_context_lines,
         )
     return None
+
+
+def _task_problem_output_excerpt(
+    state: BrowserState,
+    problem: task_problems_module.TaskProblem,
+    *,
+    context_lines: int = 1,
+) -> str:
+    if state.task is None or not state.task.lines:
+        return ""
+    output_line = max(1, min(problem.output_line, len(state.task.lines)))
+    start = max(1, output_line - context_lines)
+    end = min(len(state.task.lines), output_line + context_lines)
+    width = len(str(end))
+    lines = ["```text"]
+    for line_number in range(start, end + 1):
+        marker = ">" if line_number == output_line else " "
+        output_text = text_search.plain_text(state.task.lines[line_number - 1])
+        lines.append(f"{marker} {str(line_number).rjust(width)}  {output_text}")
+    lines.append("```")
+    return "\n".join(lines)
 
 
 def _problem_context_diff(

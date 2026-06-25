@@ -126,7 +126,7 @@ Product navigation terms:
 - `Source File Page`: a cross-layer browser page for read-only repo-local
   source previews, usually opened from Task Problems. It is not File Detail,
   does not require the file to be changed in the current Review Scope, and does
-  not edit files.
+  not edit files. It has its own `source_find_text` for single-file text search.
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
   content, task panel, and prompt regions. Internally, `cr.ui.frame` owns the
   screen-layer layout and Task Panel presentation helpers.
@@ -225,6 +225,11 @@ Product navigation terms:
   selected/all current problems through the existing clipboard action. This is
   intentionally lighter than a full diagnostics parser: no severity, no error
   codes, no history, and no workspace persistence.
+- `Source File Find`: within Source File Page, `find TEXT` searches the current
+  repo-local source preview, while `next match` / `prev match` repeat the last
+  non-empty source query with wraparound. It is source-page-local state, not
+  File Detail find, Task Output find, cross-file search, syntax search, or
+  persisted workspace state.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

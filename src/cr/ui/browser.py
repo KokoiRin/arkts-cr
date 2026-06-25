@@ -86,6 +86,7 @@ class BrowserState:
     source_filter: str = ""
     file_find_text: str = ""
     task_find_text: str = ""
+    source_find_text: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
     review_notes: dict[str, str] = field(default_factory=dict)
@@ -1677,6 +1678,8 @@ def _find_in_current_page(
 ) -> str:
     if state.page == BrowserPage.TASK_OUTPUT:
         return _find_in_task_output(state, query)
+    if state.page == BrowserPage.SOURCE_FILE:
+        return _find_in_source_file(state, query)
     return _find_in_current_file(state, args, style, query)
 
 
@@ -1693,6 +1696,29 @@ def _find_in_task_output(state: BrowserState, query: str) -> str:
     )
     if result.found:
         state.task_scroll = min(result.scroll, _max_task_output_scroll(state))
+    return result.message
+
+
+def _find_in_source_file(state: BrowserState, query: str) -> str:
+    if not state.source_file_path:
+        return "No source file to find."
+    content = source_file_module.load_source_file_content(
+        git.repo_root(),
+        state.source_file_path,
+    )
+    if content.error:
+        return content.error
+    text_query = query.strip()
+    if text_query:
+        state.source_find_text = text_query
+    result = text_search.find_text(
+        content.lines,
+        query,
+        skip_first_line=False,
+    )
+    if result.found:
+        state.source_file_line = result.scroll + 1
+        state.source_file_scroll = -1
     return result.message
 
 
@@ -1738,6 +1764,8 @@ def _find_next_match_in_current_page(
 ) -> str:
     if state.page == BrowserPage.TASK_OUTPUT:
         return _find_next_task_output_match(state, direction)
+    if state.page == BrowserPage.SOURCE_FILE:
+        return _find_next_source_file_match(state, direction)
     return _find_next_match(state, args, style, direction)
 
 
@@ -1756,6 +1784,31 @@ def _find_next_task_output_match(state: BrowserState, direction: str) -> str:
     )
     if result.found:
         state.task_scroll = min(result.scroll, _max_task_output_scroll(state))
+    return result.message
+
+
+def _find_next_source_file_match(state: BrowserState, direction: str) -> str:
+    if not state.source_file_path:
+        return "No source file to find."
+    text_query = state.source_find_text.strip()
+    if not text_query:
+        return "Run find TEXT first."
+    content = source_file_module.load_source_file_content(
+        git.repo_root(),
+        state.source_file_path,
+    )
+    if content.error:
+        return content.error
+    result = text_search.find_next_text(
+        content.lines,
+        text_query,
+        max(0, state.source_file_line - 1),
+        direction,
+        skip_first_line=False,
+    )
+    if result.found:
+        state.source_file_line = result.scroll + 1
+        state.source_file_scroll = -1
     return result.message
 
 

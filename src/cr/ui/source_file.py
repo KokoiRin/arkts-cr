@@ -28,6 +28,35 @@ class SourceFileView:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class SourceFileContent:
+    path: str
+    lines: list[str]
+    error: str | None = None
+
+
+def load_source_file_content(repo: Path, path: str) -> SourceFileContent:
+    relative = Path(path)
+    repo = repo.resolve()
+    resolved = (repo / relative).resolve()
+    try:
+        resolved.relative_to(repo)
+    except ValueError:
+        return _error_content(path, "Source file is outside repository.")
+    try:
+        text = resolved.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return _error_content(path, "Source file not found.")
+    except UnicodeDecodeError:
+        return _error_content(path, "Source file is not UTF-8 text.")
+    except OSError as exc:
+        return _error_content(path, f"Source file unreadable: {exc}")
+    lines = text.splitlines()
+    if not lines:
+        lines = [""]
+    return SourceFileContent(relative.as_posix(), lines)
+
+
 def load_source_file_view(
     repo: Path,
     path: str,
@@ -36,24 +65,10 @@ def load_source_file_view(
     scroll: int,
     capacity: int,
 ) -> SourceFileView:
-    relative = Path(path)
-    repo = repo.resolve()
-    resolved = (repo / relative).resolve()
-    try:
-        resolved.relative_to(repo)
-    except ValueError:
-        return _error_view(path, target_line, "Source file is outside repository.")
-    try:
-        text = resolved.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return _error_view(path, target_line, "Source file not found.")
-    except UnicodeDecodeError:
-        return _error_view(path, target_line, "Source file is not UTF-8 text.")
-    except OSError as exc:
-        return _error_view(path, target_line, f"Source file unreadable: {exc}")
-    lines = text.splitlines()
-    if not lines:
-        lines = [""]
+    content = load_source_file_content(repo, path)
+    if content.error:
+        return _error_view(content.path, target_line, content.error)
+    lines = content.lines
     target_line = max(1, min(target_line, len(lines)))
     capacity = max(1, capacity)
     start = _initial_scroll(scroll, target_line, len(lines), capacity)
@@ -67,12 +82,16 @@ def load_source_file_view(
         for index in range(start, end)
     ]
     return SourceFileView(
-        path=relative.as_posix(),
+        path=content.path,
         target_line=target_line,
         scroll=start,
         rows=rows,
         total_lines=len(lines),
     )
+
+
+def _error_content(path: str, error: str) -> SourceFileContent:
+    return SourceFileContent(Path(path).as_posix(), [], error)
 
 
 def _initial_scroll(scroll: int, target_line: int, total: int, capacity: int) -> int:

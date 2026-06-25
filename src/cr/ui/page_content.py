@@ -154,6 +154,8 @@ def contextual_action_bar(
         ),
         BrowserPage.SOURCE_FILE: (
             "↑/↓ scroll",
+            "find",
+            "next match",
             "open",
             "b back",
         ),

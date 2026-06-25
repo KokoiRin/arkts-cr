@@ -160,6 +160,7 @@ Source File Page
   current implementation:
     BrowserPage.SOURCE_FILE -> "source"
     source_file_path / source_file_line / source_file_scroll
+    source_find_text
     repo-local UTF-8 file preview only
 
 Task Panel / Browser Frame
@@ -203,6 +204,7 @@ Task Panel naming is now explicit without adding concurrent task management or m
 Task Output Page is now explicit as a current-task output detail page. It can be opened with `task output` / `output`, keeps its own scroll and find state, and returns through page history; it does not change the three review layers or persist task logs.
 Task Problems Page is now explicit as a lightweight current-task Problems panel. It can be opened with `problems` / `task problems`, keeps its own selection and scroll state, and opens repo-local `path:line[:column]` anchors through the existing editor handoff.
 Source File Page is now explicit as a cross-layer read-only source preview. It can be opened from Task Problems with `view problem`, keeps its own source path, target line, and scroll state, and does not change Review Scope or require the file to be in Changed Files.
+Source File Page find is explicit as page-local text navigation. `find TEXT`, `next match`, and `prev match` search only the current source preview, update the Source File Page target line, and keep File Detail find and Task Output find state separate.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
@@ -426,6 +428,12 @@ Status: implemented.
 Status: implemented.
 
 `view problem` opens a read-only Source File Page for the selected Task Problems entry. The page renders repo-relative path, numbered source rows, and a target-line marker; movement keys scroll the file, `open` hands the target line to the configured editor, and `b` returns through page history. `cr.ui.source_file` owns repo-local UTF-8 reads and visible-window facts, while Page Content renders rows and Browser Action Execution owns navigation/editor side effects. This is a source preview, not File Detail, editing, syntax highlighting, diagnostics persistence, or task history.
+
+### P0: Source File Page find
+
+Status: implemented.
+
+Source File Page supports `find TEXT`, `next match`, and `prev match` over the current repo-local source preview. Search is case-insensitive plain text, keeps a separate `source_find_text` from File Detail and Task Output, updates the target-line marker, and wraps for repeated matches. It intentionally avoids syntax-aware search, cross-file search, diagnostics parsing, persistence, and editing.
 
 Task output handoff remains output-panel handoff, not diagnostics. `cr.ui.tasks` owns the task output text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 

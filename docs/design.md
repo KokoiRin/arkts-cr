@@ -73,8 +73,9 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Provides `problems` / `task problems` as a lightweight Problems page over
     current task output `path:line[:column]` anchors, with Enter opening the
     selected repo-local location in the editor, `view problem` opening a
-    read-only in-TUI source preview, and `copy problem` / `copy problems`
-    copying selected/all problem handoff text.
+    read-only in-TUI source preview, Source File Page `find TEXT` / `next match`
+    / `prev match` searching within that file, and `copy problem` /
+    `copy problems` copying selected/all problem handoff text.
   - Lets users stop a running task with `stop` / `cancel` and rerun the most recent task kind with `rerun` / `rebuild`.
   - Distinguishes task states: running, stopping, stopped, succeeded, failed, failed to start, and idle.
   - Shows compact session-local task history in the background task panel, starting with completed build/test/lint results.
@@ -197,7 +198,7 @@ The product navigation model is defined in `docs/workbench-navigation.md`. Inter
   - Treat Task Output Page as page content over current `TaskState`: `cr.ui.page_content` renders status, command, output lines, empty state, and scroll footer; `browser.py` owns `task_scroll`, page transition, command execution, and tick redraw scheduling.
   - Treat rendered-text search as a shared UI helper: `cr.ui.text_search` strips ANSI style codes and finds matches over rendered lines, while File Detail and Task Output keep page-specific state and messages at their owning layers.
   - Treat Task Problems as a lightweight UI projection of current task output: `cr.ui.task_problems` extracts repo-local file anchors and formats problem handoff text, Page Content renders the list, and Browser Action Execution owns selection plus editor/copy side effects.
-  - Treat Source File Page as a cross-layer read-only preview: `cr.ui.source_file` reads repo-local UTF-8 files and computes target-line windows, Page Content renders rows, and Browser Action Execution owns navigation and editor handoff. It is not File Detail and does not enter workspace persistence.
+  - Treat Source File Page as a cross-layer read-only preview: `cr.ui.source_file` reads repo-local UTF-8 files and computes target-line windows, Page Content renders rows, and Browser Action Execution owns navigation, source-page-local find state, and editor handoff. It is not File Detail, does not search across files, and does not enter workspace persistence.
   - Treat in-session review progress as browser workspace state: seen paths, remaining-only view, and selected-file progress operations belong in `ReviewWorkspace` and persist with `.git/cr/browse-state.json`.
   - Treat in-session review notes as browser workspace state: path-keyed notes belong in `ReviewWorkspace`, are edited through `note TEXT` / `note`, summarized/searched through `notes`, copied through `copy notes` / `copy notes QUERY`, and persist with `.git/cr/browse-state.json`. Summary/search/copy rules belong in `cr.ui.review_notes`.
   - Treat prompt handoff as a `cr.review` output format reused by the browser: `copy prompt` / `copy prompt file` / `save prompt` / `save prompt file` may choose current browser files and pass matching review notes, but Markdown structure stays owned by `cr.review.prompt`. UI-side handoff file paths and writes stay in `cr.ui.handoff`.

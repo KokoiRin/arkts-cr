@@ -269,6 +269,20 @@ class CliTests(unittest.TestCase):
         self.assertEqual(missing.error, "Source file not found.")
         self.assertEqual(non_utf8.error, "Source file is not UTF-8 text.")
 
+    def test_source_file_content_reads_lines_and_reports_errors(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\n", encoding="utf-8")
+
+            content = source_file.load_source_file_content(repo, "src/Foo.ets")
+            missing = source_file.load_source_file_content(repo, "src/Missing.ets")
+
+        self.assertEqual(content.lines, ["one", "two"])
+        self.assertIsNone(content.error)
+        self.assertEqual(missing.error, "Source file not found.")
+
     def test_file_detail_navigation_jumps_between_hunk_headers(self):
         lines = [
             "File 1/1  src/Sample.ts",
@@ -1060,6 +1074,8 @@ class CliTests(unittest.TestCase):
             style,
         )
         self.assertIn("↑/↓ scroll", source_file_bar)
+        self.assertIn("find", source_file_bar)
+        self.assertIn("next match", source_file_bar)
         self.assertIn("open", source_file_bar)
         self.assertIn("b back", source_file_bar)
         self.assertNotEqual(changed_files, file_detail)
@@ -1284,6 +1300,7 @@ class CliTests(unittest.TestCase):
 
         state.problem_selected = 3
         state.problem_scroll = 4
+        state.source_find_text = "old-source-query"
         BrowserNavigation.show_task_problems(state)
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
         self.assertEqual(state.problem_selected, 0)
@@ -1294,6 +1311,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_path, "src/Foo.ets")
         self.assertEqual(state.source_file_line, 12)
         self.assertEqual(state.source_file_scroll, -1)
+        self.assertEqual(state.source_find_text, "")
 
     def test_browser_navigation_replaces_pages_without_history(self):
         state = BrowserState(
@@ -1387,6 +1405,18 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.selected, 1)
         self.assertEqual(state.file_scroll, 9)
+
+        BrowserNavigation.show_source_file(state, "src/First.ts", 3)
+        state.source_find_text = "needle"
+        state.source_file_scroll = 2
+        BrowserNavigation.go_back(state)
+        BrowserNavigation.go_forward(state)
+
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_path, "src/First.ts")
+        self.assertEqual(state.source_file_line, 3)
+        self.assertEqual(state.source_file_scroll, 2)
+        self.assertEqual(state.source_find_text, "needle")
 
     def test_browser_navigation_back_returns_to_page_that_opened_command_palette(self):
         state = BrowserState(
@@ -4404,6 +4434,127 @@ class CliTests(unittest.TestCase):
         self.assertTrue(opened.needs_redraw)
         open_path.assert_called_once_with(source, 20, "editor {fileline}")
         self.assertIn("Opened source src/Foo.ets:20", state.status_message)
+
+    def test_browser_command_executor_finds_text_in_source_file_page(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("alpha\nBeta target\ngamma\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=1,
+                file_find_text="file-query",
+                task_find_text="task-query",
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("find TARGET", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_line, 2)
+        self.assertEqual(state.source_file_scroll, -1)
+        self.assertEqual(state.source_find_text, "TARGET")
+        self.assertEqual(state.file_find_text, "file-query")
+        self.assertEqual(state.task_find_text, "task-query")
+        self.assertIn('Found "TARGET" at line 2.', state.status_message)
+
+    def test_browser_command_executor_repeats_source_file_find_matches(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "target one\nmiddle\ntarget two\n",
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                find = executor.execute(parse_browser_command("find target", raw_keys=True))
+                next_match = executor.execute(
+                    parse_browser_command("next match", raw_keys=True)
+                )
+                line_after_next = state.source_file_line
+                previous_match = executor.execute(
+                    parse_browser_command("prev match", raw_keys=True)
+                )
+
+        self.assertTrue(find.needs_redraw)
+        self.assertTrue(next_match.needs_redraw)
+        self.assertTrue(previous_match.needs_redraw)
+        self.assertEqual(line_after_next, 3)
+        self.assertEqual(state.source_file_line, 1)
+        self.assertEqual(state.source_find_text, "target")
+        self.assertIn('Found "target" at line 1.', state.status_message)
+
+    def test_browser_command_executor_reports_source_file_find_empty_states(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("alpha\nbeta\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=2,
+                source_file_scroll=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                empty = executor.execute(parse_browser_command("find", raw_keys=True))
+                missing = executor.execute(parse_browser_command("find owner", raw_keys=True))
+                repeat = executor.execute(parse_browser_command("next match", raw_keys=True))
+                state.source_file_path = "src/Missing.ets"
+                unreadable = executor.execute(
+                    parse_browser_command("find alpha", raw_keys=True)
+                )
+
+        self.assertTrue(empty.needs_redraw)
+        self.assertTrue(missing.needs_redraw)
+        self.assertTrue(repeat.needs_redraw)
+        self.assertTrue(unreadable.needs_redraw)
+        self.assertEqual(state.source_find_text, "owner")
+        self.assertEqual(state.source_file_line, 2)
+        self.assertEqual(state.source_file_scroll, 1)
+        self.assertIn("Source file not found.", state.status_message)
 
     def test_browser_command_executor_reports_no_task_problem_to_view(self):
         from cr.ui.browser import parse_browser_command

@@ -487,6 +487,26 @@ class CliTests(unittest.TestCase):
         self.assertEqual(generic_function, "function parseModel")
         self.assertEqual(top_level_arrow, "function loadModel")
 
+    def test_source_outline_labels_exported_arrow_function_symbols(self):
+        symbols = outline.parse_outline(
+            "\n".join(
+                [
+                    "export const loadModel = async <T>(value: T) => {",
+                    "  return value",
+                    "}",
+                    "export let normalize = (value: string) => {",
+                    "  return value.trim()",
+                    "}",
+                ]
+            )
+        )
+
+        exported_const = outline.symbol_label_at_line(symbols, 2)
+        exported_let = outline.symbol_label_at_line(symbols, 5)
+
+        self.assertEqual(exported_const, "function loadModel")
+        self.assertEqual(exported_let, "function normalize")
+
     def test_source_file_view_reads_repo_file_and_windows_target_line(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)

@@ -56,7 +56,8 @@ ACCESSOR_RE = re.compile(
     r"\s*(?::[^={;]+)?[;{]?\s*$"
 )
 ARROW_FUNCTION_RE = re.compile(
-    r"^\s*(?:const|let|var)\s+(?P<name>[A-Za-z_$][\w$]*)\s*="
+    r"^\s*(?:export\s+)?(?:const|let|var)\s+"
+    r"(?P<name>[A-Za-z_$][\w$]*)\s*="
     r"\s*(?:async\s*)?(?:<[^>{}]+>\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>"
 )
 FIELD_ARROW_HEADER_RE = re.compile(

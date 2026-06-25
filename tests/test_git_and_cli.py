@@ -1591,6 +1591,8 @@ class CliTests(unittest.TestCase):
         )
 
         self.assertIn("Source File 帮助", text)
+        self.assertIn("next problem", text)
+        self.assertIn("prev problem", text)
         self.assertIn("source select START END", text)
         self.assertIn("source select symbol", text)
         self.assertIn("source mark", text)
@@ -1689,6 +1691,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("↑/↓ 滚动", source_file_bar)
         self.assertIn("find 查找", source_file_bar)
         self.assertIn("next match 下个匹配", source_file_bar)
+        self.assertIn("next/prev problem 切问题", source_file_bar)
         self.assertIn("next/prev symbol 跳符号", source_file_bar)
         self.assertIn("open 打开", source_file_bar)
         self.assertIn("copy line 复制行", source_file_bar)
@@ -7191,6 +7194,60 @@ class CliTests(unittest.TestCase):
         self.assertTrue(prev_result.handled)
         self.assertEqual(state.problem_selected, 0)
         self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+
+    def test_browser_command_executor_steps_source_file_task_problems(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "One.ets"
+            second = repo / "src" / "Two.ets"
+            first.parent.mkdir(parents=True)
+            first.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            second.write_text("alpha\nbeta\ngamma\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:2:1 error",
+                        "src/Two.ets:2:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                view_result = executor.execute(parse_browser_command("view problem"))
+                next_result = executor.execute(parse_browser_command("next problem"))
+                selected_after_next = state.problem_selected
+                path_after_next = state.source_file_path
+                line_after_next = state.source_file_line
+                prev_result = executor.execute(parse_browser_command("prev problem"))
+
+        self.assertTrue(view_result.handled)
+        self.assertTrue(next_result.handled)
+        self.assertTrue(next_result.needs_redraw)
+        self.assertEqual(selected_after_next, 1)
+        self.assertEqual(path_after_next, "src/Two.ets")
+        self.assertEqual(line_after_next, 2)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertTrue(prev_result.handled)
+        self.assertEqual(state.problem_selected, 0)
+        self.assertEqual(state.source_file_path, "src/One.ets")
+        self.assertEqual(state.source_file_line, 2)
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
 
     def test_browser_command_executor_saves_selected_task_output_problem_context(self):
         from cr.ui.browser import parse_browser_command

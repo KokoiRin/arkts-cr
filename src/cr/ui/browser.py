@@ -2120,7 +2120,23 @@ def _jump_task_problem(state: BrowserState, direction: str) -> str:
     state.problem_selected = selected
     if state.page == BrowserPage.TASK_OUTPUT:
         _scroll_task_output_to_problem(state, problems[selected])
+    elif state.page == BrowserPage.SOURCE_FILE:
+        _show_task_problem_source_in_place(state, problems[selected])
     return f"已选择问题 {selected + 1}/{len(problems)}。"
+
+
+def _show_task_problem_source_in_place(
+    state: BrowserState,
+    problem: task_problems_module.TaskProblem,
+) -> None:
+    state.source_file_path = problem.path
+    state.source_file_line = max(1, problem.line)
+    state.source_file_scroll = -1
+    state.source_find_text = ""
+    state.source_context_lines = 3
+    state.source_selection_start = 0
+    state.source_selection_end = 0
+    state.source_mark_line = 0
 
 
 def _scroll_task_output_to_problem(

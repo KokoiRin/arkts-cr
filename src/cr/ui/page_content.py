@@ -192,6 +192,7 @@ def contextual_action_bar(
             "↑/↓ 滚动",
             "find 查找",
             "next match 下个匹配",
+            "next/prev problem 切问题",
             "next/prev symbol 跳符号",
             "open 打开",
             "view diff 查看 diff",
@@ -345,6 +346,7 @@ def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
             (
                 "↑/↓ / PgUp/PgDn：滚动源码",
                 "find TEXT / next match / prev match：查找源码内容",
+                "next problem / prev problem：跳到下一个或上一个任务问题源码",
                 "next symbol / prev symbol：跳到下一个或上一个源码符号",
                 "open / copy line：打开或复制当前源码行",
                 "view diff：查看当前源码行对应的文件 diff",

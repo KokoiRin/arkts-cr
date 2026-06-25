@@ -209,6 +209,8 @@ save problem context     保存同一份上下文
 
 ```text
 find TEXT            在源码预览里查找
+next problem         跳到下一个任务问题源码
+prev problem         跳到上一个任务问题源码
 next symbol          跳到下一个源码符号
 prev symbol          跳到上一个源码符号
 copy line            复制当前源码行锚点
@@ -417,6 +419,8 @@ view problem
 find TEXT
 next match
 prev match
+next problem
+prev problem
 copy line
 view diff
 source context N

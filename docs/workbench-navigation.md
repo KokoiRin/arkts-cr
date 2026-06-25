@@ -102,6 +102,9 @@ File Detail 是三级对象：它展示某个文件在当前 Review Scope 中的
 - `Task Output Page`: 当前任务输出的可滚动详情页，是 Task Panel
   数据的 Output Panel-style 视图；它有独立滚动和查找状态，进入浏览器页面
   历史，但不新增 review 产品层级，也不浏览历史任务。
+- `Task Problems Page`: 当前任务输出中 repo-local `path:line[:column]`
+  锚点的轻量 Problems 视图；它可以打开文件位置，但不新增 review 产品层级，
+  也不是持久 diagnostics 模型。
 - `Browser Frame`: raw-key TTY 下的固定屏幕 frame，拥有 context/status、main content、task panel 和 prompt 四个渲染区域。
 
 ## Current Implementation Mapping
@@ -145,6 +148,12 @@ Task Output Page
     task_find_text
     current TaskState output only
 
+Task Problems Page
+  current implementation:
+    BrowserPage.TASK_PROBLEMS -> "problems"
+    problem_selected / problem_scroll
+    current TaskState output anchors only
+
 Task Panel / Browser Frame
   current implementation:
     cr.ui.tasks owns TaskState, TaskRecord history, command resolution, project task presets, process lifecycle, output capture, stop, rerun, foreground run, and history recording
@@ -184,6 +193,7 @@ Commit Picker
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Task Output Page is now explicit as a current-task output detail page. It can be opened with `task output` / `output`, keeps its own scroll and find state, and returns through page history; it does not change the three review layers or persist task logs.
+Task Problems Page is now explicit as a lightweight current-task Problems panel. It can be opened with `problems` / `task problems`, keeps its own selection and scroll state, and opens repo-local `path:line[:column]` anchors through the existing editor handoff.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
@@ -208,7 +218,7 @@ Commit Picker filtering is now explicit first-layer view state. `/`, `/QUERY`, a
 
 1. New review navigation features must identify which product layer they belong to: Review Scope, Changed Files, or File Detail.
 2. A new mode is acceptable only if it maps to a product layer or a cross-layer overlay such as Command Palette.
-3. Background task features belong to Task Panel or Task Output Page and must not distort the review hierarchy.
+3. Background task features belong to Task Panel, Task Output Page, or Task Problems Page and must not distort the review hierarchy.
 4. Raw-key terminal writes must go through Browser Frame ownership rules.
 5. Breadcrumb text should expose the product hierarchy, not internal mode names.
 6. Scope switching should reset Changed Files and File Detail state unless explicitly designed otherwise.
@@ -389,6 +399,12 @@ Status: implemented.
 
 Task Output Page supports `find TEXT`, `next match`, and `prev match` over the current task's captured output. Search is case-insensitive, ignores ANSI style codes, keeps a separate query from File Detail find, and intentionally does not parse diagnostics or search historical task records.
 
+### P0: Task Problems page
+
+Status: implemented.
+
+`problems` / `task problems` opens a current-task Problems page that extracts repo-local `path:line[:column]` anchors from captured task output. The page supports selection, scrolling, page history, and Enter-to-open through the existing editor handoff. It intentionally avoids severity parsing, build-tool-specific formats, history search, and diagnostics persistence.
+
 This is output-panel handoff, not diagnostics. `cr.ui.tasks` owns the text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 
 ### P0: Review progress flow
@@ -483,7 +499,7 @@ Commit Picker now supports local filtering over the loaded Recent commits list. 
 
 Use the architecture skill periodically, especially before changes that touch `src/cr/ui/browser.py`, `src/cr/review/changes.py`, or workspace persistence.
 
-Keep the product navigation terms language-neutral. `Review Scope`, `Changed Files`, `File Detail`, `Command Palette`, `Task Panel`, and `Browser Frame` should remain stable even if the implementation later moves away from Python. Internal Python strings such as `mode="list"` or `mode="file"` are implementation details, not long-term product interfaces.
+Keep the product navigation terms language-neutral. `Review Scope`, `Changed Files`, `File Detail`, `Command Palette`, `Task Panel`, `Task Output Page`, `Task Problems Page`, and `Browser Frame` should remain stable even if the implementation later moves away from Python. Internal Python strings such as `mode="list"` or `mode="file"` are implementation details, not long-term product interfaces.
 
 Current architecture risk:
 

@@ -16,6 +16,7 @@ from cr.ui import input as browser_input
 from cr.ui import commit_picker
 from cr.ui import page_content
 from cr.ui import selected_file_actions
+from cr.ui import task_problems
 from cr.ui.browser import (
     TaskState,
     BrowserActionResult,
@@ -133,6 +134,49 @@ class CliTests(unittest.TestCase):
         self.assertEqual(empty.message, "Enter text to find.")
         self.assertFalse(missing.found)
         self.assertEqual(missing.message, 'No matches for "target".')
+
+    def test_task_problems_extracts_relative_and_absolute_repo_anchors(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("sample", encoding="utf-8")
+
+            problems = task_problems.extract_task_problems(
+                repo,
+                [
+                    "\033[31msrc/Foo.ets:12:3 error: bad call\033[0m",
+                    f"{source}:20 warning: check this",
+                ],
+            )
+
+        self.assertEqual(len(problems), 2)
+        self.assertEqual(problems[0].path, "src/Foo.ets")
+        self.assertEqual(problems[0].line, 12)
+        self.assertEqual(problems[0].column, 3)
+        self.assertIn("bad call", problems[0].summary)
+        self.assertEqual(problems[1].path, "src/Foo.ets")
+        self.assertEqual(problems[1].line, 20)
+        self.assertIsNone(problems[1].column)
+
+    def test_task_problems_ignores_urls_missing_files_and_outside_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            outside = Path(tmp).parent / "Outside.ets"
+            outside.write_text("sample", encoding="utf-8")
+            try:
+                problems = task_problems.extract_task_problems(
+                    repo,
+                    [
+                        "https://example.com/file.ts:10:1",
+                        "src/Missing.ets:7:2 error",
+                        f"{outside}:3:1 outside",
+                    ],
+                )
+            finally:
+                outside.unlink(missing_ok=True)
+
+        self.assertEqual(problems, [])
 
     def test_file_detail_navigation_jumps_between_hunk_headers(self):
         lines = [
@@ -823,6 +867,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy task", commands)
         self.assertIn("save task", commands)
         self.assertIn("task output", commands)
+        self.assertIn("problems", commands)
         self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
@@ -906,6 +951,13 @@ class CliTests(unittest.TestCase):
         self.assertIn("next match", task_output)
         self.assertIn("stop", task_output)
         self.assertIn("b back", task_output)
+        task_problems = page_content.contextual_action_bar(
+            BrowserPage.TASK_PROBLEMS,
+            style,
+        )
+        self.assertIn("Enter open", task_problems)
+        self.assertIn("task output", task_problems)
+        self.assertIn("b back", task_problems)
         self.assertNotEqual(changed_files, file_detail)
 
     def test_page_content_contextual_action_bar_uses_line_fitting(self):
@@ -957,6 +1009,53 @@ class CliTests(unittest.TestCase):
         self.assertIn("No current task output.", text)
         self.assertIn("Run build, test, or lint", text)
 
+    def test_page_content_task_problems_screen_lines_render_problems(self):
+        problems = [
+            task_problems.TaskProblem(
+                path="src/Foo.ets",
+                line=12,
+                column=3,
+                summary="src/Foo.ets:12:3 error: bad call",
+                output_line=1,
+            ),
+            task_problems.TaskProblem(
+                path="src/Bar.ets",
+                line=8,
+                column=None,
+                summary="src/Bar.ets:8 warning",
+                output_line=2,
+            ),
+        ]
+        state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
+
+        lines = page_content.task_problems_screen_lines(
+            state,
+            problems,
+            TerminalStyle(False),
+            max_lines=10,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("Task problems", text)
+        self.assertIn("> 1", text)
+        self.assertIn("src/Foo.ets:12:3", text)
+        self.assertIn("bad call", text)
+        self.assertIn("src/Bar.ets:8", text)
+
+    def test_page_content_task_problems_screen_lines_render_empty_state(self):
+        state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
+
+        lines = page_content.task_problems_screen_lines(
+            state,
+            [],
+            TerminalStyle(False),
+            max_lines=6,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("No task problems found.", text)
+        self.assertIn("Run build, test, or lint", text)
+
     def test_browser_page_model_names_current_pages(self):
         self.assertEqual(BrowserPage.SCOPE_HOME, "scopes")
         self.assertEqual(BrowserPage.COMMIT_PICKER, "commits")
@@ -964,6 +1063,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(BrowserPage.FILE_DETAIL, "file")
         self.assertEqual(BrowserPage.COMMAND_PALETTE, "commands")
         self.assertEqual(BrowserPage.TASK_OUTPUT, "task-output")
+        self.assertEqual(BrowserPage.TASK_PROBLEMS, "problems")
 
         state = BrowserState([])
         self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
@@ -984,6 +1084,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("BrowserPage.SCOPE_HOME", source)
         self.assertIn("BrowserPage.COMMAND_PALETTE", source)
         self.assertIn("BrowserPage.TASK_OUTPUT", source)
+        self.assertIn("BrowserPage.TASK_PROBLEMS", source)
         self.assertIn("BrowserNavigation.", source)
         self.assertNotIn('mode: str = "list"', source)
         self.assertNotIn("state.mode", source)
@@ -1030,6 +1131,13 @@ class CliTests(unittest.TestCase):
         BrowserNavigation.show_task_output(state)
         self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
         self.assertEqual(state.task_scroll, 0)
+
+        state.problem_selected = 3
+        state.problem_scroll = 4
+        BrowserNavigation.show_task_problems(state)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(state.problem_selected, 0)
+        self.assertEqual(state.problem_scroll, 0)
 
     def test_browser_navigation_replaces_pages_without_history(self):
         state = BrowserState(
@@ -1315,6 +1423,14 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("output").action,
             BrowserCommandAction.SHOW_TASK_OUTPUT,
+        )
+        self.assertEqual(
+            parse_browser_command("problems").action,
+            BrowserCommandAction.SHOW_TASK_PROBLEMS,
+        )
+        self.assertEqual(
+            parse_browser_command("task problems").action,
+            BrowserCommandAction.SHOW_TASK_PROBLEMS,
         )
         save_prompt = parse_browser_command("save prompt")
         self.assertEqual(save_prompt.action, BrowserCommandAction.SAVE_PROMPT)
@@ -3811,6 +3927,125 @@ class CliTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 12)
+
+    def test_browser_command_executor_opens_task_problems_page(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            page=BrowserPage.TASK_OUTPUT,
+            problem_selected=3,
+            problem_scroll=4,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("problems"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(state.problem_selected, 0)
+        self.assertEqual(state.problem_scroll, 0)
+
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+
+    def test_browser_command_executor_moves_task_problem_selection(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets", "Three.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:2:1 error",
+                        "src/Three.ets:3:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                down = executor.execute(parse_browser_command("down", raw_keys=True))
+                selected_after_down = state.problem_selected
+                end = executor.execute(parse_browser_command("end", raw_keys=True))
+                selected_after_end = state.problem_selected
+                home = executor.execute(parse_browser_command("home", raw_keys=True))
+
+        self.assertTrue(down.needs_redraw)
+        self.assertTrue(end.needs_redraw)
+        self.assertTrue(home.needs_redraw)
+        self.assertEqual(selected_after_down, 1)
+        self.assertEqual(selected_after_end, 2)
+        self.assertEqual(state.problem_selected, 0)
+
+    def test_browser_command_executor_opens_selected_task_problem(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "One.ets"
+            second = repo / "src" / "Two.ets"
+            first.parent.mkdir(parents=True)
+            first.write_text("sample", encoding="utf-8")
+            second.write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:22:4 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(open_cmd="editor {fileline}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.open_path",
+                    return_value=None,
+                ) as open_path:
+                    result = executor.execute(parse_browser_command("enter", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        open_path.assert_called_once_with(second, 22, "editor {fileline}")
+        self.assertIn("Opened problem src/Two.ets:22", state.status_message)
 
     def test_browser_command_executor_scrolls_task_output_page(self):
         from cr.ui.browser import parse_browser_command
@@ -6463,6 +6698,49 @@ class CliTests(unittest.TestCase):
         self.assertIn("compile line", text)
         self.assertIn("cr:task> ", text)
 
+    def test_browse_screen_renders_task_problems_page(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 1, 1)],
+                page=BrowserPage.TASK_PROBLEMS,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    kind="build",
+                    lines=["src/Foo.ets:12:3 error: bad call"],
+                    returncode=1,
+                ),
+            )
+            output = StringIO()
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.frame.shutil.get_terminal_size",
+                    return_value=os.terminal_size((120, 12)),
+                ):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("Scope: worktree > Task Problems", text)
+        self.assertIn("Task problems", text)
+        self.assertIn("src/Foo.ets:12:3", text)
+        self.assertIn("bad call", text)
+        self.assertIn("cr:problems> ", text)
+
     def test_build_start_records_process_group_id(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -7144,6 +7422,78 @@ class CliTests(unittest.TestCase):
                                         side_effect=[
                                             "build",
                                             "task output",
+                                            browser_input.TICK,
+                                            "q",
+                                        ],
+                                    ):
+                                        with patch(
+                                            "cr.ui.browser._start_task",
+                                            side_effect=start_running_task,
+                                        ):
+                                            with patch(
+                                                "cr.ui.browser._draw_browse_screen"
+                                            ) as draw:
+                                                with patch(
+                                                    "cr.ui.browser._draw_task_panel_only"
+                                                ) as panel_only:
+                                                    from cr.ui.browser import run_browser
+
+                                                    result = run_browser(args)
+        finally:
+            for process in processes:
+                process.terminate()
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=1)
+
+        self.assertEqual(result, 0)
+        self.assertGreaterEqual(draw.call_count, 4)
+        panel_only.assert_not_called()
+
+    def test_task_problems_page_tick_redraws_main_content_not_panel_only(self):
+        args = argparse_namespace(
+            color="never",
+            links="file",
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+        )
+        processes: list[subprocess.Popen[bytes]] = []
+
+        def start_running_task(state, _args, _kind):
+            process = subprocess.Popen(
+                [sys.executable, "-c", "import time; time.sleep(2)"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            processes.append(process)
+            state.task = TaskState(["sleep"], process, lines=["first line"])
+
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                repo = Path(tmp)
+                with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                    with patch(
+                        "cr.ui.browser._should_restore_browser_workspace_state",
+                        return_value=False,
+                    ):
+                        with patch(
+                            "cr.ui.browser._load_browse_changes",
+                            return_value=[FileChange("src/Sample.ts", 1, 1)],
+                        ):
+                            with patch("cr.ui.browser._show_commits_when_empty"):
+                                with patch("cr.ui.browser._use_raw_keys", return_value=True):
+                                    with patch(
+                                        "cr.ui.browser._read_browse_command",
+                                        side_effect=[
+                                            "build",
+                                            "problems",
                                             browser_input.TICK,
                                             "q",
                                         ],

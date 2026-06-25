@@ -28,6 +28,7 @@ from ..vcs import git
 from . import commit_picker
 from .navigation import BrowserPage
 from . import tasks as task_runtime
+from .task_problems import TaskProblem
 from .terminal import TerminalStyle, file_uri, vscode_uri
 
 
@@ -64,6 +65,8 @@ def browse_prompt(page: str) -> str:
         return "cr:commands> "
     if page == BrowserPage.TASK_OUTPUT:
         return "cr:task> "
+    if page == BrowserPage.TASK_PROBLEMS:
+        return "cr:problems> "
     return "cr:list> "
 
 
@@ -128,10 +131,18 @@ def contextual_action_bar(
             "↑/↓ scroll",
             "find",
             "next match",
+            "problems",
             "copy task",
             "save task",
             "stop",
             "rerun",
+            "b back",
+        ),
+        BrowserPage.TASK_PROBLEMS: (
+            "Enter open",
+            "↑/↓ select",
+            "task output",
+            "copy task",
             "b back",
         ),
     }
@@ -185,6 +196,8 @@ def product_breadcrumb(state: Any, args: argparse.Namespace) -> str:
         return f"{label} > Commands"
     if state.page == BrowserPage.TASK_OUTPUT:
         return f"{label} > Task Output"
+    if state.page == BrowserPage.TASK_PROBLEMS:
+        return f"{label} > Task Problems"
     if state.page == BrowserPage.FILE_DETAIL:
         visible = state.visible_changes
         if visible and 0 <= state.selected < len(visible):
@@ -666,6 +679,54 @@ def task_output_screen_lines(
     else:
         lines.append("")
     return lines[:max_lines]
+
+
+def task_problems_screen_lines(
+    state: Any,
+    problems: list[TaskProblem],
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    if not problems:
+        return [
+            style.bold("Task problems"),
+            "No task problems found.",
+            "Run build, test, or lint, then open problems from task output.",
+            "",
+        ][:max_lines]
+    lines = [
+        f"{style.bold('Task problems')} ({len(problems)} found)",
+        "Enter: open problem   task output: logs   b: back",
+    ]
+    row_capacity = max(1, max_lines - len(lines) - 1)
+    selected = max(0, min(getattr(state, "problem_selected", 0), len(problems) - 1))
+    start = ensure_window(
+        getattr(state, "problem_scroll", 0),
+        selected,
+        len(problems),
+        row_capacity,
+    )
+    state.problem_selected = selected
+    state.problem_scroll = start
+    end = min(len(problems), start + row_capacity)
+    index_width = len(str(len(problems)))
+    for index, problem in enumerate(problems[start:end], start):
+        marker = ">" if index == selected else " "
+        location = task_problem_location(problem)
+        lines.append(
+            f"{marker} {str(index + 1).rjust(index_width)}  "
+            f"{style.file_path(location)}  {problem.summary}"
+        )
+    if len(problems) > row_capacity:
+        lines.append(style.dim(f"showing {start + 1}-{end}/{len(problems)}"))
+    else:
+        lines.append("")
+    return lines[:max_lines]
+
+
+def task_problem_location(problem: TaskProblem) -> str:
+    column = f":{problem.column}" if problem.column is not None else ""
+    return f"{problem.path}:{problem.line}{column}"
 
 
 def max_task_output_scroll(state: Any, max_lines: int) -> int:

@@ -76,6 +76,7 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("tasks", "show task command sources", "tasks"),
                 CommandEntry("tasks help", "show .cr/tasks.json format", "tasks help"),
                 CommandEntry("task output", "open current task output", "task output"),
+                CommandEntry("problems", "open current task problems", "problems"),
                 CommandEntry("copy task", "copy current task output", "copy task"),
                 CommandEntry("save task", "save current task output", "save task"),
                 CommandEntry("stop / cancel", "stop running task", "stop"),

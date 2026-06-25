@@ -97,6 +97,10 @@ output capture, stopping, rerun, foreground run, and completion history. It
 does not render terminal panels or manage browser pages. `cr.ui.tasks` also
 owns project-local task preset discovery from `.cr/tasks.json`; CLI arguments
 and environment variables remain higher priority overrides.
+`cr.ui.task_problems` owns lightweight file-location extraction from current
+task output. It recognizes repo-local `path:line[:column]` anchors and returns
+Task Problem facts; it does not manage task lifecycle, render pages, open
+editors, parse severity, or persist diagnostics.
 
 Product navigation terms:
 
@@ -112,6 +116,9 @@ Product navigation terms:
   output with its own scroll and find state. It is an Output Panel-style detail
   view for Task Panel data, not a new review hierarchy level and not task
   history.
+- `Task Problems Page`: a browser page for current task output anchors that
+  look like repo-local `path:line[:column]` locations. It is a lightweight
+  Problems panel, not a persisted diagnostics model and not task history.
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
   content, task panel, and prompt regions. Internally, `cr.ui.frame` owns the
   screen-layer layout and Task Panel presentation helpers.
@@ -121,8 +128,8 @@ Product navigation terms:
   reading, while `browser.py` decides how those tokens affect product state.
 - `Page Content`: the internal module that renders product-page main content
   for Scope Home, Commit Picker, Changed Files, empty states, File Detail, and
-  Task Output Page. It owns page text and scroll-window rendering rules, while
-  Browser Frame owns screen placement.
+  Task Output Page, and Task Problems Page. It owns page text and scroll-window
+  rendering rules, while Browser Frame owns screen placement.
 - `Scope Home Counts`: temporary overview counts shown on Scope Home for
   Worktree, Staged, All local changes, and Recent commits. Browser
   orchestration samples these counts when Scope Home opens or refreshes; Page
@@ -153,9 +160,9 @@ Product navigation terms:
   Browser Frame owns placement constraints and line fitting; the action bar is
   not command state, workspace state, or persisted data.
 - `Browser Navigation`: the internal module that moves between Scope Home,
-  Commit Picker, Changed Files, File Detail, Command Palette, and Task Output
-  Page, including in-session back/forward page history, without loading Git data
-  or rendering terminal output.
+  Commit Picker, Changed Files, File Detail, Command Palette, Task Output Page,
+  and Task Problems Page, including in-session back/forward page history,
+  without loading Git data or rendering terminal output.
 - `Review Workspace`: the internal module that owns the current Review Scope,
   changed files, path/source filter state, progress/note state, selected file,
   selected commit, previous scope, and persistence data mapping for `cr browse`.
@@ -203,6 +210,11 @@ Product navigation terms:
   non-empty task-output query with wraparound. It uses separate `task_find_text`
   state from File Detail's `file_find_text` and does not search TaskRecord
   history or parse diagnostics.
+- `Task Problems`: within Task Problems Page, `problems` / `task problems`
+  lists repo-local file anchors extracted from current task output. Enter opens
+  the selected problem through File Actions. This is intentionally lighter than
+  a full diagnostics parser: no severity, no error codes, no history, and no
+  workspace persistence.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

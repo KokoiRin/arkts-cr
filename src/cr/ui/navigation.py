@@ -18,6 +18,7 @@ class BrowserPage:
     FILE_DETAIL = "file"
     COMMAND_PALETTE = "commands"
     TASK_OUTPUT = "task-output"
+    TASK_PROBLEMS = "problems"
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,8 @@ class BrowserPageSnapshot:
     selected_commit: Optional[object]
     commit_scroll: int
     task_scroll: int = 0
+    problem_selected: int = 0
+    problem_scroll: int = 0
 
 
 class _BrowserNavigationState(Protocol):
@@ -47,6 +50,8 @@ class _BrowserNavigationState(Protocol):
     list_scroll: int
     command_filter_text: str
     task_scroll: int
+    problem_selected: int
+    problem_scroll: int
     page_back_stack: list[BrowserPageSnapshot]
     page_forward_stack: list[BrowserPageSnapshot]
 
@@ -76,6 +81,13 @@ class BrowserNavigation:
         BrowserNavigation._record_transition(state, BrowserPage.TASK_OUTPUT)
         state.page = BrowserPage.TASK_OUTPUT
         state.task_scroll = 0
+
+    @staticmethod
+    def show_task_problems(state: _BrowserNavigationState) -> None:
+        BrowserNavigation._record_transition(state, BrowserPage.TASK_PROBLEMS)
+        state.page = BrowserPage.TASK_PROBLEMS
+        state.problem_selected = 0
+        state.problem_scroll = 0
 
     @staticmethod
     def show_commit_picker(
@@ -118,6 +130,7 @@ class BrowserNavigation:
             BrowserPage.SCOPE_HOME,
             BrowserPage.FILE_DETAIL,
             BrowserPage.TASK_OUTPUT,
+            BrowserPage.TASK_PROBLEMS,
         }:
             BrowserNavigation._restore_changed_files_fallback(state)
             return
@@ -162,6 +175,8 @@ class BrowserNavigation:
             selected_commit=state.selected_commit,
             commit_scroll=state.commit_scroll,
             task_scroll=state.task_scroll,
+            problem_selected=state.problem_selected,
+            problem_scroll=state.problem_scroll,
         )
 
     @staticmethod
@@ -180,6 +195,8 @@ class BrowserNavigation:
         state.selected_commit = snapshot.selected_commit
         state.commit_scroll = snapshot.commit_scroll
         state.task_scroll = snapshot.task_scroll
+        state.problem_selected = snapshot.problem_selected
+        state.problem_scroll = snapshot.problem_scroll
 
     @staticmethod
     def _restore_changed_files_fallback(state: _BrowserNavigationState) -> None:

@@ -536,6 +536,15 @@ class BrowserCommandExecutor:
             message = _set_selected_review_note(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SET_CHANGE_REVIEW_NOTE:
+            message = _set_current_change_review_note(
+                state,
+                args,
+                style,
+                parsed_command.value,
+            )
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SHOW_REVIEW_NOTES:
             lines = _review_note_lines(state, parsed_command.value)
             if raw_keys:
@@ -960,6 +969,36 @@ def _unmark_selected_seen(state: BrowserState) -> None:
 
 def _set_selected_review_note(state: BrowserState, note: str) -> str:
     return selected_file_actions.set_selected_review_note(state, note)
+
+
+def _set_current_change_review_note(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    note: str,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to note change."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to note change."
+    state.clamp_selection()
+    change = visible[state.selected]
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    return selected_file_actions.append_selected_change_review_note(
+        state,
+        change,
+        lines,
+        state.file_scroll,
+        note,
+    )
 
 
 def _review_note_lines(state: BrowserState, query: str = "") -> list[str]:

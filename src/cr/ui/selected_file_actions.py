@@ -437,6 +437,43 @@ def set_selected_review_note(state, note: str) -> str:
     return f"Cleared note for {shorten_path(path)}"
 
 
+def append_selected_change_review_note(
+    state,
+    change,
+    lines: list[str],
+    current_scroll: int,
+    note: str,
+) -> str:
+    text = note.strip()
+    if not text:
+        return "Enter note text for current change."
+    row = file_detail_navigation.current_changed_row(lines, current_scroll)
+    if row is None:
+        return "No current changed row in File Detail."
+    entry, display = _change_note_entry(change.path, row, text)
+    existing = state.review_notes.get(change.path, "").strip()
+    state.review_notes[change.path] = f"{existing} | {entry}" if existing else entry
+    state._sync_to_workspace()
+    state.file_line_cache.clear()
+    return f"Noted {display}"
+
+
+def _change_note_entry(
+    path: str,
+    row: file_detail_navigation.ChangedRow,
+    text: str,
+) -> tuple[str, str]:
+    if row.new_line is not None:
+        return (
+            f"line {row.new_line}: {text}",
+            f"change {shorten_path(path)}:{row.new_line}",
+        )
+    return (
+        f"old line {row.old_line}: {text}",
+        f"deleted change {shorten_path(path)}:{row.old_line}",
+    )
+
+
 def prompt_handoff_text(
     state,
     args,

@@ -691,6 +691,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Commands", text)
         self.assertIn("Review scope", text)
         self.assertIn("copy prompt file", text)
+        self.assertIn("note change TEXT", text)
         self.assertIn("open hunk", text)
         self.assertIn("open line", text)
         self.assertIn("copy hunk", text)
@@ -724,6 +725,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy hunk", commands)
         self.assertIn("copy line", commands)
         self.assertIn("copy change", commands)
+        self.assertNotIn("note change TEXT", commands)
         self.assertIn("find TEXT", commands)
         self.assertIn("next match", commands)
         self.assertIn("prev match", commands)
@@ -1043,6 +1045,12 @@ class CliTests(unittest.TestCase):
         note = parse_browser_command("note check lifecycle edge case")
         self.assertEqual(note.action, BrowserCommandAction.SET_REVIEW_NOTE)
         self.assertEqual(note.value, "check lifecycle edge case")
+        change_note = parse_browser_command("note change check lifecycle edge case")
+        self.assertEqual(change_note.action, BrowserCommandAction.SET_CHANGE_REVIEW_NOTE)
+        self.assertEqual(change_note.value, "check lifecycle edge case")
+        compatibility_note = parse_browser_command("note change")
+        self.assertEqual(compatibility_note.action, BrowserCommandAction.SET_REVIEW_NOTE)
+        self.assertEqual(compatibility_note.value, "change")
         clear_note = parse_browser_command("note")
         self.assertEqual(clear_note.action, BrowserCommandAction.SET_REVIEW_NOTE)
         self.assertEqual(clear_note.value, "")
@@ -2343,6 +2351,110 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
         self.assertIn("Open a file detail to copy change.", state.status_message)
 
+    def test_browser_command_executor_notes_current_change_in_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+            review_notes={"src/Sample.ts": "file note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            result = executor.execute(
+                parse_browser_command(
+                    "note change check lifecycle",
+                    raw_keys=True,
+                )
+            )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIsNotNone(state.task)
+        self.assertEqual(
+            state.review_notes,
+            {"src/Sample.ts": "file note | line 32: check lifecycle"},
+        )
+        self.assertIn("Noted change src/Sample.ts:32", state.status_message)
+
+    def test_browser_command_executor_reports_change_note_without_changed_row(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=1,
+            review_notes={"src/Sample.ts": "file note"},
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            result = executor.execute(
+                parse_browser_command("note change check lifecycle", raw_keys=True)
+            )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.review_notes, {"src/Sample.ts": "file note"})
+        self.assertEqual(state.file_scroll, 1)
+        self.assertIn("No current changed row in File Detail.", state.status_message)
+
+    def test_browser_command_executor_reports_change_note_outside_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(
+            parse_browser_command("note change check lifecycle", raw_keys=True)
+        )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.review_notes, {})
+        self.assertIn("Open a file detail to note change.", state.status_message)
+
     def test_browser_command_executor_copies_current_hunk_in_file_detail(self):
         from cr.ui.browser import parse_browser_command
 
@@ -3198,6 +3310,57 @@ class CliTests(unittest.TestCase):
             {"src/Sample.ts": "check lifecycle"},
         )
         self.assertEqual(state.file_line_cache, {})
+
+    def test_selected_file_actions_appends_current_added_change_note(self):
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            review_notes={"src/Sample.ts": "file level note"},
+        )
+        state.file_line_cache["src/Sample.ts"] = ["old"]
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        message = selected_file_actions.append_selected_change_review_note(
+            state,
+            state.changes[0],
+            lines,
+            2,
+            "check lifecycle",
+        )
+
+        self.assertEqual(message, "Noted change src/Sample.ts:32")
+        self.assertEqual(
+            state.review_notes,
+            {"src/Sample.ts": "file level note | line 32: check lifecycle"},
+        )
+        self.assertEqual(state.workspace.review_notes, state.review_notes)
+        self.assertEqual(state.file_line_cache, {})
+
+    def test_selected_file_actions_appends_current_deleted_change_note(self):
+        state = BrowserState([FileChange("src/Sample.ts", 0, 1)])
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,0 @@",
+            "    20      | -gone",
+        ]
+
+        message = selected_file_actions.append_selected_change_review_note(
+            state,
+            state.changes[0],
+            lines,
+            1,
+            "confirm removal",
+        )
+
+        self.assertEqual(message, "Noted deleted change src/Sample.ts:20")
+        self.assertEqual(
+            state.review_notes,
+            {"src/Sample.ts": "old line 20: confirm removal"},
+        )
 
     def test_review_notes_module_orders_current_changes_before_extra_notes(self):
         lines = review_notes_module.review_note_lines(
@@ -7607,6 +7770,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("staged", text)
         self.assertIn("build", text)
         self.assertIn("note TEXT", text)
+        self.assertIn("note change TEXT", text)
         self.assertIn("notes QUERY", text)
         self.assertIn("copy notes QUERY", text)
         self.assertIn("copy prompt", text)
@@ -7668,6 +7832,7 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("base REF", commands)
         self.assertNotIn("range OLD..NEW", commands)
         self.assertNotIn("note TEXT", commands)
+        self.assertNotIn("note change TEXT", commands)
         self.assertNotIn("notes QUERY", commands)
         self.assertNotIn("copy notes QUERY", commands)
         self.assertNotIn("Enter / 1..N", commands)

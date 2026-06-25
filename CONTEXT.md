@@ -173,9 +173,11 @@ Product navigation terms:
   `copy line` act on the current rendered File Detail row when that row has a
   new-file line number. `next change` and `prev change` jump between actual
   added/deleted rows inside the rendered File Detail, and `copy change` copies
-  the current actual changed row as a compact single-row review snippet. This
-  is local navigation inside the current selected file, not a new product
-  hierarchy layer or persisted workspace state.
+  the current actual changed row as a compact single-row review snippet.
+  `note change TEXT` appends the current actual changed row position to the
+  selected file's existing review note. This is local navigation/action inside
+  the current selected file, not a new product hierarchy layer or separate
+  comments model.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.
@@ -191,11 +193,11 @@ Product navigation terms:
   own browser session shutdown.
 - `Selected File Actions`: the internal module that owns workflows acting on
   the current Changed Files selection, including open, open/copy hunk,
-  open/copy line, copy change, copy path, copy anchor, copy/save diff snippet,
-  reveal, stage/unstage, selected-file notes, and selected/scope prompt handoff
-  selection. All-note summary/search/copy behavior stays in Review Notes
-  Module; platform subprocess details stay in File Actions; Git index mutations
-  stay in `cr.vcs.git`.
+  open/copy line, copy change, note current change, copy path, copy anchor,
+  copy/save diff snippet, reveal, stage/unstage, selected-file notes, and
+  selected/scope prompt handoff selection. All-note summary/search/copy behavior
+  stays in Review Notes Module; platform subprocess details stay in File
+  Actions; Git index mutations stay in `cr.vcs.git`.
 - `File Actions`: selected-file workbench operations such as `open`,
   `copy path`, `copy anchor`, `copy diff`, `copy hunk`, `save diff`,
   `copy prompt file`, `save prompt file`, and `reveal`. They act within the

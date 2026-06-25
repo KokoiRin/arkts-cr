@@ -164,6 +164,7 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "file actions",
                 ),
                 CommandEntry("note TEXT", "set selected file review note"),
+                CommandEntry("note change TEXT", "append note for current changed row"),
                 CommandEntry("note", "clear selected file review note"),
                 CommandEntry("notes", "show all review notes", "notes"),
                 CommandEntry("notes QUERY", "filter review notes by path or note text"),

@@ -54,6 +54,7 @@ class BrowserCommandAction:
     UNSTAGE_FILE = "unstage_file"
     SHOW_FILE_ACTION_DIAGNOSTICS = "show_file_action_diagnostics"
     SET_REVIEW_NOTE = "set_review_note"
+    SET_CHANGE_REVIEW_NOTE = "set_change_review_note"
     SHOW_REVIEW_NOTES = "show_review_notes"
     SHOW_TASK_DIAGNOSTICS = "show_task_diagnostics"
     SHOW_TASK_SCHEMA_HELP = "show_task_schema_help"
@@ -208,6 +209,11 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.SHOW_FILE_ACTION_DIAGNOSTICS)
     if command == "note":
         return BrowserCommand(BrowserCommandAction.SET_REVIEW_NOTE)
+    if command.startswith("note change "):
+        return BrowserCommand(
+            BrowserCommandAction.SET_CHANGE_REVIEW_NOTE,
+            command.removeprefix("note change ").strip(),
+        )
     if command.startswith("note "):
         return BrowserCommand(
             BrowserCommandAction.SET_REVIEW_NOTE,

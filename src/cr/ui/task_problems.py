@@ -101,6 +101,20 @@ def filter_task_problems(
     return [problem for problem in problems if problem.severity == normalized]
 
 
+def filter_task_problems_by_query(
+    problems: list[TaskProblem],
+    query: str,
+) -> list[TaskProblem]:
+    normalized = query.strip().lower()
+    if not normalized:
+        return list(problems)
+    return [
+        problem
+        for problem in problems
+        if normalized in _problem_query_text(problem)
+    ]
+
+
 def sort_task_problems(
     problems: list[TaskProblem],
     sort_mode: str,
@@ -140,6 +154,21 @@ def problem_severity_count_label(problems: list[TaskProblem]) -> str:
         _format_count(counts["unknown"], "unknown"),
     ]
     return ", ".join(part for part in parts if part)
+
+
+def _problem_query_text(problem: TaskProblem) -> str:
+    return "\n".join(
+        part
+        for part in (
+            problem.path,
+            problem_location(problem),
+            problem.summary,
+            problem.severity or "",
+            problem.code or "",
+            problem.message,
+        )
+        if part
+    ).lower()
 
 
 def extract_task_problems(repo: Path, lines: list[str]) -> list[TaskProblem]:

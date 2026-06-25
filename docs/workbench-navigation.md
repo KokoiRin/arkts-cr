@@ -432,13 +432,19 @@ Status: implemented.
 
 Status: implemented.
 
-Task Problems supports page-local severity filters with `problems errors`, `problems warnings`, `problems info`, and `problems note`; `problems all` clears the filter. The active filter narrows the visible list before sorting, and movement, Enter/open, `view problem`, `copy problem`, and `copy problems` all operate on the filtered visible list. `BrowserState.problem_filter` is restored through page history snapshots, while `cr.ui.task_problems` owns the pure filtering rule. This intentionally avoids text query filtering, task history search, and diagnostics persistence.
+Task Problems supports page-local severity filters with `problems errors`, `problems warnings`, `problems info`, and `problems note`; `problems all` clears the filter. The active filter narrows the visible list before text query filtering and sorting, and movement, Enter/open, `view problem`, `copy problem`, and `copy problems` all operate on the filtered visible list. `BrowserState.problem_filter` is restored through page history snapshots, while `cr.ui.task_problems` owns the pure filtering rule. This intentionally avoids task history search and diagnostics persistence.
+
+### P0: Task Problems text filter
+
+Status: implemented.
+
+Task Problems supports `problems find TEXT` for case-insensitive plain-text filtering over path, `path:line[:column]` location, summary, severity, diagnostic code, and message. `problems clear find` clears the query. Text filtering applies after severity filtering and before sorting; movement, Enter/open, `view problem`, `copy problem`, `copy problems`, and `copy problem context` use the queried visible list. The header shows `find: TEXT`, and page history restores `problem_query`. This intentionally avoids regex, raw task-output history search, source-content search, persistence, and tool-specific diagnostic parsers.
 
 ### P0: Task Problems severity sort
 
 Status: implemented.
 
-Task Problems defaults to task-output order, then supports `problems sort severity` to group visible problems by `error`, `warning`, `info`, `note`, and unknown severity while preserving original output order inside each bucket. `problems sort output` restores task-output order. Sorting applies after severity filtering, updates the header with `sort: severity` only when active, and shares the same visible list used by movement, Enter/open, `view problem`, `copy problem`, and `copy problems`. `BrowserState.problem_sort` is page-local and restored through page history snapshots; it is not persisted across sessions.
+Task Problems defaults to task-output order, then supports `problems sort severity` to group visible problems by `error`, `warning`, `info`, `note`, and unknown severity while preserving original output order inside each bucket. `problems sort output` restores task-output order. Sorting applies after severity and text filtering, updates the header with `sort: severity` only when active, and shares the same visible list used by movement, Enter/open, `view problem`, `copy problem`, and `copy problems`. `BrowserState.problem_sort` is page-local and restored through page history snapshots; it is not persisted across sessions.
 
 ### P0: Task Problems severity counts
 

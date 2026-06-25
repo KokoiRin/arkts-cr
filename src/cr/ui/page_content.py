@@ -148,6 +148,7 @@ def contextual_action_bar(
             "errors",
             "warnings",
             "all",
+            "find",
             "sort severity",
             "view problem",
             "task output",
@@ -716,17 +717,31 @@ def task_problems_screen_lines(
     max_lines: int,
 ) -> list[str]:
     problem_filter = getattr(state, "problem_filter", "")
+    problem_query = getattr(state, "problem_query", "")
     sort_label = " (sort: severity)" if getattr(state, "problem_sort", "output") == "severity" else ""
     if not problems:
         if problem_filter:
             return [
-                style.bold(f"Task problems: {problem_filter}{sort_label}"),
+                style.bold(
+                    _task_problems_title(
+                        problem_filter,
+                        problem_query,
+                        sort_label,
+                    )
+                ),
                 f"No {problem_filter} task problems found.",
                 "Run problems all to show all task problems.",
                 "",
             ][:max_lines]
+        if problem_query:
+            return [
+                style.bold(_task_problems_title("", problem_query, sort_label)),
+                f"No task problems match {problem_query}.",
+                "Run problems clear find to clear the text filter.",
+                "",
+            ][:max_lines]
         return [
-            style.bold(f"Task problems{sort_label}"),
+            style.bold(_task_problems_title("", problem_query, sort_label)),
             "No task problems found.",
             "Run build, test, or lint, then open problems from task output.",
             "",
@@ -736,6 +751,8 @@ def task_problems_screen_lines(
         title = f"{title}: {problem_filter}"
     count_label = task_problems_module.problem_severity_count_label(problems)
     count_parts = [count_label] if count_label else []
+    if problem_query:
+        count_parts.append(f"find: {problem_query}")
     if getattr(state, "problem_sort", "output") == "severity":
         count_parts.append("sort: severity")
     count_suffix = f"; {'; '.join(count_parts)}" if count_parts else ""
@@ -769,6 +786,19 @@ def task_problems_screen_lines(
     else:
         lines.append("")
     return lines[:max_lines]
+
+
+def _task_problems_title(
+    problem_filter: str,
+    problem_query: str,
+    sort_label: str,
+) -> str:
+    title = "Task problems"
+    if problem_filter:
+        title = f"{title}: {problem_filter}"
+    if problem_query:
+        title = f"{title} find: {problem_query}"
+    return f"{title}{sort_label}"
 
 
 def source_file_screen_lines(

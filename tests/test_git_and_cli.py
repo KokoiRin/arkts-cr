@@ -238,6 +238,45 @@ class CliTests(unittest.TestCase):
         self.assertEqual(output_sorted, problems)
         self.assertEqual(unknown_sorted, problems)
 
+    def test_task_problems_filters_by_text_query(self):
+        problems = [
+            task_problems.TaskProblem(
+                "src/Foo.ets",
+                12,
+                3,
+                "src/Foo.ets:12:3 error TS2322: bad call",
+                1,
+                severity="error",
+                code="TS2322",
+                message="bad call",
+            ),
+            task_problems.TaskProblem(
+                "src/Bar.ets",
+                8,
+                None,
+                "src/Bar.ets:8 warning W001: noisy lifecycle",
+                2,
+                severity="warning",
+                code="W001",
+                message="noisy lifecycle",
+            ),
+            task_problems.TaskProblem("src/Baz.ets", 3, None, "plain anchor", 3),
+        ]
+
+        by_path = task_problems.filter_task_problems_by_query(problems, "foo")
+        by_summary = task_problems.filter_task_problems_by_query(problems, "plain")
+        by_severity = task_problems.filter_task_problems_by_query(problems, "WARNING")
+        by_code = task_problems.filter_task_problems_by_query(problems, "ts2322")
+        by_message = task_problems.filter_task_problems_by_query(problems, "life")
+        all_problems = task_problems.filter_task_problems_by_query(problems, "  ")
+
+        self.assertEqual([problem.path for problem in by_path], ["src/Foo.ets"])
+        self.assertEqual([problem.path for problem in by_summary], ["src/Baz.ets"])
+        self.assertEqual([problem.path for problem in by_severity], ["src/Bar.ets"])
+        self.assertEqual([problem.path for problem in by_code], ["src/Foo.ets"])
+        self.assertEqual([problem.path for problem in by_message], ["src/Bar.ets"])
+        self.assertEqual(all_problems, problems)
+
     def test_task_problems_formats_visible_severity_counts(self):
         problems = [
             task_problems.TaskProblem("src/A.ets", 1, None, "a", 1, severity="warning"),
@@ -1106,6 +1145,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("task output", text)
         self.assertIn("problems errors", text)
         self.assertIn("problems all", text)
+        self.assertIn("problems find TEXT", text)
+        self.assertIn("problems clear find", text)
         self.assertIn("problems sort severity", text)
         self.assertIn("problems sort output", text)
 
@@ -1129,6 +1170,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("problems errors", commands)
         self.assertIn("problems warnings", commands)
         self.assertIn("problems all", commands)
+        self.assertIn("problems find TEXT", commands)
+        self.assertIn("problems clear find", commands)
         self.assertIn("problems sort severity", commands)
         self.assertIn("problems sort output", commands)
         self.assertIn("copy problem", commands)
@@ -1228,6 +1271,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("errors", task_problems)
         self.assertIn("warnings", task_problems)
         self.assertIn("all", task_problems)
+        self.assertIn("find", task_problems)
         self.assertIn("sort severity", task_problems)
         self.assertIn("task output", task_problems)
         self.assertIn("copy problem", task_problems)
@@ -1365,6 +1409,33 @@ class CliTests(unittest.TestCase):
 
         self.assertIn("sort: severity", text)
 
+    def test_page_content_task_problems_screen_lines_render_query_state(self):
+        problems = [
+            task_problems.TaskProblem(
+                path="src/Foo.ets",
+                line=12,
+                column=None,
+                summary="src/Foo.ets:12 error",
+                output_line=1,
+                severity="error",
+            ),
+        ]
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_PROBLEMS,
+            problem_query="Foo",
+        )
+
+        lines = page_content.task_problems_screen_lines(
+            state,
+            problems,
+            TerminalStyle(False),
+            max_lines=6,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("find: Foo", text)
+
     def test_page_content_task_problems_screen_lines_render_filtered_state(self):
         state = BrowserState(
             [],
@@ -1385,6 +1456,25 @@ class CliTests(unittest.TestCase):
         self.assertIn("sort: severity", text)
         self.assertIn("No error task problems found.", text)
         self.assertIn("problems all", text)
+
+    def test_page_content_task_problems_screen_lines_render_query_empty_state(self):
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_PROBLEMS,
+            problem_query="Foo",
+        )
+
+        lines = page_content.task_problems_screen_lines(
+            state,
+            [],
+            TerminalStyle(False),
+            max_lines=6,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("find: Foo", text)
+        self.assertIn("No task problems match Foo.", text)
+        self.assertIn("problems clear find", text)
 
     def test_page_content_task_problems_screen_lines_render_empty_state(self):
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
@@ -1493,6 +1583,7 @@ class CliTests(unittest.TestCase):
             task_scroll=8,
             problem_filter="warning",
             problem_sort="severity",
+            problem_query="Foo",
             source_context_lines=8,
             scope_selected=2,
             command_selected=3,
@@ -1536,15 +1627,18 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.problem_scroll, 0)
         self.assertEqual(state.problem_filter, "")
         self.assertEqual(state.problem_sort, "output")
+        self.assertEqual(state.problem_query, "")
 
         BrowserNavigation.show_task_problems(
             state,
             problem_filter="error",
             problem_sort="severity",
+            problem_query="Foo",
         )
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
         self.assertEqual(state.problem_filter, "error")
         self.assertEqual(state.problem_sort, "severity")
+        self.assertEqual(state.problem_query, "Foo")
 
         BrowserNavigation.show_source_file(state, "src/Foo.ets", 12)
         self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
@@ -1665,6 +1759,7 @@ class CliTests(unittest.TestCase):
             state,
             problem_filter="warning",
             problem_sort="severity",
+            problem_query="Foo",
         )
         state.problem_selected = 2
         state.problem_scroll = 1
@@ -1674,6 +1769,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
         self.assertEqual(state.problem_filter, "warning")
         self.assertEqual(state.problem_sort, "severity")
+        self.assertEqual(state.problem_query, "Foo")
         self.assertEqual(state.problem_selected, 2)
         self.assertEqual(state.problem_scroll, 1)
 
@@ -1892,6 +1988,16 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy problem context").action,
             BrowserCommandAction.COPY_PROBLEM_CONTEXT,
+        )
+        problem_query = parse_browser_command("problems find Foo")
+        self.assertEqual(
+            problem_query.action,
+            BrowserCommandAction.SET_TASK_PROBLEM_QUERY,
+        )
+        self.assertEqual(problem_query.value, "Foo")
+        self.assertEqual(
+            parse_browser_command("problems clear find").action,
+            BrowserCommandAction.CLEAR_TASK_PROBLEM_QUERY,
         )
         problem_errors = parse_browser_command("problems errors")
         self.assertEqual(
@@ -4493,6 +4599,43 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.problem_filter, "")
         self.assertEqual(state.problem_sort, "severity")
 
+    def test_browser_command_executor_filters_task_problems_by_query(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_OUTPUT,
+            problem_filter="error",
+            problem_sort="severity",
+            problem_selected=3,
+            problem_scroll=4,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        set_query = executor.execute(parse_browser_command("problems find Foo"))
+        query_after_set = state.problem_query
+        selected_after_set = state.problem_selected
+        scroll_after_set = state.problem_scroll
+        clear_query = executor.execute(parse_browser_command("problems clear find"))
+
+        self.assertTrue(set_query.handled)
+        self.assertTrue(set_query.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(query_after_set, "Foo")
+        self.assertEqual(selected_after_set, 0)
+        self.assertEqual(scroll_after_set, 0)
+        self.assertEqual(state.problem_filter, "error")
+        self.assertEqual(state.problem_sort, "severity")
+        self.assertTrue(clear_query.handled)
+        self.assertTrue(clear_query.needs_redraw)
+        self.assertEqual(state.problem_query, "")
+
     def test_browser_command_executor_sorts_task_problems_by_severity(self):
         from cr.ui.browser import parse_browser_command
 
@@ -4660,6 +4803,50 @@ class CliTests(unittest.TestCase):
         open_path.assert_called_once_with(second, 22, "editor {fileline}")
         self.assertIn("Opened problem src/Two.ets:22", state.status_message)
 
+    def test_browser_command_executor_opens_queried_task_problem(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = repo / "src" / "One.ets"
+            second = repo / "src" / "Two.ets"
+            first.parent.mkdir(parents=True)
+            first.write_text("sample", encoding="utf-8")
+            second.write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_query="noisy",
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error E1: bad",
+                        "src/Two.ets:22:4 error E2: noisy",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(open_cmd="editor {fileline}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.open_path",
+                    return_value=None,
+                ) as open_path:
+                    result = executor.execute(parse_browser_command("enter", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        open_path.assert_called_once_with(second, 22, "editor {fileline}")
+        self.assertIn("Opened problem src/Two.ets:22", state.status_message)
+
     def test_browser_command_executor_copies_selected_task_problem(self):
         from cr.ui.browser import parse_browser_command
 
@@ -4800,6 +4987,50 @@ class CliTests(unittest.TestCase):
         copied = copy_text.call_args.args[0]
         self.assertIn("src/One.ets:1:1", copied)
         self.assertNotIn("src/Two.ets", copied)
+        self.assertIn("Copied 1 task problems.", state.status_message)
+
+    def test_browser_command_executor_copies_queried_task_problems(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_query="noisy",
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error E1: bad",
+                        "src/Two.ets:22:4 warning W1: noisy",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy problems"))
+
+        self.assertTrue(result.handled)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("src/Two.ets:22:4", copied)
+        self.assertNotIn("src/One.ets", copied)
         self.assertIn("Copied 1 task problems.", state.status_message)
 
     def test_browser_command_executor_copies_sorted_task_problems(self):

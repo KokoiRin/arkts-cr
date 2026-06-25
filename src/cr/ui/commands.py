@@ -58,6 +58,8 @@ class BrowserCommandAction:
     SET_TASK_PROBLEM_FILTER = "set_task_problem_filter"
     CLEAR_TASK_PROBLEM_FILTER = "clear_task_problem_filter"
     SET_TASK_PROBLEM_SORT = "set_task_problem_sort"
+    SET_TASK_PROBLEM_QUERY = "set_task_problem_query"
+    CLEAR_TASK_PROBLEM_QUERY = "clear_task_problem_query"
     VIEW_TASK_PROBLEM = "view_task_problem"
     SAVE_DIFF = "save_diff"
     SAVE_PROMPT = "save_prompt"
@@ -215,6 +217,13 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.SHOW_TASK_PROBLEMS)
     if command in {"problems all", "all problems", "clear problems"}:
         return BrowserCommand(BrowserCommandAction.CLEAR_TASK_PROBLEM_FILTER)
+    if command in {"problems clear find", "problems clear query", "clear problem find"}:
+        return BrowserCommand(BrowserCommandAction.CLEAR_TASK_PROBLEM_QUERY)
+    if command.startswith("problems find "):
+        return BrowserCommand(
+            BrowserCommandAction.SET_TASK_PROBLEM_QUERY,
+            command.removeprefix("problems find ").strip(),
+        )
     problem_sort_aliases = {
         "problems sort severity": "severity",
         "sort problems severity": "severity",

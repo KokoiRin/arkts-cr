@@ -83,6 +83,16 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("problems note", "show note task problems", "problems note"),
                 CommandEntry("problems all", "show all task problems", "problems all"),
                 CommandEntry(
+                    "problems find TEXT",
+                    "filter task problems by text",
+                    "problems find TEXT",
+                ),
+                CommandEntry(
+                    "problems clear find",
+                    "clear task problems text filter",
+                    "problems clear find",
+                ),
+                CommandEntry(
                     "problems sort severity",
                     "sort task problems by severity",
                     "problems sort severity",

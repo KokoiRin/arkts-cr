@@ -85,6 +85,7 @@ class BrowserState:
     problem_scroll: int = 0
     problem_filter: str = ""
     problem_sort: str = "output"
+    problem_query: str = ""
     source_file_path: str = ""
     source_file_line: int = 1
     source_file_scroll: int = 0
@@ -534,12 +535,14 @@ class BrowserCommandExecutor:
                 state,
                 problem_filter=parsed_command.value,
                 problem_sort=state.problem_sort,
+                problem_query=state.problem_query,
             )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.CLEAR_TASK_PROBLEM_FILTER:
             BrowserNavigation.show_task_problems(
                 state,
                 problem_sort=state.problem_sort,
+                problem_query=state.problem_query,
             )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SET_TASK_PROBLEM_SORT:
@@ -547,6 +550,22 @@ class BrowserCommandExecutor:
                 state,
                 problem_filter=state.problem_filter,
                 problem_sort=parsed_command.value,
+                problem_query=state.problem_query,
+            )
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SET_TASK_PROBLEM_QUERY:
+            BrowserNavigation.show_task_problems(
+                state,
+                problem_filter=state.problem_filter,
+                problem_sort=state.problem_sort,
+                problem_query=parsed_command.value,
+            )
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.CLEAR_TASK_PROBLEM_QUERY:
+            BrowserNavigation.show_task_problems(
+                state,
+                problem_filter=state.problem_filter,
+                problem_sort=state.problem_sort,
             )
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.SHOW_TASK_PROBLEMS:
@@ -2751,6 +2770,10 @@ def _current_task_problems(state: BrowserState) -> list[task_problems_module.Tas
         state.task.lines,
     )
     visible = task_problems_module.filter_task_problems(problems, state.problem_filter)
+    visible = task_problems_module.filter_task_problems_by_query(
+        visible,
+        state.problem_query,
+    )
     return task_problems_module.sort_task_problems(visible, state.problem_sort)
 
 

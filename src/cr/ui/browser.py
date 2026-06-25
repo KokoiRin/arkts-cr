@@ -1849,10 +1849,21 @@ def _problem_context_target(
         if isinstance(target, str):
             return target
         path, line = target
+        problem = _matching_task_problem(state, path, line)
         return ProblemContextTarget(
             path=path,
             line=line,
             context_lines=state.source_context_lines,
+            problem_text=(
+                task_problems_module.problem_handoff_text(problem)
+                if problem is not None
+                else ""
+            ),
+            task_output_text=(
+                _task_problem_output_excerpt(state, problem)
+                if problem is not None
+                else ""
+            ),
         )
     return None
 
@@ -4068,10 +4079,21 @@ def _file_detail_task_problem(
     if isinstance(target, str):
         return target
     path, line = target
+    problem = _matching_task_problem(state, path, line)
+    if problem is not None:
+        return problem
+    return missing_message or f"No current file problem to {action}."
+
+
+def _matching_task_problem(
+    state: BrowserState,
+    path: str,
+    line: int,
+) -> task_problems_module.TaskProblem | None:
     for problem in _current_task_problems(state):
         if problem.path == path and problem.line == line:
             return problem
-    return missing_message or f"No current file problem to {action}."
+    return None
 
 
 def _current_task_problems(state: BrowserState) -> list[task_problems_module.TaskProblem]:

@@ -131,6 +131,8 @@ save source      保存当前源码行附近上下文
 save source symbol 保存当前函数或方法范围
 copy problem context 复制当前源码行 + diff 上下文
 save problem context 保存当前源码行 + diff 上下文
+copy file problems 复制当前文件的任务问题列表
+save file problems 保存当前文件的任务问题列表
 copy line        复制当前行锚点
 copy hunk        复制当前 hunk
 copy change      复制当前改动行上下文

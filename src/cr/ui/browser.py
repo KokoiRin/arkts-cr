@@ -1605,9 +1605,12 @@ def _copy_file_task_problems(state: BrowserState, args: argparse.Namespace) -> s
     problems = _current_task_problems(state)
     if not problems:
         return "No task problems to copy."
-    selected = max(0, min(state.problem_selected, len(problems) - 1))
-    selected_path = problems[selected].path
+    selected_path = _file_task_problems_target_path(state, problems)
+    if not selected_path:
+        return "No task problems to copy."
     file_problems = [problem for problem in problems if problem.path == selected_path]
+    if not file_problems:
+        return f"No task problems for {selected_path}."
     text = task_problems_module.problems_handoff_text(file_problems)
     message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
     if message:
@@ -1634,9 +1637,12 @@ def _save_file_task_problems(state: BrowserState, requested_path: str = "") -> s
     problems = _current_task_problems(state)
     if not problems:
         return "No task problems to save."
-    selected = max(0, min(state.problem_selected, len(problems) - 1))
-    selected_path = problems[selected].path
+    selected_path = _file_task_problems_target_path(state, problems)
+    if not selected_path:
+        return "No task problems to save."
     file_problems = [problem for problem in problems if problem.path == selected_path]
+    if not file_problems:
+        return f"No task problems for {selected_path}."
     text = task_problems_module.problems_handoff_text(file_problems)
     result = handoff_module.save_task_problems_text(
         text,
@@ -1650,6 +1656,20 @@ def _save_file_task_problems(state: BrowserState, requested_path: str = "") -> s
         f"Saved {len(file_problems)} task problems for {selected_path} "
         f"to {result.display_path}."
     )
+
+
+def _file_task_problems_target_path(
+    state: BrowserState,
+    problems: list[task_problems_module.TaskProblem],
+) -> str:
+    if state.page == BrowserPage.FILE_DETAIL:
+        visible = state.visible_changes
+        if not visible:
+            return ""
+        state.clamp_selection()
+        return visible[state.selected].path
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    return problems[selected].path
 
 
 def _copy_problem_context(

@@ -2013,6 +2013,7 @@ class CliTests(unittest.TestCase):
             selection_end=3,
             mark_line=2,
             symbol_label="struct Foo > method build",
+            problem_label="1/2 ERROR TS123 bad value",
         )
         text = "\n".join(lines)
 
@@ -2021,6 +2022,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("selection: 1-3", text)
         self.assertIn("mark: 2", text)
         self.assertIn("symbol: struct Foo > method build", text)
+        self.assertIn("problem: 1/2 ERROR TS123 bad value", text)
         self.assertIn("* 1  first", text)
         self.assertIn("> 2  target", text)
         self.assertIn("* 3  third", text)
@@ -2078,6 +2080,68 @@ class CliTests(unittest.TestCase):
         text = "\n".join(lines)
         self.assertIn("symbol: struct Foo > method build", text)
         self.assertIn("> 3", text)
+
+    def test_browse_source_file_screen_lines_show_matching_task_problem(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=2,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Foo.ets:2:1 error TS123: bad value"],
+                ),
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                lines = browser_module._browse_source_file_screen_lines(
+                    state,
+                    TerminalStyle(False),
+                    max_lines=8,
+                )
+
+        text = "\n".join(lines)
+        self.assertIn("problem: 1/1 ERROR TS123", text)
+        self.assertIn("bad value", text)
+
+    def test_browse_source_file_screen_lines_hides_stale_task_problem(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("one\ntwo\nthree\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=3,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=["src/Foo.ets:2:1 error TS123: bad value"],
+                ),
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                lines = browser_module._browse_source_file_screen_lines(
+                    state,
+                    TerminalStyle(False),
+                    max_lines=8,
+                )
+
+        text = "\n".join(lines)
+        self.assertNotIn("problem:", text)
+        self.assertNotIn("bad value", text)
 
     def test_browser_page_model_names_current_pages(self):
         self.assertEqual(BrowserPage.SCOPE_HOME, "scopes")

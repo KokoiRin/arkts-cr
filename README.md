@@ -204,6 +204,7 @@ save problem context     保存同一份上下文
 - `selection: A-B`：当前选中的源码范围。
 - `mark: N`：用于 `source select to` 的临时标记。
 - `symbol: ...`：当前行所在的 class / struct / function / method，基于轻量 outline 推断。
+- `problem: ...`：当前源码行对应的任务问题摘要。
 
 常用动作：
 

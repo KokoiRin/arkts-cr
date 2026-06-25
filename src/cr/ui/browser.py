@@ -3689,7 +3689,28 @@ def _browse_source_file_screen_lines(
         selection_end=state.source_selection_end,
         mark_line=state.source_mark_line,
         symbol_label=_source_symbol_label(state),
+        problem_label=_source_file_problem_label(state),
     )
+
+
+def _source_file_problem_label(state: BrowserState) -> str:
+    problem = _current_task_problem_for_action(state)
+    if problem is None:
+        return ""
+    if problem.path != state.source_file_path:
+        return ""
+    if problem.line != max(1, state.source_file_line):
+        return ""
+    problems = _current_task_problems(state)
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    label = task_problems_module.problem_diagnostic_label(problem)
+    parts = [f"{selected + 1}/{len(problems)}"]
+    if label:
+        parts.append(label)
+    detail = problem.message or problem.summary
+    if detail:
+        parts.append(detail)
+    return " ".join(parts)
 
 
 def _current_task_problems(state: BrowserState) -> list[task_problems_module.TaskProblem]:

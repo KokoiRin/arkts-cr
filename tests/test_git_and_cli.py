@@ -68,6 +68,7 @@ from cr.ui import command_catalog
 from cr.ui import file_detail_navigation
 from cr.ui import frame as frame_module
 from cr.ui import handoff as handoff_module
+from cr.ui import text_search
 from cr.ui import tasks as task_runtime
 from cr.ui import review_notes as review_notes_module
 from cr.ui import workspace_persistence
@@ -90,6 +91,49 @@ def argparse_namespace(**kwargs):
 
 
 class CliTests(unittest.TestCase):
+    def test_text_search_finds_case_insensitive_plain_text_after_header(self):
+        result = text_search.find_text(
+            ["Header", "compile ok", "\033[31mFAILED target\033[0m"],
+            "failed",
+        )
+
+        self.assertTrue(result.found)
+        self.assertEqual(result.scroll, 1)
+        self.assertEqual(result.message, 'Found "failed" at line 2.')
+
+    def test_text_search_can_include_first_line(self):
+        result = text_search.find_text(
+            ["FAILED header", "compile ok"],
+            "failed",
+            skip_first_line=False,
+        )
+
+        self.assertTrue(result.found)
+        self.assertEqual(result.scroll, 0)
+        self.assertEqual(result.message, 'Found "failed" at line 1.')
+
+    def test_text_search_repeats_matches_with_wraparound(self):
+        lines = ["Header", "target one", "context", "target two"]
+
+        next_result = text_search.find_next_text(lines, "target", 0, "next")
+        previous_result = text_search.find_next_text(lines, "target", 0, "previous")
+
+        self.assertTrue(next_result.found)
+        self.assertEqual(next_result.scroll, 2)
+        self.assertEqual(next_result.message, 'Found "target" at line 3.')
+        self.assertTrue(previous_result.found)
+        self.assertEqual(previous_result.scroll, 2)
+        self.assertEqual(previous_result.message, 'Found "target" at line 3.')
+
+    def test_text_search_reports_empty_and_missing_query(self):
+        empty = text_search.find_text(["Header", "body"], "")
+        missing = text_search.find_next_text(["Header", "body"], "target", 0, "next")
+
+        self.assertFalse(empty.found)
+        self.assertEqual(empty.message, "Enter text to find.")
+        self.assertFalse(missing.found)
+        self.assertEqual(missing.message, 'No matches for "target".')
+
     def test_file_detail_navigation_jumps_between_hunk_headers(self):
         lines = [
             "File 1/1  src/Sample.ts",
@@ -858,6 +902,8 @@ class CliTests(unittest.TestCase):
         )
         self.assertIn("copy task", task_output)
         self.assertIn("save task", task_output)
+        self.assertIn("find", task_output)
+        self.assertIn("next match", task_output)
         self.assertIn("stop", task_output)
         self.assertIn("b back", task_output)
         self.assertNotEqual(changed_files, file_detail)
@@ -3234,6 +3280,115 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.needs_redraw)
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 2)
+        self.assertIn('No matches for "owner".', state.status_message)
+
+    def test_browser_command_executor_finds_text_in_task_output(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_OUTPUT,
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                lines=["compile ok", "\033[31mERROR target\033[0m", "done"],
+                returncode=1,
+            ),
+            file_find_text="file-query",
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser._max_task_output_scroll", return_value=10):
+            result = executor.execute(parse_browser_command("find target", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+        self.assertEqual(state.task_scroll, 1)
+        self.assertEqual(state.task_find_text, "target")
+        self.assertEqual(state.file_find_text, "file-query")
+        self.assertIn('Found "target" at line 2.', state.status_message)
+
+    def test_browser_command_executor_repeats_task_output_find_matches(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_OUTPUT,
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                lines=["target first", "context", "target second"],
+                returncode=1,
+            ),
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser._max_task_output_scroll", return_value=10):
+            find = executor.execute(parse_browser_command("find target", raw_keys=True))
+            next_match = executor.execute(
+                parse_browser_command("next match", raw_keys=True)
+            )
+            scroll_after_next = state.task_scroll
+            previous_match = executor.execute(
+                parse_browser_command("prev match", raw_keys=True)
+            )
+
+        self.assertTrue(find.needs_redraw)
+        self.assertTrue(next_match.needs_redraw)
+        self.assertTrue(previous_match.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+        self.assertEqual(scroll_after_next, 2)
+        self.assertEqual(state.task_scroll, 0)
+        self.assertEqual(state.task_find_text, "target")
+        self.assertIn('Found "target" at line 1.', state.status_message)
+
+    def test_browser_command_executor_reports_task_output_find_empty_states(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([], page=BrowserPage.TASK_OUTPUT)
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        no_task = executor.execute(parse_browser_command("find target", raw_keys=True))
+
+        self.assertTrue(no_task.handled)
+        self.assertTrue(no_task.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
+        self.assertIn("No task output to find.", state.status_message)
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state.task = TaskState(["./build.sh"], process, lines=["compile ok"])
+        empty = executor.execute(parse_browser_command("find", raw_keys=True))
+        missing = executor.execute(parse_browser_command("find owner", raw_keys=True))
+        repeat = executor.execute(parse_browser_command("next match", raw_keys=True))
+
+        self.assertTrue(empty.needs_redraw)
+        self.assertTrue(missing.needs_redraw)
+        self.assertTrue(repeat.needs_redraw)
+        self.assertEqual(state.task_find_text, "owner")
         self.assertIn('No matches for "owner".', state.status_message)
 
     def test_selected_file_actions_stage_selected_path_returns_status_message(self):

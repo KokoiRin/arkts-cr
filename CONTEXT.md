@@ -66,6 +66,10 @@ hunk header rows, choosing next/previous target scroll positions, resolving the
 active hunk's new-file line, extracting the active rendered hunk block, finding
 rendered text, and returning navigation status messages. It does not render
 file content, parse commands, mutate browser state, or read Git diff data.
+`cr.ui.text_search` owns generic plain-text search over already-rendered
+terminal lines, including ANSI-style stripping and wraparound match selection.
+It does not know browser pages, Git diff structure, task runtime, or scroll
+state owners.
 `cr.ui.browser.BrowserCommandExecutor` owns browser action execution for parsed
 commands: it mutates browser state and calls UI edge helpers, then returns loop
 control (`needs_redraw` / `exit_code`) without reading raw input or saving
@@ -105,8 +109,9 @@ Product navigation terms:
 - `Task Panel`: a screen-rendering region for background tasks, not a review
   hierarchy level.
 - `Task Output Page`: a browser page for reading the current task's captured
-  output with its own scroll state. It is an Output Panel-style detail view for
-  Task Panel data, not a new review hierarchy level and not task history.
+  output with its own scroll and find state. It is an Output Panel-style detail
+  view for Task Panel data, not a new review hierarchy level and not task
+  history.
 - `Browser Frame`: the raw-key terminal frame that owns context/status, main
   content, task panel, and prompt regions. Internally, `cr.ui.frame` owns the
   screen-layer layout and Task Panel presentation helpers.
@@ -193,6 +198,11 @@ Product navigation terms:
   selected file's existing review note. This is local navigation/action inside
   the current selected file, not a new product hierarchy layer or separate
   comments model.
+- `Task Output Find`: within Task Output Page, `find TEXT` searches current
+  captured task output, while `next match` / `prev match` repeat the last
+  non-empty task-output query with wraparound. It uses separate `task_find_text`
+  state from File Detail's `file_find_text` and does not search TaskRecord
+  history or parse diagnostics.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

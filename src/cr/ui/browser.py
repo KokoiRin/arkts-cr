@@ -45,6 +45,7 @@ from . import page_content
 from . import review_notes as review_notes_module
 from . import selected_file_actions
 from . import tasks as task_runtime
+from . import text_search
 from .tasks import TaskRecord, TaskState
 from .terminal import TerminalStyle, file_uri, make_style, vscode_uri
 from . import workspace_persistence
@@ -77,6 +78,7 @@ class BrowserState:
     filter_text: str = ""
     source_filter: str = ""
     file_find_text: str = ""
+    task_find_text: str = ""
     seen_paths: set[str] = field(default_factory=set)
     remaining_only: bool = False
     review_notes: dict[str, str] = field(default_factory=dict)
@@ -684,15 +686,20 @@ class BrowserCommandExecutor:
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.FIND_IN_FILE:
-            message = _find_in_current_file(state, args, style, parsed_command.value)
+            message = _find_in_current_page(state, args, style, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.NEXT_MATCH:
-            message = _find_next_match(state, args, style, "next")
+            message = _find_next_match_in_current_page(state, args, style, "next")
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.PREVIOUS_MATCH:
-            message = _find_next_match(state, args, style, "previous")
+            message = _find_next_match_in_current_page(
+                state,
+                args,
+                style,
+                "previous",
+            )
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.HOME:
@@ -1550,6 +1557,33 @@ def _find_in_current_file(
     return result.message
 
 
+def _find_in_current_page(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    query: str,
+) -> str:
+    if state.page == BrowserPage.TASK_OUTPUT:
+        return _find_in_task_output(state, query)
+    return _find_in_current_file(state, args, style, query)
+
+
+def _find_in_task_output(state: BrowserState, query: str) -> str:
+    if state.task is None:
+        return "No task output to find."
+    text_query = query.strip()
+    if text_query:
+        state.task_find_text = text_query
+    result = text_search.find_text(
+        state.task.lines,
+        query,
+        skip_first_line=False,
+    )
+    if result.found:
+        state.task_scroll = min(result.scroll, _max_task_output_scroll(state))
+    return result.message
+
+
 def _find_next_match(
     state: BrowserState,
     args: argparse.Namespace,
@@ -1581,6 +1615,35 @@ def _find_next_match(
     )
     if result.found:
         state.file_scroll = min(result.scroll, _max_file_scroll(state, args, style))
+    return result.message
+
+
+def _find_next_match_in_current_page(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+    direction: str,
+) -> str:
+    if state.page == BrowserPage.TASK_OUTPUT:
+        return _find_next_task_output_match(state, direction)
+    return _find_next_match(state, args, style, direction)
+
+
+def _find_next_task_output_match(state: BrowserState, direction: str) -> str:
+    if state.task is None:
+        return "No task output to find."
+    text_query = state.task_find_text.strip()
+    if not text_query:
+        return "Run find TEXT first."
+    result = text_search.find_next_text(
+        state.task.lines,
+        text_query,
+        state.task_scroll,
+        direction,
+        skip_first_line=False,
+    )
+    if result.found:
+        state.task_scroll = min(result.scroll, _max_task_output_scroll(state))
     return result.message
 
 

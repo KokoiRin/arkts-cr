@@ -100,8 +100,8 @@ File Detail 是三级对象：它展示某个文件在当前 Review Scope 中的
 - `Command Palette`: 横跨层级的动作入口，不是 review 层级本身。
 - `Task Panel`: 屏幕上的后台任务区域，不是 review 层级本身。
 - `Task Output Page`: 当前任务输出的可滚动详情页，是 Task Panel
-  数据的 Output Panel-style 视图；它进入浏览器页面历史，但不新增 review
-  产品层级，也不浏览历史任务。
+  数据的 Output Panel-style 视图；它有独立滚动和查找状态，进入浏览器页面
+  历史，但不新增 review 产品层级，也不浏览历史任务。
 - `Browser Frame`: raw-key TTY 下的固定屏幕 frame，拥有 context/status、main content、task panel 和 prompt 四个渲染区域。
 
 ## Current Implementation Mapping
@@ -142,6 +142,7 @@ Task Output Page
   current implementation:
     BrowserPage.TASK_OUTPUT -> "task-output"
     task_scroll
+    task_find_text
     current TaskState output only
 
 Task Panel / Browser Frame
@@ -182,7 +183,7 @@ Commit Picker
 ```
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
-Task Output Page is now explicit as a current-task output detail page. It can be opened with `task output` / `output`, keeps its own scroll state, and returns through page history; it does not change the three review layers or persist task logs.
+Task Output Page is now explicit as a current-task output detail page. It can be opened with `task output` / `output`, keeps its own scroll and find state, and returns through page history; it does not change the three review layers or persist task logs.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
@@ -381,6 +382,12 @@ Status: implemented.
 Status: implemented.
 
 `task output` / `output` opens a current-task output page with status, command, captured lines, independent scrolling, and contextual actions for copy/save/stop/rerun. Ordinary pages keep Task Panel-only refresh while tasks run; Task Output Page redraws main content so live logs remain readable.
+
+### P0: Task output find
+
+Status: implemented.
+
+Task Output Page supports `find TEXT`, `next match`, and `prev match` over the current task's captured output. Search is case-insensitive, ignores ANSI style codes, keeps a separate query from File Detail find, and intentionally does not parse diagnostics or search historical task records.
 
 This is output-panel handoff, not diagnostics. `cr.ui.tasks` owns the text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 

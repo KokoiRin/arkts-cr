@@ -126,6 +126,8 @@ def contextual_action_bar(
         ),
         BrowserPage.TASK_OUTPUT: (
             "↑/↓ scroll",
+            "find",
+            "next match",
             "copy task",
             "save task",
             "stop",

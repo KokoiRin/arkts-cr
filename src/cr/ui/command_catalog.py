@@ -117,15 +117,19 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("copy hunk", "copy current diff hunk snippet", "copy hunk"),
                 CommandEntry("copy line", "copy current file-detail line anchor", "copy line"),
                 CommandEntry("copy change", "copy current file-detail changed row", "copy change"),
-                CommandEntry("find TEXT", "find text in current file detail", "find TEXT"),
+                CommandEntry(
+                    "find TEXT",
+                    "find text in current file or task output page",
+                    "find TEXT",
+                ),
                 CommandEntry(
                     "next match",
-                    "jump to next file-detail find match",
+                    "jump to next find match in current page",
                     "next match",
                 ),
                 CommandEntry(
                     "prev match",
-                    "jump to previous file-detail find match",
+                    "jump to previous find match in current page",
                     "prev match",
                 ),
                 CommandEntry(

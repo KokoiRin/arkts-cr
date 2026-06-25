@@ -256,7 +256,7 @@ build
 : rerun    重跑最近一次任务
 ```
 
-任务面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。`: task output` / `: output` 会打开当前任务的完整输出视图，支持 `↑/↓`、`PgUp/PgDn`、`Home/End` 滚动，`b` 回到之前的代码页面；这个页面仍然可以执行 `copy task`、`save task`、`stop` 和 `rerun`。后台任务会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个任务进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓的 build 会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置 build，用 `--test-cmd` / `CR_TEST_CMD` 配置 test，用 `--lint-cmd` / `CR_LINT_CMD` 配置 lint：
+任务面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。`: task output` / `: output` 会打开当前任务的完整输出视图，支持 `↑/↓`、`PgUp/PgDn`、`Home/End` 滚动，`find TEXT` 搜索当前日志，`next match` / `prev match` 继续跳转匹配，`b` 回到之前的代码页面；这个页面仍然可以执行 `copy task`、`save task`、`stop` 和 `rerun`。后台任务会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个任务进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓的 build 会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置 build，用 `--test-cmd` / `CR_TEST_CMD` 配置 test，用 `--lint-cmd` / `CR_LINT_CMD` 配置 lint：
 
 ```bash
 cr --build-cmd './remote buildEntry --app douyin' --test-cmd 'npm test' --lint-cmd 'npm run lint'

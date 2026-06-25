@@ -10,8 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
+from . import text_search
 
-ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
 HUNK_HEADER_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(?P<new>\d+)(?:,\d+)? @@")
 
 
@@ -99,18 +100,8 @@ def jump_to_changed_row(
 
 
 def find_text(lines: list[str], query: str) -> FileFindResult:
-    text_query = query.strip()
-    if not text_query:
-        return FileFindResult(0, "Enter text to find.", False)
-    normalized = text_query.casefold()
-    for index, line in enumerate(lines[1:]):
-        if normalized in _plain_text(line).casefold():
-            return FileFindResult(
-                index,
-                f'Found "{text_query}" at line {index + 1}.',
-                True,
-            )
-    return FileFindResult(0, f'No matches for "{text_query}".', False)
+    result = text_search.find_text(lines, query)
+    return FileFindResult(result.scroll, result.message, result.found)
 
 
 def find_next_text(
@@ -119,32 +110,8 @@ def find_next_text(
     current_scroll: int,
     direction: str,
 ) -> FileFindResult:
-    text_query = query.strip()
-    if not text_query:
-        return FileFindResult(current_scroll, "Run find TEXT first.", False)
-    matches = _find_match_positions(lines, text_query)
-    if not matches:
-        return FileFindResult(current_scroll, f'No matches for "{text_query}".', False)
-    if direction == "previous":
-        before = [position for position in matches if position < current_scroll]
-        target = before[-1] if before else matches[-1]
-    else:
-        after = [position for position in matches if position > current_scroll]
-        target = after[0] if after else matches[0]
-    return FileFindResult(
-        target,
-        f'Found "{text_query}" at line {target + 1}.',
-        True,
-    )
-
-
-def _find_match_positions(lines: list[str], query: str) -> list[int]:
-    normalized = query.casefold()
-    return [
-        index
-        for index, line in enumerate(lines[1:])
-        if normalized in _plain_text(line).casefold()
-    ]
+    result = text_search.find_next_text(lines, query, current_scroll, direction)
+    return FileFindResult(result.scroll, result.message, result.found)
 
 
 def hunk_scroll_positions(lines: list[str]) -> list[int]:
@@ -294,7 +261,7 @@ def _clean_hunk_line(line: str) -> str:
 
 
 def _plain_text(line: str) -> str:
-    return ANSI_ESCAPE_RE.sub("", line)
+    return text_search.plain_text(line)
 
 
 def _clamp_scroll(target: int, max_scroll: int | None) -> int:

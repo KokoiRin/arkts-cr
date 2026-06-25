@@ -55,6 +55,8 @@ cr
 ```
 
 界面会先显示 changed-file list，选中文件后进入单文件 diff 视图。
+真实 TUI 顶部会显示当前 Review Scope 和一行动作提示，比如当前页面可用的
+打开、过滤、done-next、hunk 导航、查找、任务或命令面板入口。
 
 常用按键：
 

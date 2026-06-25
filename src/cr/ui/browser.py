@@ -1748,64 +1748,71 @@ def _draw_browse_screen(
     max_lines = layout.max_render_lines
     content_lines = layout.content_height
     task_panel_height = layout.task_height
+    header_lines = [
+        _scope_context_line(state, args, style),
+        _contextual_action_bar(state.page, style),
+    ]
+    body_lines = max(1, content_lines - len(header_lines))
     if state.page == BrowserPage.COMMIT_PICKER:
         lines = [
-            *_browse_help_lines(style),
-            _scope_context_line(state, args, style),
+            *header_lines,
             *_browse_commit_screen_lines(
                 state,
                 style,
-                max(1, content_lines - len(_browse_help_lines(style)) - 1),
+                body_lines,
             ),
         ]
     elif state.page == BrowserPage.SCOPE_HOME:
         lines = [
-            *_browse_help_lines(style),
-            _scope_context_line(state, args, style),
+            *header_lines,
             *_browse_scope_home_screen_lines(
                 state,
                 style,
-                max(1, content_lines - len(_browse_help_lines(style)) - 1),
+                body_lines,
             ),
         ]
     elif state.page == BrowserPage.COMMAND_PALETTE:
         lines = [
-            *_browse_help_lines(style),
-            _scope_context_line(state, args, style),
+            *header_lines,
             *_browse_command_palette_screen_lines(
                 state,
                 style,
-                max(1, content_lines - len(_browse_help_lines(style)) - 1),
+                body_lines,
             ),
         ]
     elif state.page == BrowserPage.CHANGED_FILES:
         lines = [
-            *_browse_help_lines(style),
-            _scope_context_line(state, args, style),
+            *header_lines,
             *_browse_list_screen_lines(
                 state,
                 args,
                 style,
-                max(1, content_lines - len(_browse_help_lines(style)) - 1),
+                body_lines,
             ),
         ]
     elif visible:
-        lines = _browse_file_screen_lines(
-            state,
-            visible[state.selected],
-            state.selected,
-            len(visible),
-            args,
-            style,
-            content_lines,
-        )
+        lines = [
+            *header_lines,
+            *_browse_file_screen_lines(
+                state,
+                visible[state.selected],
+                state.selected,
+                len(visible),
+                args,
+                style,
+                body_lines,
+            ),
+        ]
     else:
-        lines = _empty_browse_lines(
-            args,
-            state.filter_text,
-            total_changes=len(state.changes),
-            scope_label=_scope_label(state, args),
-        )
+        lines = [
+            *header_lines,
+            *_empty_browse_lines(
+                args,
+                state.filter_text,
+                total_changes=len(state.changes),
+                scope_label=_scope_label(state, args),
+            )[:body_lines],
+        ]
     if task_panel_height:
         content_frame = lines[:content_lines]
         if len(content_frame) < content_lines:
@@ -1872,6 +1879,10 @@ def _normalize_command_query(command: str) -> str:
 
 def _browse_help_lines(style: TerminalStyle) -> list[str]:
     return page_content.browse_help_lines(style)
+
+
+def _contextual_action_bar(page: str, style: TerminalStyle) -> str:
+    return page_content.contextual_action_bar(page, style, _fit_terminal_line)
 
 
 def _command_catalog() -> tuple[CommandGroup, ...]:

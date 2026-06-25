@@ -75,6 +75,58 @@ def browse_help_lines(style: TerminalStyle) -> list[str]:
     ]
 
 
+def contextual_action_bar(
+    page: str,
+    style: TerminalStyle,
+    fit_line: Callable[[str], str] | None = None,
+) -> str:
+    actions_by_page = {
+        BrowserPage.CHANGED_FILES: (
+            "Enter open",
+            "/ filter",
+            "done next",
+            "stage",
+            "build",
+            "commands",
+        ),
+        BrowserPage.FILE_DETAIL: (
+            "]/[ hunk",
+            "next change",
+            "find",
+            "open line",
+            "copy line",
+            "done next",
+            "b files",
+        ),
+        BrowserPage.SCOPE_HOME: (
+            "Enter select",
+            "g commits",
+            ":base REF",
+            ":range OLD..NEW",
+            "b back",
+            "commands",
+        ),
+        BrowserPage.COMMIT_PICKER: (
+            "Enter select",
+            "/ filter commits",
+            "c clear",
+            "b back",
+            "commands",
+        ),
+        BrowserPage.COMMAND_PALETTE: (
+            "Enter run",
+            "/ search",
+            "c clear",
+            "b back",
+        ),
+    }
+    actions = actions_by_page.get(page, actions_by_page[BrowserPage.CHANGED_FILES])
+    line = "Actions: " + "  |  ".join(actions)
+    if fit_line is not None:
+        line = fit_line(line).rstrip()
+    return style.dim(line)
+
+
 def scope_home_entries() -> tuple[ScopeHomeEntry, ...]:
     return (
         ScopeHomeEntry("Worktree", "Review unstaged worktree changes", "worktree"),

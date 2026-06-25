@@ -274,7 +274,7 @@ Status: implemented.
 
 Status: implemented.
 
-`cr.ui.page_content` now owns browser page main-content rendering: prompt labels, help lines, scope breadcrumbs/context, Scope Home entries, Changed Files tree rows, Commit Picker rows, empty states, File Detail lines, and scroll-window calculations. `browser.py` keeps compatibility wrappers plus prompt-input interpretation, Browser Frame composition, command execution, selected-file side effects, and workspace startup/exit orchestration.
+`cr.ui.page_content` now owns browser page main-content rendering: prompt labels, help lines, contextual action bar text, scope breadcrumbs/context, Scope Home entries, Changed Files tree rows, Commit Picker rows, empty states, File Detail lines, and scroll-window calculations. `browser.py` keeps compatibility wrappers plus prompt-input interpretation, Browser Frame composition, command execution, selected-file side effects, and workspace startup/exit orchestration.
 
 ### P0: Browser Input extraction
 
@@ -367,6 +367,14 @@ Status: implemented.
 `done next` / `seen next` marks the current visible changed file as seen and advances to the next visible file. In Changed Files it keeps the user on the file list and moves selection; in File Detail it opens the next file detail with file scroll reset. In `remaining` mode it selects the file that moves into the current visible index after the seen file is filtered out, so the command does not skip the next unreviewed file.
 
 `ReviewWorkspace` owns the selected-file progress operations behind this flow: mark, unmark, and mark-and-advance. Browser action execution keeps only the page-specific part, such as whether to remain in Changed Files or reopen File Detail.
+
+### P0: Contextual action bar
+
+Status: implemented.
+
+Raw-key `cr browse` now shows a one-line action bar below the scope/status line. The action bar changes by page: Changed Files focuses open/filter/done-next/task commands, File Detail focuses hunk/change/find/open/copy line commands, Scope Home and Commit Picker focus selection and filtering, and Command Palette focuses running or searching commands.
+
+The action bar is display guidance, not state. `cr.ui.page_content` owns the per-page text; `browser.py` places it in the raw-key frame; `cr.ui.frame` still owns line fitting and Task Panel layout.
 
 ### P0: Review notes
 

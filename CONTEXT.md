@@ -140,6 +140,10 @@ Product navigation terms:
   `staged`, `unstaged`, and `mixed` local source facts. It is derived by Page
   Content from the currently rendered changes and is not persisted workspace
   state.
+- `Contextual Action Bar`: a one-line raw-key frame hint showing the most useful
+  actions for the current page. Page Content owns the per-page action text;
+  Browser Frame owns placement constraints and line fitting; the action bar is
+  not command state, workspace state, or persisted data.
 - `Browser Navigation`: the internal module that moves between Scope Home,
   Commit Picker, Changed Files, File Detail, and Command Palette, including
   in-session back/forward page history, without loading Git data or rendering

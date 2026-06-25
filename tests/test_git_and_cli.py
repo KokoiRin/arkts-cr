@@ -589,6 +589,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(loaded["seen_paths"], ["src/First.ts"])
         self.assertEqual(loaded["review_notes"], {"src/Second.ts": "check lifecycle"})
         self.assertNotIn("task_history", loaded)
+        self.assertNotIn("action_bar", loaded)
 
     def test_workspace_persistence_module_ignores_invalid_state(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -757,6 +758,52 @@ class CliTests(unittest.TestCase):
         self.assertIn("Command palette", text)
         self.assertIn("Filter: build", text)
         self.assertIn("> ", text)
+
+    def test_page_content_contextual_action_bar_matches_current_page(self):
+        style = TerminalStyle(False)
+
+        changed_files = page_content.contextual_action_bar(
+            BrowserPage.CHANGED_FILES,
+            style,
+        )
+        file_detail = page_content.contextual_action_bar(
+            BrowserPage.FILE_DETAIL,
+            style,
+        )
+        scope_home = page_content.contextual_action_bar(
+            BrowserPage.SCOPE_HOME,
+            style,
+        )
+        commit_picker = page_content.contextual_action_bar(
+            BrowserPage.COMMIT_PICKER,
+            style,
+        )
+        command_palette = page_content.contextual_action_bar(
+            BrowserPage.COMMAND_PALETTE,
+            style,
+        )
+
+        self.assertIn("Actions:", changed_files)
+        self.assertIn("Enter open", changed_files)
+        self.assertIn("done next", changed_files)
+        self.assertIn("build", changed_files)
+        self.assertIn("]/[ hunk", file_detail)
+        self.assertIn("find", file_detail)
+        self.assertIn("copy line", file_detail)
+        self.assertIn("Enter select", scope_home)
+        self.assertIn(":base", scope_home)
+        self.assertIn("/ filter commits", commit_picker)
+        self.assertIn("Enter run", command_palette)
+        self.assertNotEqual(changed_files, file_detail)
+
+    def test_page_content_contextual_action_bar_uses_line_fitting(self):
+        fitted = page_content.contextual_action_bar(
+            BrowserPage.CHANGED_FILES,
+            TerminalStyle(False),
+            lambda line: line[:20],
+        )
+
+        self.assertEqual(fitted, "Actions: Enter open")
 
     def test_browser_page_model_names_current_pages(self):
         self.assertEqual(BrowserPage.SCOPE_HOME, "scopes")
@@ -6589,6 +6636,37 @@ class CliTests(unittest.TestCase):
         self.assertIn("> 1", text)
         self.assertIn("└─ src", text)
         self.assertIn("└─ Sample.ts", text)
+        self.assertIn("Actions: Enter open", text)
+
+    def test_browse_screen_action_bar_coexists_with_task_panel(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            task=TaskState(["true"], process, lines=["compile line"]),
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((80, 12)),
+        ):
+            with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+                with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("Actions: Enter open", text)
+        self.assertIn("compile line", text)
+        self.assertIn("Build running", text)
 
     def test_browse_screen_file_detail_shows_product_breadcrumb(self):
         args = argparse_namespace(
@@ -6611,7 +6689,9 @@ class CliTests(unittest.TestCase):
                     with redirect_stdout(output):
                         _draw_browse_screen(state, args, TerminalStyle(False))
 
-        self.assertIn("Scope: worktree > Files > src/Sample.ts", output.getvalue())
+        text = output.getvalue()
+        self.assertIn("Scope: worktree > Files > src/Sample.ts", text)
+        self.assertIn("Actions: ]/[ hunk", text)
 
     def test_browse_screen_recent_commits_stays_scope_picker(self):
         args = argparse_namespace(

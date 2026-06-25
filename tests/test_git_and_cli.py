@@ -6712,6 +6712,104 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("## Task Output", copied)
         self.assertIn("# File Diff: src/Foo.ets", copied)
 
+    def test_browser_command_executor_copies_selected_source_problem_context(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 9)),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [FileChange("src/Foo.ets", 2, 1)],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=5,
+                source_context_lines=1,
+                source_selection_start=3,
+                source_selection_end=6,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.build_review_data",
+                    return_value={"files": [{"path": "src/Foo.ets"}]},
+                ):
+                    with patch(
+                        "cr.ui.browser.render_file_diff_snippet",
+                        return_value="# File Diff: src/Foo.ets",
+                    ):
+                        with patch(
+                            "cr.ui.browser.file_actions.copy_text",
+                            return_value=None,
+                        ) as copy_text:
+                            result = executor.execute(
+                                parse_browser_command("copy problem context")
+                            )
+
+        self.assertTrue(result.handled)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("# Problem Context: src/Foo.ets:5", copied)
+        self.assertIn("src/Foo.ets:3-6", copied)
+        self.assertIn("  3  line 3", copied)
+        self.assertIn("> 5  line 5", copied)
+        self.assertIn("  6  line 6", copied)
+        self.assertNotIn("line 2", copied)
+        self.assertNotIn("line 7", copied)
+        self.assertIn("# File Diff: src/Foo.ets", copied)
+
+    def test_browser_command_executor_saves_selected_source_problem_context(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(f"line {index}" for index in range(1, 9)),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=5,
+                source_selection_start=3,
+                source_selection_end=6,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(
+                    parse_browser_command("save problem context tmp/source-selected.md")
+                )
+
+            saved = repo / "tmp" / "source-selected.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertIn("src/Foo.ets:3-6", text)
+        self.assertIn("> 5  line 5", text)
+        self.assertNotIn("line 2", text)
+        self.assertNotIn("line 7", text)
+        self.assertIn("Saved problem context to tmp/source-selected.md", state.status_message)
+
     def test_browser_command_executor_copies_problem_context_without_diff(self):
         from cr.ui.browser import parse_browser_command
 

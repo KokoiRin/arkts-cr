@@ -73,6 +73,7 @@ class ProblemContextTarget:
     problem_text: str = ""
     context_lines: int = 3
     task_output_text: str = ""
+    source_range: tuple[int, int] | None = None
 
 
 @dataclass
@@ -1472,11 +1473,21 @@ def _problem_context_text(
     content = source_file_module.load_source_file_content(git.repo_root(), target.path)
     if content.error:
         return "", "", content.error
-    source_text = source_file_module.source_context_markdown(
-        content,
-        target_line=target.line,
-        context_lines=target.context_lines,
-    )
+    if target.source_range is None:
+        source_text = source_file_module.source_context_markdown(
+            content,
+            target_line=target.line,
+            context_lines=target.context_lines,
+        )
+    else:
+        start_line, end_line = target.source_range
+        source_text = source_file_module.source_range_markdown(
+            content,
+            start_line=start_line,
+            end_line=end_line,
+            target_line=target.line,
+            symbol_label=_source_symbol_label_for_content(content, target.line),
+        )
     anchor = f"{content.path}:{max(1, min(target.line, len(content.lines)))}"
     text = problem_context_module.problem_context_markdown(
         anchor=anchor,
@@ -1505,6 +1516,7 @@ def _problem_context_target(state: BrowserState) -> ProblemContextTarget | None:
             path=state.source_file_path,
             line=max(1, state.source_file_line),
             context_lines=state.source_context_lines,
+            source_range=_source_selection_range(state),
         )
     return None
 

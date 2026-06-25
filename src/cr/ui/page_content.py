@@ -345,7 +345,7 @@ def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
                 "source select to：选中标记行到当前行",
                 "source clear mark：清除源码标记",
                 "source clear selection：清除选择源码行范围",
-                "copy problem context / save problem context：复制或保存问题上下文",
+                "copy problem context / save problem context：复制或保存问题上下文，优先使用选中源码范围",
             ),
         ),
     }

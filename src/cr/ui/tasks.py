@@ -265,6 +265,42 @@ def task_output_tail_handoff_text(task: TaskState, max_lines: int = 40) -> str:
     )
 
 
+def task_output_match_handoff_text(
+    task: TaskState,
+    *,
+    target_index: int,
+    query: str,
+    context_lines: int = 3,
+) -> str:
+    if not task.lines:
+        excerpt: list[str] = []
+        start = 0
+        end = 0
+        target = 0
+    else:
+        target = max(0, min(target_index, len(task.lines) - 1))
+        window = max(0, context_lines)
+        start = max(0, target - window)
+        end = min(len(task.lines), target + window + 1)
+        width = len(str(end))
+        excerpt = []
+        for index in range(start, end):
+            marker = ">" if index == target else " "
+            line_number = str(index + 1).rjust(width)
+            excerpt.append(f"{marker} {line_number}  {task.lines[index]}")
+
+    return _task_output_handoff_text(
+        task,
+        title=f"{task_label(task.kind)} output match",
+        output_lines=excerpt,
+        note=(
+            f"Query: {query.strip()}\n"
+            f"Match line: {target + 1}\n"
+            f"Lines: {start + 1}-{end} of {len(task.lines)}"
+        ),
+    )
+
+
 def _task_output_handoff_text(
     task: TaskState,
     *,

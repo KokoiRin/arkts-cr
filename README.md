@@ -154,8 +154,10 @@ save problem context     保存当前问题 + 任务输出片段 + 源码 + diff
 copy task                复制完整任务输出
 copy task tail           复制最后 40 行任务输出
 copy task tail 80        复制最后 80 行任务输出
+copy task match          复制当前 find 匹配附近输出
 save task                保存完整任务输出
 save task tail           保存最后 40 行到 .cr/handoff/task-output-tail.md
+save task match          保存当前 find 匹配附近输出到 .cr/handoff/task-output-match.md
 ```
 
 ### Task Problems：按文件扫描构建问题

@@ -1359,6 +1359,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy source symbol", text)
         self.assertIn("copy problem context", text)
         self.assertIn("copy task tail", text)
+        self.assertIn("copy task match", text)
+        self.assertIn("save task match", text)
         self.assertIn("save task tail", text)
         self.assertIn("copy change", text)
         self.assertIn("source context N", text)
@@ -1507,6 +1509,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy problem context", task_output_text)
         self.assertIn("save problem context", task_output_text)
         self.assertIn("copy task tail", task_output_text)
+        self.assertIn("copy task match", task_output_text)
+        self.assertIn("save task match", task_output_text)
         self.assertIn("save task tail", task_output_text)
 
         state.help_topic_page = BrowserPage.FILE_DETAIL
@@ -1590,6 +1594,7 @@ class CliTests(unittest.TestCase):
             style,
         )
         self.assertIn("copy task tail 复制尾部", task_output)
+        self.assertIn("copy task match 复制匹配", task_output)
         self.assertIn("copy task 复制任务", task_output)
         self.assertIn("save task 保存任务", task_output)
         self.assertIn("next/prev problem 切换问题", task_output)
@@ -2530,6 +2535,10 @@ class CliTests(unittest.TestCase):
         )
         self.assertEqual(copy_task_tail_size.value, "5")
         self.assertEqual(
+            parse_browser_command("copy task match").action,
+            BrowserCommandAction.COPY_TASK_OUTPUT_MATCH,
+        )
+        self.assertEqual(
             parse_browser_command("task output").action,
             BrowserCommandAction.SHOW_TASK_OUTPUT,
         )
@@ -2717,6 +2726,18 @@ class CliTests(unittest.TestCase):
             BrowserCommandAction.SAVE_TASK_OUTPUT_TAIL,
         )
         self.assertEqual(save_task_tail_path.value, "tmp/tail.md")
+        save_task_match = parse_browser_command("save task match")
+        self.assertEqual(
+            save_task_match.action,
+            BrowserCommandAction.SAVE_TASK_OUTPUT_MATCH,
+        )
+        self.assertEqual(save_task_match.value, "")
+        save_task_match_path = parse_browser_command("save task match tmp/match.md")
+        self.assertEqual(
+            save_task_match_path.action,
+            BrowserCommandAction.SAVE_TASK_OUTPUT_MATCH,
+        )
+        self.assertEqual(save_task_match_path.value, "tmp/match.md")
         self.assertEqual(
             parse_browser_command("tasks").action,
             BrowserCommandAction.SHOW_TASK_DIAGNOSTICS,
@@ -5622,6 +5643,83 @@ class CliTests(unittest.TestCase):
         copy.assert_not_called()
         self.assertIn("No task output tail to copy.", output.getvalue())
 
+    def test_browser_command_executor_copies_task_output_match(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_OUTPUT,
+            task_scroll=4,
+            task_find_text="target",
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                kind="build",
+                lines=[f"line {index}" for index in range(1, 4)]
+                + ["before target", "target failure", "after target"]
+                + [f"line {index}" for index in range(7, 10)],
+                returncode=1,
+            ),
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text", return_value=None) as copy:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy task match"))
+
+        self.assertTrue(result.handled)
+        copied_text = copy.call_args.args[0]
+        self.assertIn("# Build output match", copied_text)
+        self.assertIn("Query: target", copied_text)
+        self.assertIn("  4  before target", copied_text)
+        self.assertIn("> 5  target failure", copied_text)
+        self.assertIn("  6  after target", copied_text)
+        self.assertNotIn("line 9", copied_text)
+        self.assertEqual(copy.call_args.args[1], "copy-tool")
+        self.assertIn("Copied task output match.", output.getvalue())
+
+    def test_browser_command_executor_copy_task_match_requires_find(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_OUTPUT,
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                lines=["target failure"],
+                returncode=1,
+            ),
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(copy_cmd="copy-tool"),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy task match"))
+
+        self.assertTrue(result.handled)
+        copy.assert_not_called()
+        self.assertIn("Run find TEXT first.", output.getvalue())
+
     def test_browser_command_executor_saves_task_output(self):
         from cr.ui.browser import parse_browser_command
 
@@ -5695,6 +5793,49 @@ class CliTests(unittest.TestCase):
             self.assertIn("line 44", saved_text)
             self.assertIn(
                 "Saved task output tail to .cr/handoff/task-output-tail.md",
+                output.getvalue(),
+            )
+
+    def test_browser_command_executor_saves_task_output_match_default_path(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            page=BrowserPage.TASK_OUTPUT,
+            task_scroll=1,
+            task_find_text="target",
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                kind="build",
+                lines=["compile started", "target failure", "compile stopped"],
+                returncode=1,
+            ),
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with redirect_stdout(output):
+                    result = executor.execute(parse_browser_command("save task match"))
+
+            target = repo / ".cr" / "handoff" / "task-output-match.md"
+            saved_text = target.read_text(encoding="utf-8")
+            self.assertTrue(result.handled)
+            self.assertIn("# Build output match", saved_text)
+            self.assertIn("> 2  target failure", saved_text)
+            self.assertIn(
+                "Saved task output match to .cr/handoff/task-output-match.md",
                 output.getvalue(),
             )
 

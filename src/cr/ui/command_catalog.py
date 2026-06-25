@@ -164,8 +164,18 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 ),
                 CommandEntry("copy task", "复制当前任务输出", "copy task"),
                 CommandEntry("copy task tail", "复制当前任务输出尾部", "copy task tail"),
+                CommandEntry(
+                    "copy task match",
+                    "复制当前匹配附近的任务输出",
+                    "copy task match",
+                ),
                 CommandEntry("save task", "保存当前任务输出", "save task"),
                 CommandEntry("save task tail", "保存当前任务输出尾部", "save task tail"),
+                CommandEntry(
+                    "save task match",
+                    "保存当前匹配附近的任务输出",
+                    "save task match",
+                ),
                 CommandEntry("stop / cancel", "停止运行中的任务", "stop"),
                 CommandEntry("rerun / rebuild", "重跑最近一次任务", "rerun"),
             ),

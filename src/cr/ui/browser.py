@@ -575,6 +575,10 @@ class BrowserCommandExecutor:
             message = _copy_task_output_tail(state, args, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_TASK_OUTPUT_MATCH:
+            message = _copy_task_output_match(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_TASK_PROBLEM:
             message = _copy_selected_task_problem(state, args)
             _show_browser_message(state, message, raw_keys, frame)
@@ -707,6 +711,10 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_TASK_OUTPUT_TAIL:
             message = _save_task_output_tail(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_TASK_OUTPUT_MATCH:
+            message = _save_task_output_match(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.REVEAL_FILE:
@@ -1380,6 +1388,19 @@ def _copy_task_output_tail(
     return "Copied task output tail."
 
 
+def _copy_task_output_match(state: BrowserState, args: argparse.Namespace) -> str:
+    text_or_message = _task_output_match_handoff_text(state, empty_message="copy")
+    if text_or_message.error:
+        return text_or_message.error
+    message = file_actions.copy_text(
+        text_or_message.text,
+        getattr(args, "copy_cmd", None),
+    )
+    if message:
+        return message
+    return "Copied task output match."
+
+
 def _task_output_tail_line_count(raw_value: str, default: int = 40) -> int | None:
     value = raw_value.strip()
     if not value:
@@ -1664,6 +1685,46 @@ def _save_task_output_tail(state: BrowserState, requested_path: str = "") -> str
     if result.error:
         return result.error
     return f"Saved task output tail to {result.display_path}"
+
+
+@dataclass(frozen=True)
+class TaskOutputMatchText:
+    text: str = ""
+    error: str = ""
+
+
+def _task_output_match_handoff_text(
+    state: BrowserState,
+    *,
+    empty_message: str,
+) -> TaskOutputMatchText:
+    if state.task is None:
+        return TaskOutputMatchText(error=f"No task output match to {empty_message}.")
+    query = state.task_find_text.strip()
+    if not query:
+        return TaskOutputMatchText(error="Run find TEXT first.")
+    if not state.task.lines:
+        return TaskOutputMatchText(error=f"No task output match to {empty_message}.")
+    text = task_runtime.task_output_match_handoff_text(
+        state.task,
+        target_index=state.task_scroll,
+        query=query,
+    )
+    return TaskOutputMatchText(text=text)
+
+
+def _save_task_output_match(state: BrowserState, requested_path: str = "") -> str:
+    text_or_message = _task_output_match_handoff_text(state, empty_message="save")
+    if text_or_message.error:
+        return text_or_message.error
+    result = handoff_module.save_task_output_match_text(
+        text_or_message.text,
+        git.repo_root(),
+        requested_path,
+    )
+    if result.error:
+        return result.error
+    return f"Saved task output match to {result.display_path}"
 
 
 def _prompt_handoff_text(

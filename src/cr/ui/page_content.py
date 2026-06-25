@@ -249,6 +249,7 @@ def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
                 "find TEXT / next match / prev match：查找并跳转匹配",
                 "open line / open hunk：在编辑器打开当前行或 hunk",
                 "copy line / copy hunk / copy change：复制当前上下文",
+                "底部 Changed files：查看当前文件附近的审查队列",
                 "note change TEXT：给当前改动行追加备注",
             ),
         ),
@@ -1121,6 +1122,46 @@ def browse_file_lines(
     )
     lines.append("")
     return lines
+
+
+def file_detail_review_queue_lines(
+    changes: list[git.FileChange],
+    selected: int,
+    seen_paths: set[str] | None,
+    review_notes: dict[str, str] | None,
+    style: TerminalStyle,
+    *,
+    max_lines: int = 4,
+    available_lines: int = 0,
+) -> list[str]:
+    if len(changes) <= 1 or max_lines < 2 or available_lines < 10:
+        return []
+    selected = max(0, min(selected, len(changes) - 1))
+    seen = seen_paths or set()
+    notes = review_notes or {}
+    row_capacity = max(1, max_lines - 1)
+    start = ensure_window(0, selected, len(changes), row_capacity)
+    end = min(len(changes), start + row_capacity)
+    seen_count = sum(1 for change in changes if change.path in seen)
+    lines = [
+        style.dim(
+            f"Changed files {selected + 1}/{len(changes)}  "
+            f"Progress: {seen_count}/{len(changes)} seen"
+        )
+    ]
+    for index, change in enumerate(changes[start:end], start):
+        marker = ">" if index == selected else " "
+        progress = "[x]" if change.path in seen else "[ ]"
+        note = " note" if change.path in notes else ""
+        source = f" {change.source}" if change.source else ""
+        lines.append(
+            f"{marker} {index + 1} {progress} "
+            f"{shorten_path(change.path)}  "
+            f"{format_change_summary(change)}"
+            f"{source}"
+            f"{note}"
+        )
+    return lines[:max_lines]
 
 
 def file_cache_key(

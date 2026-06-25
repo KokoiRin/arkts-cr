@@ -108,6 +108,7 @@ scopes           打开 Review Scope 首页
 - 文件 note。
 - 风险提示、文件用途、改动符号。
 - diff hunk。
+- 底部 changed-file 队列，显示当前文件附近的文件、seen/todo、note、来源和增删行。
 
 常用动作：
 
@@ -429,7 +430,7 @@ q
 | --- | --- |
 | Review Scope | worktree、staged、all、base、range、recent commits、单 commit 查看 |
 | Changed Files | 文件树、过滤、来源标记、seen/todo、remaining、note、刷新保留位置 |
-| File Detail | diff 浏览、hunk 跳转、改动行跳转、查找、打开编辑器、复制 hunk/change/line |
+| File Detail | diff 浏览、底部文件队列、hunk 跳转、改动行跳转、查找、打开编辑器、复制 hunk/change/line |
 | Command Palette | 命令浏览、搜索、执行、中文分组说明 |
 | Help | 每个页面中文帮助 |
 | Task Panel | build/test/lint、底部日志面板、任务历史、停止/重跑 |

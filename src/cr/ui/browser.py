@@ -3049,13 +3049,23 @@ def _browse_file_screen_lines(
     style: TerminalStyle,
     max_lines: int,
 ) -> list[str]:
+    dock = page_content.file_detail_review_queue_lines(
+        state.visible_changes,
+        state.selected,
+        state.seen_paths,
+        state.review_notes,
+        style,
+        max_lines=4,
+        available_lines=max_lines,
+    )
+    content_max_lines = max(1, max_lines - len(dock)) if dock else max_lines
     lines = _cached_file_lines(state, change, index, total, args, style)
-    if len(lines) <= max_lines:
+    if len(lines) <= content_max_lines:
         state.file_scroll = 0
-        return lines
+        return [*lines, *dock]
     header = lines[:1]
     body = lines[1:]
-    body_capacity = max(1, max_lines - 2)
+    body_capacity = max(1, content_max_lines - 2)
     max_scroll = max(0, len(body) - body_capacity)
     state.file_scroll = max(0, min(state.file_scroll, max_scroll))
     start = state.file_scroll
@@ -3064,7 +3074,7 @@ def _browse_file_screen_lines(
         f"showing {start + 1}-{end}/{len(body)}   "
         "↑/↓ scroll   ]/[: hunk   PgUp/PgDn page   b back"
     )
-    return [*header, *body[start:end], footer]
+    return [*header, *body[start:end], footer, *dock]
 
 
 def _browse_file_lines(

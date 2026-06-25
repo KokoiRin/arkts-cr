@@ -142,6 +142,7 @@ P0 必须服务上面的主线。优先级判断：
 近期最值得做的方向：
 
 1. File Detail bottom dock
+   - Status: first slice implemented for changed-file queue.
    - 上面看代码，下面保留 changed files / problems 队列。
    - 目标是接近 IDE 的“主编辑区 + 底部变更列表”形态。
 

@@ -12284,6 +12284,84 @@ class CliTests(unittest.TestCase):
         self.assertIn("line 11", lower)
         self.assertIn("showing 11-14/20", lower[-1])
 
+    def test_browse_file_screen_shows_review_queue_dock(self):
+        args = argparse_namespace(
+            context=0,
+            staged=False,
+            all_changes=True,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        changes = [
+            FileChange("src/First.ts", 2, 0, source="staged"),
+            FileChange("src/Second.ts", 5, 1, source="unstaged"),
+            FileChange("src/Third.ts", 1, 3, source="unstaged"),
+        ]
+        state = BrowserState(
+            changes,
+            page=BrowserPage.FILE_DETAIL,
+            selected=1,
+            seen_paths={"src/First.ts"},
+            review_notes={"src/Second.ts": "check edge"},
+        )
+        full_lines = ["File 2/3  src/Second.ts"] + [
+            f"line {index}" for index in range(1, 9)
+        ]
+
+        with patch("cr.ui.browser._browse_file_lines", return_value=full_lines):
+            lines = _browse_file_screen_lines(
+                state,
+                changes[1],
+                1,
+                3,
+                args,
+                TerminalStyle(False),
+                max_lines=14,
+            )
+
+        text = "\n".join(lines)
+        self.assertIn("Changed files 2/3", text)
+        self.assertIn("Progress: 1/3 seen", text)
+        self.assertIn("  1 [x] src/First.ts", text)
+        self.assertIn("> 2 [ ] src/Second.ts", text)
+        self.assertIn("note", text)
+        self.assertIn("unstaged", text)
+        self.assertIn("+5 -1", text)
+
+    def test_browse_file_screen_omits_review_queue_dock_when_short(self):
+        args = argparse_namespace(
+            context=0,
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        changes = [
+            FileChange("src/First.ts", 1, 0),
+            FileChange("src/Second.ts", 1, 0),
+        ]
+        state = BrowserState(changes, page=BrowserPage.FILE_DETAIL, selected=1)
+        full_lines = ["File 2/2  src/Second.ts"] + [
+            f"line {index}" for index in range(1, 21)
+        ]
+
+        with patch("cr.ui.browser._browse_file_lines", return_value=full_lines):
+            lines = _browse_file_screen_lines(
+                state,
+                changes[1],
+                1,
+                2,
+                args,
+                TerminalStyle(False),
+                max_lines=6,
+            )
+
+        text = "\n".join(lines)
+        self.assertNotIn("Changed files", text)
+        self.assertIn("showing 1-4/20", lines[-1])
+
     def test_browse_file_lines_show_seen_or_todo_status(self):
         args = argparse_namespace(
             context=0,

@@ -454,6 +454,11 @@ class BrowserCommandExecutor:
             if message:
                 _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.VIEW_SOURCE_SYMBOL:
+            message = _view_current_source_symbol(state, args, style)
+            if message:
+                _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.COPY_PATH:
             visible = state.visible_changes
             if visible:
@@ -2692,6 +2697,24 @@ def _view_current_source_line(
     path, line = target
     BrowserNavigation.show_source_file(state, path, line)
     return ""
+
+
+def _view_current_source_symbol(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    target = _file_detail_source_target(
+        state,
+        args,
+        style,
+        no_file_message="No changed file to view source symbol.",
+    )
+    if isinstance(target, str):
+        return target
+    path, line = target
+    BrowserNavigation.show_source_file(state, path, line)
+    return _select_source_symbol(state)
 
 
 def _file_detail_source_target(

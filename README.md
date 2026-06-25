@@ -122,6 +122,7 @@ next match       下一个查找匹配
 prev match       上一个查找匹配
 open line        用编辑器打开当前渲染行
 view source      在 TUI 中查看当前源码行
+view source symbol 查看当前源码行并选中函数或方法范围
 copy source      复制当前源码行附近上下文
 copy source symbol 复制当前函数或方法范围
 save source      保存当前源码行附近上下文
@@ -359,6 +360,7 @@ copy diff              复制当前文件轻量 diff 片段
 copy hunk              复制当前 hunk
 copy change            复制当前改动行
 copy source            复制当前源码上下文
+view source symbol     从文件详情跳到源码并选中当前函数或方法范围
 copy source symbol     复制当前函数或方法范围
 copy prompt            复制当前可见改动的 AI review handoff
 copy prompt file       复制当前文件的 AI review handoff

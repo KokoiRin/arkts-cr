@@ -46,6 +46,7 @@ class BrowserCommandAction:
     OPEN_HUNK = "open_hunk"
     OPEN_LINE = "open_line"
     VIEW_SOURCE = "view_source"
+    VIEW_SOURCE_SYMBOL = "view_source_symbol"
     COPY_PATH = "copy_path"
     COPY_ANCHOR = "copy_anchor"
     COPY_DIFF = "copy_diff"
@@ -225,6 +226,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.OPEN_HUNK)
     if command == "open line":
         return BrowserCommand(BrowserCommandAction.OPEN_LINE)
+    if command == "view source symbol":
+        return BrowserCommand(BrowserCommandAction.VIEW_SOURCE_SYMBOL)
     if command in {"view source", "view current source"}:
         return BrowserCommand(BrowserCommandAction.VIEW_SOURCE)
     if command in {"copy", "copy path"}:

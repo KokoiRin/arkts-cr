@@ -1460,7 +1460,7 @@ class CliTests(unittest.TestCase):
 
     def test_command_catalog_module_groups_command_help_lines(self):
         groups = command_catalog.command_catalog()
-        lines = command_catalog.command_list_lines(TerminalStyle(False), max_lines=120)
+        lines = command_catalog.command_list_lines(TerminalStyle(False), max_lines=140)
         text = "\n".join(lines)
 
         self.assertEqual([group.title for group in groups][0], "导航")
@@ -1473,6 +1473,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open hunk", text)
         self.assertIn("open line", text)
         self.assertIn("view source", text)
+        self.assertIn("view source symbol", text)
         self.assertIn("copy hunk", text)
         self.assertIn("copy line", text)
         self.assertIn("copy source", text)
@@ -1563,6 +1564,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
         self.assertIn("view source", commands)
+        self.assertIn("view source symbol", commands)
         self.assertIn("view diff", commands)
         self.assertIn("copy hunk", commands)
         self.assertIn("copy line", commands)
@@ -1663,6 +1665,7 @@ class CliTests(unittest.TestCase):
         )
         self.assertIn("File Detail 帮助", file_detail_text)
         self.assertIn("view source", file_detail_text)
+        self.assertIn("view source symbol", file_detail_text)
         self.assertIn("copy source", file_detail_text)
         self.assertIn("copy source symbol", file_detail_text)
         self.assertIn("save source", file_detail_text)
@@ -2665,6 +2668,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("view source").action,
             BrowserCommandAction.VIEW_SOURCE,
+        )
+        self.assertEqual(
+            parse_browser_command("view source symbol").action,
+            BrowserCommandAction.VIEW_SOURCE_SYMBOL,
         )
         self.assertEqual(
             parse_browser_command("source view").action,
@@ -4383,6 +4390,68 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 2)
 
+    def test_browser_command_executor_views_current_file_detail_source_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Sample.ts"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "class Sample {",
+                        "  render() {",
+                        "    const title = 'old'",
+                        "    const title = 'new'",
+                        "    return title",
+                        "  }",
+                        "  other() {",
+                        "    return 'nope'",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [FileChange("src/Sample.ts", 1, 0)],
+                page=BrowserPage.FILE_DETAIL,
+                selected=0,
+                file_scroll=2,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 1/1  src/Sample.ts",
+                "  @@ -3,2 +3,3 @@",
+                "     3    3 |     const title = 'old'",
+                "          4 | +   const title = 'new'",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    result = executor.execute(
+                        parse_browser_command("view source symbol", raw_keys=True)
+                    )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_path, "src/Sample.ts")
+        self.assertEqual(state.source_file_line, 4)
+        self.assertEqual(state.source_selection_start, 2)
+        self.assertEqual(state.source_selection_end, 6)
+        self.assertIn(
+            "Selected source symbol class Sample > method render src/Sample.ts:2-6.",
+            state.status_message,
+        )
+
     def test_browser_command_executor_reports_view_source_without_new_line(self):
         from cr.ui.browser import parse_browser_command
 
@@ -4413,6 +4482,81 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 2)
         self.assertIn("No current new-file line in File Detail.", state.status_message)
+
+    def test_browser_command_executor_reports_view_source_symbol_without_new_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20      | -deleted",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            result = executor.execute(
+                parse_browser_command("view source symbol", raw_keys=True)
+            )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIn("No current new-file line in File Detail.", state.status_message)
+
+    def test_browser_command_executor_views_source_symbol_line_without_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Sample.ts"
+            source.parent.mkdir(parents=True)
+            source.write_text("const value = 1\n", encoding="utf-8")
+            state = BrowserState(
+                [FileChange("src/Sample.ts", 1, 0)],
+                page=BrowserPage.FILE_DETAIL,
+                selected=0,
+                file_scroll=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 1/1  src/Sample.ts",
+                "  @@ -1,1 +1,1 @@",
+                "          1 | +const value = 1",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    result = executor.execute(
+                        parse_browser_command("view source symbol", raw_keys=True)
+                    )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_path, "src/Sample.ts")
+        self.assertEqual(state.source_file_line, 1)
+        self.assertEqual(state.source_selection_start, 0)
+        self.assertEqual(state.source_selection_end, 0)
+        self.assertIn("No source symbol at current line.", state.status_message)
 
     def test_browser_command_executor_reports_view_source_outside_file_detail(self):
         from cr.ui.browser import parse_browser_command

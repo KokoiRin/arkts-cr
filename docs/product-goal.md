@@ -8,6 +8,30 @@
 
 目标用户是已经主要让 AI 写代码的人。用户最常见的工作不是从零写代码，而是接管 AI 产物：查看这次改了哪些文件，阅读 diff 和相关源码，做简单跳转，偶尔运行 build/test/lint，查看失败问题和日志，再把最小必要上下文交给 AI 或 reviewer 继续处理。
 
+## 最短可用 Goal
+
+如果只想给 Codex 一个短目标，用这一段：
+
+```text
+持续推进 /Users/bytedance/Documents/Codex/arkts-cr，把 cr 做成 terminal-first 的 AI change workbench。它服务 AI 写完代码后，人接管变更、阅读 diff/source、简单跳转、运行 build/test/lint、查看日志/Problems、并把最小上下文交还给 AI/reviewer 的 95% 高频流程。
+
+每一轮都先读 docs/product-goal.md、docs/p0.md、README.md 和当前 git 状态，自己选择一个最高价值的最小 P0 垂直切片，实现、测试、更新文档、提交并推送。P0 优先级按“是否减少人从变更到理解、验证、handoff 的摩擦”判断；不要做完整 GUI、编辑器、语言服务、调试器或大平台能力。除非用户有新指令，否则不要停在建议阶段，直接按 Foundry/TDD/Warden 的方式推进。
+```
+
+## P0 自主选择规则
+
+Codex 每轮选 P0 时按下面顺序判断，不需要等用户点菜：
+
+1. **核心链路优先**：只选能强化 `Review Scope -> Changed Files -> File Detail -> Source File -> Task Output -> Task Problems -> Handoff` 的需求。
+2. **真实摩擦优先**：优先减少重复切 IDE、终端、AI 对话窗口找上下文的动作。
+3. **阅读和跳转优先**：查看变更、读代码、定位问题、回到 diff/source 的能力，比新配置项和外围包装更优先。
+4. **最小闭环优先**：每轮只做一个可以端到端使用的小切片，宁可窄一点，也不要做半成品基础设施。
+5. **TUI 稳定优先**：主视图、底部输入区、任务输出区不能因为刷新或日志输出变乱。
+6. **边界清楚优先**：核心逻辑沉到 core/domain/helper；TUI 负责呈现和输入；不要写业务仓库特例。
+7. **可验证优先**：必须有聚焦测试；改动跨边界时补回归测试；实现后更新 README 或 `docs/p0.md`。
+
+如果候选 P0 打分接近，默认选择最靠近“用户现在正在看的页面”的缺口。例如最近在 Source File 和 File Detail 之间来回，就优先补源码阅读、符号、问题和 diff 的桥接能力。
+
 ## Codex 持续执行 Goal
 
 下面这段适合直接作为 Codex Goal 使用。它的重点不是描述愿景，而是约束 Codex 每一轮都能自己选择 P0、实现、验证并提交：

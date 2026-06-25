@@ -728,8 +728,10 @@ def task_problems_screen_lines(
     title = "Task problems"
     if problem_filter:
         title = f"{title}: {problem_filter}"
+    count_label = task_problems_module.problem_severity_count_label(problems)
+    count_suffix = f"; {count_label}" if count_label else ""
     lines = [
-        f"{style.bold(title)} ({len(problems)} found)",
+        f"{style.bold(title)} ({len(problems)} found{count_suffix})",
         "Enter: open problem   task output: logs   b: back",
     ]
     row_capacity = max(1, max_lines - len(lines) - 1)

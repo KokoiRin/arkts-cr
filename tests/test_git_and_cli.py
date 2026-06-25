@@ -209,6 +209,21 @@ class CliTests(unittest.TestCase):
         self.assertEqual([problem.path for problem in errors], ["src/B.ets", "src/D.ets"])
         self.assertEqual(all_problems, problems)
 
+    def test_task_problems_formats_visible_severity_counts(self):
+        problems = [
+            task_problems.TaskProblem("src/A.ets", 1, None, "a", 1, severity="warning"),
+            task_problems.TaskProblem("src/B.ets", 2, None, "b", 2, severity="error"),
+            task_problems.TaskProblem("src/C.ets", 3, None, "c", 3),
+            task_problems.TaskProblem("src/D.ets", 4, None, "d", 4, severity="error"),
+            task_problems.TaskProblem("src/E.ets", 5, None, "e", 5, severity="note"),
+        ]
+
+        label = task_problems.problem_severity_count_label(problems)
+        empty = task_problems.problem_severity_count_label([])
+
+        self.assertEqual(label, "2 errors, 1 warning, 1 note, 1 unknown")
+        self.assertEqual(empty, "")
+
     def test_task_problems_ignores_urls_missing_files_and_outside_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -246,6 +261,7 @@ class CliTests(unittest.TestCase):
                 column=None,
                 summary="src/Bar.ets:8 warning",
                 output_line=2,
+                severity="warning",
             ),
         ]
 
@@ -1212,6 +1228,7 @@ class CliTests(unittest.TestCase):
                 column=None,
                 summary="src/Bar.ets:8 warning",
                 output_line=2,
+                severity="warning",
             ),
         ]
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
@@ -1225,6 +1242,7 @@ class CliTests(unittest.TestCase):
         text = "\n".join(lines)
 
         self.assertIn("Task problems", text)
+        self.assertIn("1 error, 1 warning", text)
         self.assertIn("> 1", text)
         self.assertIn("src/Foo.ets:12:3", text)
         self.assertIn("ERROR TS2322", text)

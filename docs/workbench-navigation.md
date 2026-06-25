@@ -202,7 +202,7 @@ Commit Picker
 
 Task Panel naming is now explicit without adding concurrent task management or moving browser code into a new module.
 Task Output Page is now explicit as a current-task output detail page. It can be opened with `task output` / `output`, keeps its own scroll and find state, and returns through page history; it does not change the three review layers or persist task logs.
-Task Problems Page is now explicit as a lightweight current-task Problems panel. It can be opened with `problems` / `task problems`, keeps its own selection, scroll, and severity filter state, shows generic severity/code/message facts when common log text contains them, and opens repo-local `path:line[:column]` anchors through the existing editor handoff.
+Task Problems Page is now explicit as a lightweight current-task Problems panel. It can be opened with `problems` / `task problems`, keeps its own selection, scroll, and severity filter state, shows visible severity counts plus generic severity/code/message facts when common log text contains them, and opens repo-local `path:line[:column]` anchors through the existing editor handoff.
 Source File Page is now explicit as a cross-layer read-only source preview. It can be opened from Task Problems with `view problem`, keeps its own source path, target line, and scroll state, and does not change Review Scope or require the file to be in Changed Files.
 Source File Page find is explicit as page-local text navigation. `find TEXT`, `next match`, and `prev match` search only the current source preview, update the Source File Page target line, and keep File Detail find and Task Output find state separate.
 Source File Page copy-line is explicit as source-preview handoff. `copy line` copies the current Source File Page target `path:line`, reusing the same command vocabulary as File Detail without adding source snippets or multi-line selection.
@@ -429,6 +429,12 @@ Status: implemented.
 Status: implemented.
 
 Task Problems supports page-local severity filters with `problems errors`, `problems warnings`, `problems info`, and `problems note`; `problems all` clears the filter. The active filter narrows the visible list while preserving task-output order, and movement, Enter/open, `view problem`, `copy problem`, and `copy problems` all operate on the filtered visible list. `BrowserState.problem_filter` is restored through page history snapshots, while `cr.ui.task_problems` owns the pure filtering rule. This intentionally avoids severity sorting, text query filtering, task history search, and diagnostics persistence.
+
+### P0: Task Problems severity counts
+
+Status: implemented.
+
+Task Problems renders compact severity counts in the header for the currently visible list, for example `2 errors, 1 warning, 1 unknown`. Counts use the same filtered list as movement/open/copy and preserve task-output order. `cr.ui.task_problems` owns count formatting so Page Content only renders the display string. This intentionally avoids total-vs-filtered aggregate state, sorting, persistence, and new commands.
 
 ### P0: Source File Page
 

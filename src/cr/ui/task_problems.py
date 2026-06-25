@@ -95,6 +95,29 @@ def filter_task_problems(
     return [problem for problem in problems if problem.severity == normalized]
 
 
+def problem_severity_count_label(problems: list[TaskProblem]) -> str:
+    if not problems:
+        return ""
+    counts = {
+        "error": 0,
+        "warning": 0,
+        "info": 0,
+        "note": 0,
+        "unknown": 0,
+    }
+    for problem in problems:
+        severity = problem.severity if problem.severity in counts else "unknown"
+        counts[severity] += 1
+    parts = [
+        _format_count(counts["error"], "error"),
+        _format_count(counts["warning"], "warning"),
+        _format_count(counts["info"], "info"),
+        _format_count(counts["note"], "note"),
+        _format_count(counts["unknown"], "unknown"),
+    ]
+    return ", ".join(part for part in parts if part)
+
+
 def extract_task_problems(repo: Path, lines: list[str]) -> list[TaskProblem]:
     repo = repo.resolve()
     problems: list[TaskProblem] = []
@@ -146,6 +169,15 @@ def _optional_int(value: str | None) -> int | None:
     if value is None:
         return None
     return int(value)
+
+
+def _format_count(count: int, label: str) -> str:
+    if count == 0:
+        return ""
+    if label == "unknown":
+        return f"{count} unknown"
+    suffix = "" if count == 1 else "s"
+    return f"{count} {label}{suffix}"
 
 
 def _extract_diagnostic_facts(line: str, anchor_end: int) -> tuple[str | None, str | None, str]:

@@ -51,6 +51,14 @@ ARROW_FUNCTION_RE = re.compile(
     r"^\s*(?:const|let|var)\s+(?P<name>[A-Za-z_$][\w$]*)\s*="
     r"\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>"
 )
+FIELD_ARROW_HEADER_RE = re.compile(
+    r"^\s*(?:(?:public|private|protected)\s+)?"
+    r"(?:(?:static|readonly)\s+)*"
+    r"(?P<name>[A-Za-z_$][\w$]*)(?P<tail>.*)$"
+)
+ARROW_VALUE_RE = re.compile(
+    r"^(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*(?::[^=]+)?=>"
+)
 
 
 def parse_file(path: str | Path) -> list[Symbol]:
@@ -218,6 +226,16 @@ def _match_symbol(lines: list[str], index: int, line: str) -> Symbol | None:
             end_line=_estimate_end_line(lines, index),
         )
 
+    field_arrow_name = _field_arrow_function_name(line)
+    if field_arrow_name:
+        return Symbol(
+            kind="method",
+            name=field_arrow_name,
+            line=index,
+            indent=indent,
+            end_line=_estimate_end_line(lines, index),
+        )
+
     method = METHOD_RE.match(line)
     if method:
         name = method.group("name")
@@ -230,6 +248,30 @@ def _match_symbol(lines: list[str], index: int, line: str) -> Symbol | None:
                 end_line=_estimate_end_line(lines, index),
             )
     return None
+
+
+def _field_arrow_function_name(line: str) -> str:
+    match = FIELD_ARROW_HEADER_RE.match(line)
+    if not match:
+        return ""
+    tail = match.group("tail")
+    assignment_index = _field_assignment_index(tail)
+    if assignment_index < 0:
+        return ""
+    before_assignment = tail[:assignment_index].strip()
+    if before_assignment and not before_assignment.startswith(":"):
+        return ""
+    value = tail[assignment_index + 1 :].strip()
+    if not ARROW_VALUE_RE.match(value):
+        return ""
+    return match.group("name")
+
+
+def _field_assignment_index(text: str) -> int:
+    for index, char in enumerate(text):
+        if char == "=" and (index + 1 >= len(text) or text[index + 1] != ">"):
+            return index
+    return -1
 
 
 def _estimate_end_line(lines: list[str], start_line: int) -> int:

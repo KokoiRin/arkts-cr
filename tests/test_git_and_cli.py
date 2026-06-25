@@ -401,6 +401,33 @@ class CliTests(unittest.TestCase):
         self.assertEqual(function, "function helper")
         self.assertEqual(outside, "")
 
+    def test_source_outline_labels_field_arrow_function_symbol(self):
+        symbols = outline.parse_outline(
+            "\n".join(
+                [
+                    "struct FeedCard {",
+                    "  private onTap = () => {",
+                    "    this.handleTap()",
+                    "  }",
+                    "  public static readonly makeModel: () => Model = () => {",
+                    "    return new Model()",
+                    "  }",
+                    "}",
+                    "const load = () => {",
+                    "  return 1",
+                    "}",
+                ]
+            )
+        )
+
+        field_arrow = outline.symbol_label_at_line(symbols, 3)
+        typed_field_arrow = outline.symbol_label_at_line(symbols, 6)
+        top_level_arrow = outline.symbol_label_at_line(symbols, 10)
+
+        self.assertEqual(field_arrow, "struct FeedCard > method onTap")
+        self.assertEqual(typed_field_arrow, "struct FeedCard > method makeModel")
+        self.assertEqual(top_level_arrow, "function load")
+
     def test_source_file_view_reads_repo_file_and_windows_target_line(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -7593,6 +7620,58 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("other() {", copied)
         self.assertEqual((state.source_selection_start, state.source_selection_end), (7, 8))
         self.assertIn("Copied source symbol src/Foo.ets:2-5.", state.status_message)
+
+    def test_browser_command_executor_copies_source_field_arrow_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "struct Foo {",
+                        "  private onTap = () => {",
+                        "    this.handleTap()",
+                        "  }",
+                        "  other() {",
+                        "    Text('nope')",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=3,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy source symbol"))
+
+        copied = copy_text.call_args.args[0]
+        self.assertTrue(result.handled)
+        self.assertIn("src/Foo.ets:2-4", copied)
+        self.assertIn("Symbol: struct Foo > method onTap", copied)
+        self.assertIn("private onTap = () => {", copied)
+        self.assertIn("this.handleTap()", copied)
+        self.assertNotIn("other() {", copied)
+        self.assertIn("Copied source symbol src/Foo.ets:2-4.", state.status_message)
 
     def test_browser_command_executor_reports_copy_source_symbol_without_symbol(self):
         from cr.ui.browser import parse_browser_command

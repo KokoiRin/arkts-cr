@@ -428,6 +428,33 @@ class CliTests(unittest.TestCase):
         self.assertEqual(typed_field_arrow, "struct FeedCard > method makeModel")
         self.assertEqual(top_level_arrow, "function load")
 
+    def test_source_outline_labels_override_and_accessor_symbols(self):
+        symbols = outline.parse_outline(
+            "\n".join(
+                [
+                    "class FeedCard extends BaseCard {",
+                    "  override aboutToAppear() {",
+                    "    this.load()",
+                    "  }",
+                    "  get title(): string {",
+                    "    return this.model.title",
+                    "  }",
+                    "  set title(value: string) {",
+                    "    this.model.title = value",
+                    "  }",
+                    "}",
+                ]
+            )
+        )
+
+        override_method = outline.symbol_label_at_line(symbols, 3)
+        getter = outline.symbol_label_at_line(symbols, 6)
+        setter = outline.symbol_label_at_line(symbols, 9)
+
+        self.assertEqual(override_method, "class FeedCard > method aboutToAppear")
+        self.assertEqual(getter, "class FeedCard > method title")
+        self.assertEqual(setter, "class FeedCard > method title")
+
     def test_source_file_view_reads_repo_file_and_windows_target_line(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -8106,6 +8133,57 @@ class CliTests(unittest.TestCase):
         self.assertIn("Symbol: struct Foo > method onTap", copied)
         self.assertIn("private onTap = () => {", copied)
         self.assertIn("this.handleTap()", copied)
+        self.assertNotIn("other() {", copied)
+        self.assertIn("Copied source symbol src/Foo.ets:2-4.", state.status_message)
+
+    def test_browser_command_executor_copies_source_accessor_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "class Foo {",
+                        "  get title(): string {",
+                        "    return this.model.title",
+                        "  }",
+                        "  other() {",
+                        "    Text('nope')",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=3,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy source symbol"))
+
+        copied = copy_text.call_args.args[0]
+        self.assertTrue(result.handled)
+        self.assertIn("src/Foo.ets:2-4", copied)
+        self.assertIn("Symbol: class Foo > method title", copied)
+        self.assertIn("get title(): string", copied)
         self.assertNotIn("other() {", copied)
         self.assertIn("Copied source symbol src/Foo.ets:2-4.", state.status_message)
 

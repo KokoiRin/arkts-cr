@@ -44,8 +44,15 @@ FUNCTION_RE = re.compile(
     r"(?P<name>[A-Za-z_$][\w$]*)\s*\("
 )
 METHOD_RE = re.compile(
-    r"^\s*(?:(?:public|private|protected)\s+)?(?:(?:static|async)\s+)*"
+    r"^\s*(?:(?:public|private|protected)\s+)?"
+    r"(?:(?:static|async|override)\s+)*"
     r"(?P<name>[A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::[^={;]+)?[;{]?\s*$"
+)
+ACCESSOR_RE = re.compile(
+    r"^\s*(?:(?:public|private|protected)\s+)?"
+    r"(?:(?:static|override)\s+)*"
+    r"(?:get|set)\s+(?P<name>[A-Za-z_$][\w$]*)\s*\([^)]*\)"
+    r"\s*(?::[^={;]+)?[;{]?\s*$"
 )
 ARROW_FUNCTION_RE = re.compile(
     r"^\s*(?:const|let|var)\s+(?P<name>[A-Za-z_$][\w$]*)\s*="
@@ -231,6 +238,16 @@ def _match_symbol(lines: list[str], index: int, line: str) -> Symbol | None:
         return Symbol(
             kind="method",
             name=field_arrow_name,
+            line=index,
+            indent=indent,
+            end_line=_estimate_end_line(lines, index),
+        )
+
+    accessor = ACCESSOR_RE.match(line)
+    if accessor:
+        return Symbol(
+            kind="method",
+            name=accessor.group("name"),
             line=index,
             indent=indent,
             end_line=_estimate_end_line(lines, index),

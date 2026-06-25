@@ -60,6 +60,32 @@ class OutlineTests(unittest.TestCase):
         self.assertEqual(modified_symbols(symbols, {17}), ["formatName"])
         self.assertEqual(modified_symbols(symbols, set()), ["unknown"])
 
+    def test_parses_override_and_accessor_members(self):
+        symbols = parse_outline(
+            "\n".join(
+                [
+                    "class FeedCard extends BaseCard {",
+                    "  override aboutToAppear() {",
+                    "    this.load()",
+                    "  }",
+                    "  get title(): string {",
+                    "    return this.model.title",
+                    "  }",
+                    "  set title(value: string) {",
+                    "    this.model.title = value",
+                    "  }",
+                    "}",
+                ]
+            )
+        )
+
+        self.assertEqual(
+            [child.name for child in symbols[0].children],
+            ["aboutToAppear", "title", "title"],
+        )
+        self.assertEqual(modified_symbols(symbols, {3}), ["aboutToAppear"])
+        self.assertEqual(modified_symbols(symbols, {6}), ["title"])
+
 
 if __name__ == "__main__":
     unittest.main()

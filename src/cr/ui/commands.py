@@ -45,6 +45,7 @@ class BrowserCommandAction:
     OPEN_FILE = "open_file"
     OPEN_HUNK = "open_hunk"
     OPEN_LINE = "open_line"
+    VIEW_SOURCE = "view_source"
     COPY_PATH = "copy_path"
     COPY_ANCHOR = "copy_anchor"
     COPY_DIFF = "copy_diff"
@@ -157,6 +158,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         )
     if command in {"source clear selection", "clear source selection"}:
         return BrowserCommand(BrowserCommandAction.CLEAR_SOURCE_SELECTION)
+    if command == "source view":
+        return BrowserCommand(BrowserCommandAction.VIEW_SOURCE)
     if command.startswith("source "):
         source = command.removeprefix("source ").strip()
         if source in {"all", "clear"}:
@@ -206,6 +209,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.OPEN_HUNK)
     if command == "open line":
         return BrowserCommand(BrowserCommandAction.OPEN_LINE)
+    if command in {"view source", "view current source"}:
+        return BrowserCommand(BrowserCommandAction.VIEW_SOURCE)
     if command in {"copy", "copy path"}:
         return BrowserCommand(BrowserCommandAction.COPY_PATH)
     if command == "copy anchor":

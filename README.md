@@ -121,6 +121,7 @@ find TEXT        在当前文件详情里查找
 next match       下一个查找匹配
 prev match       上一个查找匹配
 open line        用编辑器打开当前渲染行
+view source      在 TUI 中查看当前源码行
 copy line        复制当前行锚点
 copy hunk        复制当前 hunk
 copy change      复制当前改动行上下文

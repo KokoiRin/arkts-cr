@@ -439,6 +439,11 @@ class BrowserCommandExecutor:
             message = _open_current_line(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.VIEW_SOURCE:
+            message = _view_current_source_line(state, args, style)
+            if message:
+                _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.COPY_PATH:
             visible = state.visible_changes
             if visible:
@@ -2268,6 +2273,33 @@ def _copy_current_line(
         state.file_scroll,
         args,
     )
+
+
+def _view_current_source_line(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to view source."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to view source."
+    state.clamp_selection()
+    change = visible[state.selected]
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    line = file_detail_navigation.current_new_line(lines, state.file_scroll)
+    if line is None:
+        return "No current new-file line in File Detail."
+    BrowserNavigation.show_source_file(state, change.path, line)
+    return ""
 
 
 def _copy_source_line(

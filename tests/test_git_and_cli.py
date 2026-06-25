@@ -1262,6 +1262,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("note change TEXT", text)
         self.assertIn("open hunk", text)
         self.assertIn("open line", text)
+        self.assertIn("view source", text)
         self.assertIn("copy hunk", text)
         self.assertIn("copy line", text)
         self.assertIn("copy source", text)
@@ -1334,6 +1335,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("done next", commands)
         self.assertIn("open hunk", commands)
         self.assertIn("open line", commands)
+        self.assertIn("view source", commands)
         self.assertIn("copy hunk", commands)
         self.assertIn("copy line", commands)
         self.assertIn("copy source", commands)
@@ -1408,6 +1410,17 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy task tail", task_output_text)
         self.assertIn("save task tail", task_output_text)
 
+        state.help_topic_page = BrowserPage.FILE_DETAIL
+        file_detail_text = "\n".join(
+            page_content.page_help_screen_lines(
+                state,
+                TerminalStyle(False),
+                max_lines=40,
+            )
+        )
+        self.assertIn("File Detail 帮助", file_detail_text)
+        self.assertIn("view source", file_detail_text)
+
     def test_page_content_help_screen_lists_source_file_commands(self):
         state = BrowserState([], page=BrowserPage.HELP, help_topic_page=BrowserPage.SOURCE_FILE)
 
@@ -1459,6 +1472,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("help 帮助", changed_files)
         self.assertIn("]/[ 跳转 hunk", file_detail)
         self.assertIn("find 查找", file_detail)
+        self.assertIn("view source 看源码", file_detail)
         self.assertIn("copy line 复制行", file_detail)
         self.assertIn("Enter 选择", scope_home)
         self.assertIn(":base", scope_home)
@@ -2226,6 +2240,18 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("open line").action,
             BrowserCommandAction.OPEN_LINE,
+        )
+        self.assertEqual(
+            parse_browser_command("view source").action,
+            BrowserCommandAction.VIEW_SOURCE,
+        )
+        self.assertEqual(
+            parse_browser_command("source view").action,
+            BrowserCommandAction.VIEW_SOURCE,
+        )
+        self.assertEqual(
+            parse_browser_command("view current source").action,
+            BrowserCommandAction.VIEW_SOURCE,
         )
         find_command = parse_browser_command("find TargetValue")
         self.assertEqual(find_command.action, BrowserCommandAction.FIND_IN_FILE)
@@ -3808,6 +3834,92 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 2)
         self.assertIn("No current new-file line in File Detail.", state.status_message)
+
+    def test_browser_command_executor_views_current_file_detail_source_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            result = executor.execute(parse_browser_command("view source", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_path, "src/Sample.ts")
+        self.assertEqual(state.source_file_line, 32)
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+
+    def test_browser_command_executor_reports_view_source_without_new_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20      | -deleted",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            result = executor.execute(parse_browser_command("view source", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIn("No current new-file line in File Detail.", state.status_message)
+
+    def test_browser_command_executor_reports_view_source_outside_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("view source", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertIn("Open a file detail to view source.", state.status_message)
 
     def test_browser_command_executor_copies_current_change_in_file_detail(self):
         from cr.ui.browser import parse_browser_command

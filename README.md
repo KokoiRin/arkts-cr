@@ -186,6 +186,8 @@ view problem diff        打开当前问题对应的文件 diff
 copy problem             复制当前问题
 copy problems            复制当前可见问题列表
 copy file problems       复制当前选中文件的可见问题
+save problems            保存当前可见问题列表到 .cr/handoff/task-problems.md
+save file problems       保存当前选中文件的问题到 .cr/handoff/task-problems-file.md
 copy problem context     复制问题、任务输出片段、源码片段、同文件 diff 上下文
 save problem context     保存同一份上下文
 ```

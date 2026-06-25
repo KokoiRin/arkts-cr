@@ -1422,6 +1422,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("save prompt file", text)
         self.assertIn("copy task", text)
         self.assertIn("save task", text)
+        self.assertIn("save problems", text)
+        self.assertIn("save file problems", text)
         self.assertIn("save problem context", text)
         self.assertIn("task output", text)
         self.assertIn("problems errors", text)
@@ -1534,6 +1536,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("按文件分组", text)
         self.assertIn("problems group file", text)
         self.assertIn("view problem diff", text)
+        self.assertIn("save problems", text)
+        self.assertIn("save file problems", text)
         self.assertIn("copy problem context", text)
         self.assertIn("save problem context", text)
 
@@ -2608,6 +2612,29 @@ class CliTests(unittest.TestCase):
             parse_browser_command("copy file problems").action,
             BrowserCommandAction.COPY_FILE_TASK_PROBLEMS,
         )
+        save_problems = parse_browser_command("save problems")
+        self.assertEqual(save_problems.action, BrowserCommandAction.SAVE_TASK_PROBLEMS)
+        self.assertEqual(save_problems.value, "")
+        save_problems_path = parse_browser_command("save problems tmp/problems.md")
+        self.assertEqual(
+            save_problems_path.action,
+            BrowserCommandAction.SAVE_TASK_PROBLEMS,
+        )
+        self.assertEqual(save_problems_path.value, "tmp/problems.md")
+        save_file_problems = parse_browser_command("save file problems")
+        self.assertEqual(
+            save_file_problems.action,
+            BrowserCommandAction.SAVE_FILE_TASK_PROBLEMS,
+        )
+        self.assertEqual(save_file_problems.value, "")
+        save_file_problems_path = parse_browser_command(
+            "save file problems tmp/file-problems.md"
+        )
+        self.assertEqual(
+            save_file_problems_path.action,
+            BrowserCommandAction.SAVE_FILE_TASK_PROBLEMS,
+        )
+        self.assertEqual(save_file_problems_path.value, "tmp/file-problems.md")
         self.assertEqual(
             parse_browser_command("next problem file").action,
             BrowserCommandAction.NEXT_TASK_PROBLEM_FILE,
@@ -6928,6 +6955,103 @@ class CliTests(unittest.TestCase):
         build_data.assert_called_once()
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied problem context src/Foo.ets:5", state.status_message)
+
+    def test_browser_command_executor_saves_task_problems_default_path(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("two\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error TS1: first bad",
+                        "src/Two.ets:1:1 warning TS2: second bad",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("save problems"))
+
+            saved = repo / ".cr" / "handoff" / "task-problems.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertIn("# Task problems", text)
+        self.assertIn("1. src/One.ets:1:1 [ERROR TS1]", text)
+        self.assertIn("2. src/Two.ets:1:1 [WARNING TS2]", text)
+        self.assertIn(
+            "Saved 2 task problems to .cr/handoff/task-problems.md.",
+            state.status_message,
+        )
+
+    def test_browser_command_executor_saves_file_task_problems_requested_path(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source_dir = repo / "src"
+            source_dir.mkdir(parents=True)
+            (source_dir / "One.ets").write_text("one\n", encoding="utf-8")
+            (source_dir / "Two.ets").write_text("two\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error TS1: first bad",
+                        "src/Two.ets:1:1 error TS2: second bad",
+                        "src/Two.ets:1:1 warning TS3: third bad",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(
+                    parse_browser_command("save file problems tmp/two-problems.md")
+                )
+
+            saved = repo / "tmp" / "two-problems.md"
+            text = saved.read_text(encoding="utf-8")
+
+        self.assertTrue(result.handled)
+        self.assertIn("# Task problems", text)
+        self.assertNotIn("src/One.ets", text)
+        self.assertIn("1. src/Two.ets:1:1 [ERROR TS2]", text)
+        self.assertIn("2. src/Two.ets:1:1 [WARNING TS3]", text)
+        self.assertIn(
+            "Saved 2 task problems for src/Two.ets to tmp/two-problems.md.",
+            state.status_message,
+        )
 
     def test_browser_command_executor_copies_selected_task_output_problem_context(self):
         from cr.ui.browser import parse_browser_command

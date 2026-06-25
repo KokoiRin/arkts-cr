@@ -332,6 +332,7 @@ def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
                 "next problem file / prev problem file：跳到下一个或上一个问题文件",
                 "copy problem / copy problems：复制当前问题或当前列表",
                 "copy file problems：复制当前选中文件的可见问题",
+                "save problems / save file problems：保存当前问题列表或当前文件问题列表",
                 "copy problem context / save problem context：复制或保存问题、任务输出、源码和 diff 上下文",
                 "task output：回到任务输出",
             ),

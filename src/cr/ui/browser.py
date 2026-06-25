@@ -717,6 +717,14 @@ class BrowserCommandExecutor:
             message = _save_task_output_match(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_TASK_PROBLEMS:
+            message = _save_task_problems(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_FILE_TASK_PROBLEMS:
+            message = _save_file_task_problems(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.REVEAL_FILE:
             visible = state.visible_changes
             if visible:
@@ -1449,6 +1457,43 @@ def _copy_file_task_problems(state: BrowserState, args: argparse.Namespace) -> s
     if message:
         return message
     return f"Copied {len(file_problems)} task problems for {selected_path}."
+
+
+def _save_task_problems(state: BrowserState, requested_path: str = "") -> str:
+    problems = _current_task_problems(state)
+    if not problems:
+        return "No task problems to save."
+    text = task_problems_module.problems_handoff_text(problems)
+    result = handoff_module.save_task_problems_text(
+        text,
+        git.repo_root(),
+        requested_path,
+    )
+    if result.error:
+        return result.error
+    return f"Saved {len(problems)} task problems to {result.display_path}."
+
+
+def _save_file_task_problems(state: BrowserState, requested_path: str = "") -> str:
+    problems = _current_task_problems(state)
+    if not problems:
+        return "No task problems to save."
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    selected_path = problems[selected].path
+    file_problems = [problem for problem in problems if problem.path == selected_path]
+    text = task_problems_module.problems_handoff_text(file_problems)
+    result = handoff_module.save_task_problems_text(
+        text,
+        git.repo_root(),
+        requested_path,
+        selected_file=True,
+    )
+    if result.error:
+        return result.error
+    return (
+        f"Saved {len(file_problems)} task problems for {selected_path} "
+        f"to {result.display_path}."
+    )
 
 
 def _copy_problem_context(

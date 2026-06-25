@@ -40,220 +40,235 @@ class CommandPaletteScreen:
     scroll: int
 
 
+_GROUP_SEARCH_ALIASES = {
+    "导航": "navigation nav",
+    "审查范围": "review scope",
+    "任务": "task tasks",
+    "文件": "file files",
+    "会话": "session",
+}
+
+_COMMAND_SEARCH_ALIASES = {
+    "open": "editor",
+    "open hunk": "editor",
+    "open line": "editor",
+}
+
+
 def command_catalog() -> tuple[CommandGroup, ...]:
     return (
         CommandGroup(
-            "Navigation",
+            "导航",
             (
-                CommandEntry("Enter / 1..N", "open selected file or choose by number"),
-                CommandEntry("b / back", "return through page history"),
-                CommandEntry("forward", "return to the page left by back", "forward"),
-                CommandEntry("n / p", "next or previous file"),
+                CommandEntry("Enter / 1..N", "打开选中文件或按编号选择"),
+                CommandEntry("b / back", "沿页面历史返回"),
+                CommandEntry("forward", "回到刚才返回前离开的页面", "forward"),
+                CommandEntry("n / p", "下一个或上一个文件"),
                 CommandEntry(
                     "scopes / scope",
-                    "show Review Scope home",
+                    "打开审查范围首页",
                     BrowserPage.SCOPE_HOME,
                 ),
-                CommandEntry("g / commits", "show recent commits", "g"),
+                CommandEntry("g / commits", "查看最近提交", "g"),
             ),
         ),
         CommandGroup(
-            "Review scope",
+            "审查范围",
             (
-                CommandEntry("worktree", "review unstaged worktree changes", "worktree"),
-                CommandEntry("staged", "review staged/index changes", "staged"),
-                CommandEntry("all", "review staged and unstaged local changes", "all"),
-                CommandEntry("base REF", "review changes against a base ref"),
-                CommandEntry("range OLD..NEW", "review an explicit ref range"),
+                CommandEntry("worktree", "审查未暂存的工作区改动", "worktree"),
+                CommandEntry("staged", "审查已暂存/index 改动", "staged"),
+                CommandEntry("all", "审查已暂存和未暂存的本地改动", "all"),
+                CommandEntry("base REF", "审查相对某个基准 ref 的改动"),
+                CommandEntry("range OLD..NEW", "审查指定 ref 区间"),
             ),
         ),
         CommandGroup(
-            "Tasks",
+            "任务",
             (
-                CommandEntry("build", "run configured repo build", "build"),
-                CommandEntry("test / tests", "run configured repo tests", "test"),
-                CommandEntry("lint", "run configured repo lint", "lint"),
-                CommandEntry("tasks", "show task command sources", "tasks"),
-                CommandEntry("tasks help", "show .cr/tasks.json format", "tasks help"),
-                CommandEntry("task output", "open current task output", "task output"),
-                CommandEntry("problems", "open current task problems", "problems"),
-                CommandEntry("problems errors", "show error task problems", "problems errors"),
-                CommandEntry("problems warnings", "show warning task problems", "problems warnings"),
-                CommandEntry("problems info", "show info task problems", "problems info"),
-                CommandEntry("problems note", "show note task problems", "problems note"),
-                CommandEntry("problems all", "show all task problems", "problems all"),
+                CommandEntry("build", "运行仓库配置的编译命令", "build"),
+                CommandEntry("test / tests", "运行仓库配置的测试命令", "test"),
+                CommandEntry("lint", "运行仓库配置的 lint 命令", "lint"),
+                CommandEntry("tasks", "查看任务命令来源", "tasks"),
+                CommandEntry("tasks help", "查看 .cr/tasks.json 格式", "tasks help"),
+                CommandEntry("task output", "打开当前任务输出", "task output"),
+                CommandEntry("problems", "打开当前任务问题列表", "problems"),
+                CommandEntry("problems errors", "只看错误问题", "problems errors"),
+                CommandEntry("problems warnings", "只看警告问题", "problems warnings"),
+                CommandEntry("problems info", "只看 info 问题", "problems info"),
+                CommandEntry("problems note", "只看 note 问题", "problems note"),
+                CommandEntry("problems all", "查看全部任务问题", "problems all"),
                 CommandEntry(
                     "problems find TEXT",
-                    "filter task problems by text",
+                    "按文本过滤任务问题",
                     "problems find TEXT",
                 ),
                 CommandEntry(
                     "problems clear find",
-                    "clear task problems text filter",
+                    "清除任务问题文本过滤",
                     "problems clear find",
                 ),
                 CommandEntry(
                     "problems sort severity",
-                    "sort task problems by severity",
+                    "按严重度排序任务问题",
                     "problems sort severity",
                 ),
                 CommandEntry(
                     "problems sort output",
-                    "restore task-output problem order",
+                    "恢复任务输出中的问题顺序",
                     "problems sort output",
                 ),
                 CommandEntry(
                     "problems group file",
-                    "group task problems by file",
+                    "按文件分组任务问题",
                     "problems group file",
                 ),
                 CommandEntry(
                     "problems group none",
-                    "show flat task problems",
+                    "恢复平铺任务问题列表",
                     "problems group none",
                 ),
-                CommandEntry("view problem", "view selected task problem source", "view problem"),
-                CommandEntry("copy problem", "copy selected task problem", "copy problem"),
-                CommandEntry("copy problems", "copy all current task problems", "copy problems"),
+                CommandEntry("view problem", "查看选中问题的源码位置", "view problem"),
+                CommandEntry("copy problem", "复制选中问题", "copy problem"),
+                CommandEntry("copy problems", "复制当前问题列表", "copy problems"),
                 CommandEntry(
                     "copy problem context",
-                    "copy problem source and diff context",
+                    "复制问题源码和 diff 上下文",
                     "copy problem context",
                 ),
                 CommandEntry(
                     "save problem context",
-                    "save problem source and diff context",
+                    "保存问题源码和 diff 上下文",
                     "save problem context",
                 ),
-                CommandEntry("copy task", "copy current task output", "copy task"),
-                CommandEntry("save task", "save current task output", "save task"),
-                CommandEntry("stop / cancel", "stop running task", "stop"),
-                CommandEntry("rerun / rebuild", "run recent task again", "rerun"),
+                CommandEntry("copy task", "复制当前任务输出", "copy task"),
+                CommandEntry("save task", "保存当前任务输出", "save task"),
+                CommandEntry("stop / cancel", "停止运行中的任务", "stop"),
+                CommandEntry("rerun / rebuild", "重跑最近一次任务", "rerun"),
             ),
         ),
         CommandGroup(
-            "Files",
+            "文件",
             (
-                CommandEntry("/QUERY / filter QUERY", "filter changed files by path"),
-                CommandEntry("clear", "clear active file filter", "clear"),
+                CommandEntry("/QUERY / filter QUERY", "按路径过滤改动文件"),
+                CommandEntry("clear", "清除当前文件过滤", "clear"),
                 CommandEntry(
                     "source staged",
-                    "show staged files in current scope",
+                    "只看当前范围里的已暂存文件",
                     "source staged",
                 ),
                 CommandEntry(
                     "source unstaged",
-                    "show unstaged files in current scope",
+                    "只看当前范围里的未暂存文件",
                     "source unstaged",
                 ),
                 CommandEntry(
                     "source mixed",
-                    "show mixed files in current scope",
+                    "只看当前范围里的混合文件",
                     "source mixed",
                 ),
-                CommandEntry("source all", "clear active source filter", "source all"),
-                CommandEntry("m / seen / done", "mark selected file as seen", "m"),
-                CommandEntry("done next / seen next", "mark seen and move to next file", "done next"),
-                CommandEntry("todo / unseen / unmark", "mark selected file as todo", "todo"),
-                CommandEntry("remaining", "show files not marked seen", "remaining"),
-                CommandEntry("allfiles / show all", "show all changed files", "allfiles"),
-                CommandEntry("open", "open selected file in editor", "open"),
-                CommandEntry("open hunk", "open current diff hunk in editor", "open hunk"),
-                CommandEntry("open line", "open current file-detail line", "open line"),
-                CommandEntry("copy path", "copy selected file path", "copy path"),
-                CommandEntry("copy anchor", "copy selected file path and line", "copy anchor"),
-                CommandEntry("copy diff", "copy selected file diff snippet", "copy diff"),
-                CommandEntry("copy hunk", "copy current diff hunk snippet", "copy hunk"),
-                CommandEntry("copy line", "copy current line anchor", "copy line"),
-                CommandEntry("copy source", "copy current source context", "copy source"),
+                CommandEntry("source all", "清除当前来源过滤", "source all"),
+                CommandEntry("m / seen / done", "标记选中文件已看", "m"),
+                CommandEntry("done next / seen next", "标记已看并移动到下个文件", "done next"),
+                CommandEntry("todo / unseen / unmark", "标记选中文件待看", "todo"),
+                CommandEntry("remaining", "只看未标记已看的文件", "remaining"),
+                CommandEntry("allfiles / show all", "显示全部改动文件", "allfiles"),
+                CommandEntry("open", "在编辑器打开选中文件", "open"),
+                CommandEntry("open hunk", "在编辑器打开当前 diff hunk", "open hunk"),
+                CommandEntry("open line", "在编辑器打开当前文件详情行", "open line"),
+                CommandEntry("copy path", "复制选中文件路径", "copy path"),
+                CommandEntry("copy anchor", "复制选中文件路径和行号", "copy anchor"),
+                CommandEntry("copy diff", "复制选中文件 diff 片段", "copy diff"),
+                CommandEntry("copy hunk", "复制当前 diff hunk 片段", "copy hunk"),
+                CommandEntry("copy line", "复制当前行锚点", "copy line"),
+                CommandEntry("copy source", "复制当前源码上下文", "copy source"),
                 CommandEntry(
                     "source context N",
-                    "set copied source context radius",
+                    "设置复制源码时的上下文半径",
                     "source context 3",
                 ),
                 CommandEntry(
                     "source select START END",
-                    "select source line range",
+                    "选择源码行范围",
                     "source select 1 3",
                 ),
                 CommandEntry(
                     "source clear selection",
-                    "clear selected source range",
+                    "清除已选择的源码行范围",
                     "source clear selection",
                 ),
-                CommandEntry("copy change", "copy current file-detail changed row", "copy change"),
+                CommandEntry("copy change", "复制当前文件详情改动行", "copy change"),
                 CommandEntry(
                     "find TEXT",
-                    "find text in current file or task output page",
+                    "在当前文件或任务输出页查找文本",
                     "find TEXT",
                 ),
                 CommandEntry(
                     "next match",
-                    "jump to next find match in current page",
+                    "跳到当前页下一个查找匹配",
                     "next match",
                 ),
                 CommandEntry(
                     "prev match",
-                    "jump to previous find match in current page",
+                    "跳到当前页上一个查找匹配",
                     "prev match",
                 ),
                 CommandEntry(
                     "next change",
-                    "jump to next file-detail changed row",
+                    "跳到文件详情下一个改动行",
                     "next change",
                 ),
                 CommandEntry(
                     "prev change",
-                    "jump to previous file-detail changed row",
+                    "跳到文件详情上一个改动行",
                     "prev change",
                 ),
-                CommandEntry("next hunk", "jump to next diff hunk", "next hunk"),
-                CommandEntry("prev hunk", "jump to previous diff hunk", "prev hunk"),
-                CommandEntry("copy notes", "copy review notes summary", "copy notes"),
-                CommandEntry("copy notes QUERY", "copy filtered review notes summary"),
-                CommandEntry("copy prompt", "copy current review prompt", "copy prompt"),
+                CommandEntry("next hunk", "跳到下一个 diff hunk", "next hunk"),
+                CommandEntry("prev hunk", "跳到上一个 diff hunk", "prev hunk"),
+                CommandEntry("copy notes", "复制审查备注汇总", "copy notes"),
+                CommandEntry("copy notes QUERY", "复制过滤后的审查备注汇总"),
+                CommandEntry("copy prompt", "复制当前审查提示", "copy prompt"),
                 CommandEntry(
                     "copy prompt file",
-                    "copy selected file review prompt",
+                    "复制选中文件的审查提示",
                     "copy prompt file",
                 ),
                 CommandEntry(
                     "save diff",
-                    "save selected file diff snippet",
+                    "保存选中文件 diff 片段",
                     "save diff",
                 ),
-                CommandEntry("save prompt", "save current review prompt", "save prompt"),
+                CommandEntry("save prompt", "保存当前审查提示", "save prompt"),
                 CommandEntry(
                     "save prompt file",
-                    "save selected file review prompt",
+                    "保存选中文件的审查提示",
                     "save prompt file",
                 ),
-                CommandEntry("reveal", "reveal selected file in file browser", "reveal"),
-                CommandEntry("stage", "stage selected file", "stage"),
-                CommandEntry("unstage", "unstage selected file", "unstage"),
+                CommandEntry("reveal", "在文件管理器中显示选中文件", "reveal"),
+                CommandEntry("stage", "暂存选中文件", "stage"),
+                CommandEntry("unstage", "取消暂存选中文件", "unstage"),
                 CommandEntry(
                     "file actions",
-                    "show open/copy/reveal command sources",
+                    "查看 open/copy/reveal 命令来源",
                     "file actions",
                 ),
-                CommandEntry("note TEXT", "set selected file review note"),
-                CommandEntry("note change TEXT", "append note for current changed row"),
-                CommandEntry("note", "clear selected file review note"),
-                CommandEntry("notes", "show all review notes", "notes"),
-                CommandEntry("notes QUERY", "filter review notes by path or note text"),
-                CommandEntry("refresh", "reload current review scope", "refresh"),
+                CommandEntry("note TEXT", "设置选中文件审查备注"),
+                CommandEntry("note change TEXT", "给当前改动行追加备注"),
+                CommandEntry("note", "清除选中文件审查备注"),
+                CommandEntry("notes", "显示全部审查备注", "notes"),
+                CommandEntry("notes QUERY", "按路径或备注文本过滤审查备注"),
+                CommandEntry("refresh", "重新加载当前审查范围", "refresh"),
             ),
         ),
         CommandGroup(
-            "Session",
+            "会话",
             (
                 CommandEntry(
                     BrowserPage.COMMAND_PALETTE,
-                    "show this command list",
+                    "显示命令面板",
                     BrowserPage.COMMAND_PALETTE,
                 ),
-                CommandEntry("help", "show compact key help", "help"),
-                CommandEntry("quit", "exit browser", "quit"),
+                CommandEntry("help", "显示当前页面帮助", "help"),
+                CommandEntry("quit", "退出浏览器", "quit"),
             ),
         ),
     )
@@ -298,15 +313,17 @@ def command_palette_match_score(
     label = entry.label.casefold()
     group = entry.group.casefold()
     description = entry.description.casefold()
+    group_aliases = _GROUP_SEARCH_ALIASES.get(entry.group, "").casefold()
+    command_aliases = _COMMAND_SEARCH_ALIASES.get(entry.command, "").casefold()
     if query in {command, label}:
         return 0
     if command.startswith(query) or label.startswith(query):
         return 1
     if query in command or query in label:
         return 2
-    if query in group:
+    if query in group or query in group_aliases:
         return 3
-    if query in description:
+    if query in description or query in command_aliases:
         return 4
     return None
 
@@ -330,17 +347,17 @@ def command_palette_screen_lines(
     total_entries = len(command_palette_entries())
     text_query = query.strip()
     lines = [
-        style.bold("Command palette"),
-        "/: filter commands   c: clear filter   Enter: run selected command   b/←: back",
+        style.bold("命令面板"),
+        "/：过滤命令   c：清除过滤   Enter：执行选中命令   b/←：返回",
     ]
     if text_query:
         lines.append(
-            f"Filter: {text_query} "
-            f"({len(entries)}/{total_entries} matches)"
+            f"过滤：{text_query} "
+            f"（{len(entries)}/{total_entries} 个匹配）"
         )
     lines.append("")
     if not entries:
-        message = "No matching commands." if text_query else "No executable commands."
+        message = "没有匹配命令。" if text_query else "没有可执行命令。"
         return CommandPaletteScreen([*lines, message][:max_lines], scroll)
     selected = max(0, min(selected, len(entries) - 1))
     command_width = max(len(entry.label) for entry in entries)
@@ -354,7 +371,7 @@ def command_palette_screen_lines(
             f"{entry.label.ljust(command_width)}  {entry.description}"
         )
     if len(entries) > row_capacity:
-        lines.append(style.dim(f"showing {start + 1}-{end}/{len(entries)}"))
+        lines.append(style.dim(f"显示 {start + 1}-{end}/{len(entries)}"))
     else:
         lines.append("")
     return CommandPaletteScreen(lines[:max_lines], start)
@@ -377,7 +394,7 @@ def command_list_lines(style: TerminalStyle, max_lines: int) -> list[str]:
     if len(lines) <= max_lines:
         return lines
     clipped = lines[: max(1, max_lines - 1)]
-    clipped.append(style.dim(f"showing 1-{len(clipped)}/{len(lines)}"))
+    clipped.append(style.dim(f"显示 1-{len(clipped)}/{len(lines)}"))
     return clipped
 
 
@@ -387,8 +404,8 @@ def _command_list_lines(
     include_group_spacing: bool,
 ) -> list[str]:
     lines = [
-        style.bold("Commands"),
-        "Use : then type a command. b/back returns to the file list.",
+        style.bold("命令"),
+        "输入 : 后键入命令。b/back 返回上一页，help 查看当前页能做什么。",
         "",
     ]
     command_width = max(

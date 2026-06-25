@@ -93,6 +93,7 @@ class BrowserState:
     source_context_lines: int = 3
     source_selection_start: int = 0
     source_selection_end: int = 0
+    help_topic_page: str = ""
     page: str = BrowserPage.CHANGED_FILES
     filter_text: str = ""
     source_filter: str = ""
@@ -189,6 +190,8 @@ class BrowserState:
             total = len(_scope_home_entries())
         elif self.page == BrowserPage.COMMAND_PALETTE:
             total = len(_filtered_command_palette_entries(self))
+        elif self.page == BrowserPage.HELP:
+            total = 1
         elif self.page == BrowserPage.TASK_OUTPUT:
             total = 1
         else:
@@ -411,11 +414,8 @@ class BrowserCommandExecutor:
                 return BrowserActionResult(needs_redraw=True)
             return BrowserActionResult()
         if action == BrowserCommandAction.HELP:
-            if raw_keys:
-                BrowserNavigation.show_changed_files(state)
-                return BrowserActionResult(needs_redraw=True)
-            _print_lines(_browse_help_lines(style))
-            return BrowserActionResult()
+            BrowserNavigation.show_page_help(state)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.OPEN_FILE:
             if state.page == BrowserPage.SOURCE_FILE:
                 message = _open_source_file(state, args)
@@ -1018,6 +1018,14 @@ def run_browser(args: argparse.Namespace) -> int:
                 )
             elif state.page == BrowserPage.COMMAND_PALETTE:
                 _print_lines(_browse_command_lines(style, max_lines=_screen_height()))
+            elif state.page == BrowserPage.HELP:
+                _print_lines(
+                    _browse_page_help_screen_lines(
+                        state,
+                        style,
+                        _screen_height(),
+                    )
+                )
             elif state.page == BrowserPage.SCOPE_HOME:
                 _print_lines(
                     [
@@ -2458,6 +2466,15 @@ def _draw_browse_screen(
                 body_lines,
             ),
         ]
+    elif state.page == BrowserPage.HELP:
+        lines = [
+            *header_lines,
+            *_browse_page_help_screen_lines(
+                state,
+                style,
+                body_lines,
+            ),
+        ]
     elif state.page == BrowserPage.TASK_OUTPUT:
         lines = [
             *header_lines,
@@ -2669,6 +2686,14 @@ def _browse_command_palette_screen_lines(
     )
     state.command_scroll = screen.scroll
     return screen.lines
+
+
+def _browse_page_help_screen_lines(
+    state: BrowserState,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    return page_content.page_help_screen_lines(state, style, max_lines)
 
 
 def _browse_scope_home_screen_lines(

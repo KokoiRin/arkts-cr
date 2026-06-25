@@ -1184,9 +1184,10 @@ class CliTests(unittest.TestCase):
         lines = command_catalog.command_list_lines(TerminalStyle(False), max_lines=120)
         text = "\n".join(lines)
 
-        self.assertEqual([group.title for group in groups][0], "Navigation")
-        self.assertIn("Commands", text)
-        self.assertIn("Review scope", text)
+        self.assertEqual([group.title for group in groups][0], "导航")
+        self.assertIn("命令", text)
+        self.assertIn("审查范围", text)
+        self.assertIn("显示当前页面帮助", text)
         self.assertIn("copy prompt file", text)
         self.assertIn("done next", text)
         self.assertIn("note change TEXT", text)
@@ -1290,9 +1291,42 @@ class CliTests(unittest.TestCase):
         text = "\n".join(screen.lines)
 
         self.assertEqual(screen.scroll, 0)
-        self.assertIn("Command palette", text)
-        self.assertIn("Filter: build", text)
+        self.assertIn("命令面板", text)
+        self.assertIn("过滤：build", text)
         self.assertIn("> ", text)
+
+    def test_page_content_help_screen_explains_current_page_in_chinese(self):
+        state = BrowserState([], page=BrowserPage.HELP, help_topic_page=BrowserPage.TASK_PROBLEMS)
+
+        lines = page_content.page_help_screen_lines(
+            state,
+            TerminalStyle(False),
+            max_lines=40,
+        )
+        text = "\n".join(lines)
+
+        self.assertIn("Task Problems 帮助", text)
+        self.assertIn("这个页面能做什么", text)
+        self.assertIn("按文件分组", text)
+        self.assertIn("problems group file", text)
+        self.assertIn("copy problem context", text)
+        self.assertIn("save problem context", text)
+
+    def test_page_content_help_screen_lists_source_file_commands(self):
+        state = BrowserState([], page=BrowserPage.HELP, help_topic_page=BrowserPage.SOURCE_FILE)
+
+        text = "\n".join(
+            page_content.page_help_screen_lines(
+                state,
+                TerminalStyle(False),
+                max_lines=40,
+            )
+        )
+
+        self.assertIn("Source File 帮助", text)
+        self.assertIn("source select START END", text)
+        self.assertIn("copy source", text)
+        self.assertIn("选择源码行范围", text)
 
     def test_page_content_contextual_action_bar_matches_current_page(self):
         style = TerminalStyle(False)
@@ -1318,61 +1352,68 @@ class CliTests(unittest.TestCase):
             style,
         )
 
-        self.assertIn("Actions:", changed_files)
-        self.assertIn("Enter open", changed_files)
-        self.assertIn("done next", changed_files)
+        self.assertIn("操作：", changed_files)
+        self.assertIn("Enter 打开", changed_files)
+        self.assertIn("done next 完成并下一个", changed_files)
         self.assertIn("build", changed_files)
-        self.assertIn("copy task", changed_files)
-        self.assertIn("]/[ hunk", file_detail)
-        self.assertIn("find", file_detail)
-        self.assertIn("copy line", file_detail)
-        self.assertIn("Enter select", scope_home)
+        self.assertIn("copy task 复制任务", changed_files)
+        self.assertIn("help 帮助", changed_files)
+        self.assertIn("]/[ 跳转 hunk", file_detail)
+        self.assertIn("find 查找", file_detail)
+        self.assertIn("copy line 复制行", file_detail)
+        self.assertIn("Enter 选择", scope_home)
         self.assertIn(":base", scope_home)
-        self.assertIn("/ filter commits", commit_picker)
-        self.assertIn("Enter run", command_palette)
+        self.assertIn("/ 过滤提交", commit_picker)
+        self.assertIn("Enter 执行", command_palette)
         task_output = page_content.contextual_action_bar(
             BrowserPage.TASK_OUTPUT,
             style,
         )
-        self.assertIn("copy task", task_output)
-        self.assertIn("save task", task_output)
-        self.assertIn("find", task_output)
-        self.assertIn("next match", task_output)
+        self.assertIn("copy task 复制任务", task_output)
+        self.assertIn("save task 保存任务", task_output)
+        self.assertIn("find 查找", task_output)
+        self.assertIn("next match 下个匹配", task_output)
         self.assertIn("stop", task_output)
-        self.assertIn("b back", task_output)
+        self.assertIn("b 返回", task_output)
         task_problems = page_content.contextual_action_bar(
             BrowserPage.TASK_PROBLEMS,
             style,
         )
-        self.assertIn("Enter open", task_problems)
-        self.assertIn("errors", task_problems)
-        self.assertIn("warnings", task_problems)
-        self.assertIn("all", task_problems)
-        self.assertIn("find", task_problems)
-        self.assertIn("sort severity", task_problems)
-        self.assertIn("group file", task_problems)
-        self.assertIn("task output", task_problems)
-        self.assertIn("copy problem", task_problems)
-        self.assertIn("copy problems", task_problems)
-        self.assertIn("copy context", task_problems)
-        self.assertIn("save context", task_problems)
-        self.assertIn("view problem", task_problems)
-        self.assertIn("b back", task_problems)
+        self.assertIn("Enter 打开", task_problems)
+        self.assertIn("errors 错误", task_problems)
+        self.assertIn("warnings 警告", task_problems)
+        self.assertIn("all 全部", task_problems)
+        self.assertIn("find 查找", task_problems)
+        self.assertIn("sort severity 按严重度", task_problems)
+        self.assertIn("group file 按文件分组", task_problems)
+        self.assertIn("task output 任务输出", task_problems)
+        self.assertIn("copy problem 复制问题", task_problems)
+        self.assertIn("copy problems 复制列表", task_problems)
+        self.assertIn("copy context 复制上下文", task_problems)
+        self.assertIn("save context 保存上下文", task_problems)
+        self.assertIn("view problem 查看源码", task_problems)
+        self.assertIn("b 返回", task_problems)
         source_file_bar = page_content.contextual_action_bar(
             BrowserPage.SOURCE_FILE,
             style,
         )
-        self.assertIn("↑/↓ scroll", source_file_bar)
-        self.assertIn("find", source_file_bar)
-        self.assertIn("next match", source_file_bar)
-        self.assertIn("open", source_file_bar)
-        self.assertIn("copy line", source_file_bar)
-        self.assertIn("copy source", source_file_bar)
-        self.assertIn("copy context", source_file_bar)
-        self.assertIn("save context", source_file_bar)
-        self.assertIn("source context", source_file_bar)
-        self.assertIn("select range", source_file_bar)
-        self.assertIn("b back", source_file_bar)
+        self.assertIn("↑/↓ 滚动", source_file_bar)
+        self.assertIn("find 查找", source_file_bar)
+        self.assertIn("next match 下个匹配", source_file_bar)
+        self.assertIn("open 打开", source_file_bar)
+        self.assertIn("copy line 复制行", source_file_bar)
+        self.assertIn("copy source 复制源码", source_file_bar)
+        self.assertIn("copy context 复制上下文", source_file_bar)
+        self.assertIn("save context 保存上下文", source_file_bar)
+        self.assertIn("source context 上下文行数", source_file_bar)
+        self.assertIn("select range 选择范围", source_file_bar)
+        self.assertIn("b 返回", source_file_bar)
+        help_bar = page_content.contextual_action_bar(
+            BrowserPage.HELP,
+            style,
+        )
+        self.assertIn("b 返回", help_bar)
+        self.assertIn("commands 命令面板", help_bar)
         self.assertNotEqual(changed_files, file_detail)
 
     def test_page_content_contextual_action_bar_uses_line_fitting(self):
@@ -1382,7 +1423,7 @@ class CliTests(unittest.TestCase):
             lambda line: line[:20],
         )
 
-        self.assertEqual(fitted, "Actions: Enter open")
+        self.assertEqual(fitted, "操作：Enter 打开  |  / 过滤")
 
     def test_page_content_task_output_screen_lines_render_current_task(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -1675,6 +1716,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(BrowserPage.CHANGED_FILES, "list")
         self.assertEqual(BrowserPage.FILE_DETAIL, "file")
         self.assertEqual(BrowserPage.COMMAND_PALETTE, "commands")
+        self.assertEqual(BrowserPage.HELP, "help")
         self.assertEqual(BrowserPage.TASK_OUTPUT, "task-output")
         self.assertEqual(BrowserPage.TASK_PROBLEMS, "problems")
         self.assertEqual(BrowserPage.SOURCE_FILE, "source")
@@ -1697,6 +1739,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("BrowserPage.COMMIT_PICKER", source)
         self.assertIn("BrowserPage.SCOPE_HOME", source)
         self.assertIn("BrowserPage.COMMAND_PALETTE", source)
+        self.assertIn("BrowserPage.HELP", source)
         self.assertIn("BrowserPage.TASK_OUTPUT", source)
         self.assertIn("BrowserPage.TASK_PROBLEMS", source)
         self.assertIn("BrowserPage.SOURCE_FILE", source)
@@ -1788,6 +1831,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_context_lines, 3)
         self.assertEqual(state.source_selection_start, 0)
         self.assertEqual(state.source_selection_end, 0)
+
+        BrowserNavigation.show_page_help(state)
+        self.assertEqual(state.page, BrowserPage.HELP)
+        self.assertEqual(state.help_topic_page, BrowserPage.SOURCE_FILE)
 
     def test_browser_navigation_replaces_pages_without_history(self):
         state = BrowserState(
@@ -1920,6 +1967,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.problem_selected, 2)
         self.assertEqual(state.problem_scroll, 1)
 
+        BrowserNavigation.show_page_help(state)
+        BrowserNavigation.go_back(state)
+        BrowserNavigation.go_forward(state)
+
+        self.assertEqual(state.page, BrowserPage.HELP)
+        self.assertEqual(state.help_topic_page, BrowserPage.TASK_PROBLEMS)
+
     def test_browser_navigation_back_returns_to_page_that_opened_command_palette(self):
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
@@ -1929,6 +1983,20 @@ class CliTests(unittest.TestCase):
         )
 
         BrowserNavigation.show_command_palette(state)
+        BrowserNavigation.go_back(state)
+
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 12)
+
+    def test_browser_navigation_back_returns_to_page_that_opened_help(self):
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=12,
+        )
+
+        BrowserNavigation.show_page_help(state)
         BrowserNavigation.go_back(state)
 
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
@@ -7818,6 +7886,26 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.needs_redraw)
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
 
+    def test_browser_command_executor_opens_page_help(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([], page=BrowserPage.SOURCE_FILE, source_file_path="src/Foo.ets")
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("help"))
+
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.HELP)
+        self.assertEqual(state.help_topic_page, BrowserPage.SOURCE_FILE)
+        BrowserNavigation.go_back(state)
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+
     def test_switch_review_scope_resets_page_history(self):
         args = argparse_namespace(
             staged=False,
@@ -9893,7 +9981,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("> 1", text)
         self.assertIn("└─ src", text)
         self.assertIn("└─ Sample.ts", text)
-        self.assertIn("Actions: Enter open", text)
+        self.assertIn("操作：Enter 打开", text)
 
     def test_browse_screen_action_bar_coexists_with_task_panel(self):
         args = argparse_namespace(
@@ -9921,7 +10009,7 @@ class CliTests(unittest.TestCase):
                         _draw_browse_screen(state, args, TerminalStyle(False))
 
         text = output.getvalue()
-        self.assertIn("Actions: Enter open", text)
+        self.assertIn("操作：Enter 打开", text)
         self.assertIn("compile line", text)
         self.assertIn("Build running", text)
 
@@ -9948,7 +10036,7 @@ class CliTests(unittest.TestCase):
 
         text = output.getvalue()
         self.assertIn("Scope: worktree > Files > src/Sample.ts", text)
-        self.assertIn("Actions: ]/[ hunk", text)
+        self.assertIn("操作：]/[ 跳转 hunk", text)
 
     def test_browse_screen_recent_commits_stays_scope_picker(self):
         args = argparse_namespace(
@@ -10891,9 +10979,9 @@ class CliTests(unittest.TestCase):
 
         text = output.getvalue()
         process.wait(timeout=1)
-        self.assertIn("Command palette", text)
-        self.assertIn("Enter: run selected command", text)
-        self.assertIn("Review scope", text)
+        self.assertIn("命令面板", text)
+        self.assertIn("Enter：执行选中命令", text)
+        self.assertIn("审查范围", text)
         self.assertIn("compile line", text)
         self.assertIn("\033[40;1H\033[2Kcr:commands> ", text)
 
@@ -11311,12 +11399,12 @@ class CliTests(unittest.TestCase):
         lines = _browse_command_lines(TerminalStyle(False), max_lines=100)
         text = "\n".join(lines)
 
-        self.assertIn("Commands", text)
-        self.assertIn("Navigation", text)
-        self.assertIn("Review scope", text)
-        self.assertIn("Tasks", text)
-        self.assertIn("Files", text)
-        self.assertIn("Session", text)
+        self.assertIn("命令", text)
+        self.assertIn("导航", text)
+        self.assertIn("审查范围", text)
+        self.assertIn("任务", text)
+        self.assertIn("文件", text)
+        self.assertIn("会话", text)
         self.assertIn("staged", text)
         self.assertIn("build", text)
         self.assertIn("done next", text)
@@ -11465,8 +11553,8 @@ class CliTests(unittest.TestCase):
             _draw_browse_screen(state, args, TerminalStyle(False))
 
         text = output.getvalue()
-        self.assertIn("Command palette", text)
-        self.assertIn("Enter: run selected command", text)
+        self.assertIn("命令面板", text)
+        self.assertIn("Enter：执行选中命令", text)
         self.assertIn("> ", text)
 
     def test_command_palette_screen_shows_filter_and_empty_results(self):
@@ -11489,9 +11577,9 @@ class CliTests(unittest.TestCase):
 
         text = output.getvalue()
         total = len(_command_palette_entries())
-        self.assertIn(f"Filter: zz-missing (0/{total} matches)", text)
-        self.assertIn("No matching commands.", text)
-        self.assertNotIn("run configured repo build", text)
+        self.assertIn(f"过滤：zz-missing （0/{total} 个匹配）", text)
+        self.assertIn("没有匹配命令。", text)
+        self.assertNotIn("运行仓库配置的编译命令", text)
 
     def test_command_palette_screen_shows_filter_match_count(self):
         state = BrowserState([], page="commands", command_filter_text="build")
@@ -11504,7 +11592,7 @@ class CliTests(unittest.TestCase):
         total = len(_command_palette_entries())
         matches = len(_filtered_command_palette_entries(state))
 
-        self.assertIn(f"Filter: build ({matches}/{total} matches)", text)
+        self.assertIn(f"过滤：build （{matches}/{total} 个匹配）", text)
         self.assertGreater(matches, 0)
 
     def test_command_palette_enter_executes_selected_command_not_file_open(self):
@@ -12313,7 +12401,7 @@ struct SamplePage {
 
             session = self._cr_input(repo, "q\n")
             self.assertEqual(session.returncode, 0, session.stderr)
-            self.assertIn("Interactive review", session.stdout)
+            self.assertIn("交互式代码审查", session.stdout)
             self.assertIn("Changed files", session.stdout)
             self.assertIn("Enter", session.stdout)
             self.assertIn("j/k", session.stdout)
@@ -12336,7 +12424,7 @@ struct SamplePage {
 
             session = self._cr_input(repo, "q\n", "--context", "0", "--sort", "path")
             self.assertEqual(session.returncode, 0, session.stderr)
-            self.assertIn("Interactive review", session.stdout)
+            self.assertIn("交互式代码审查", session.stdout)
             self.assertIn("Sample.ts", session.stdout)
 
     def test_cli_interactive_browser_opens_file_and_navigates(self):
@@ -12626,9 +12714,9 @@ struct SamplePage {
             )
 
             self.assertEqual(session.returncode, 0, session.stderr)
-            self.assertGreaterEqual(session.stdout.count("Commands"), 3)
-            self.assertIn("Review scope", session.stdout)
-            self.assertIn("Tasks", session.stdout)
+            self.assertGreaterEqual(session.stdout.count("命令"), 3)
+            self.assertIn("审查范围", session.stdout)
+            self.assertIn("任务", session.stdout)
             self.assertIn("cr:commands>", session.stdout)
             self.assertIn("Changed files", session.stdout)
 

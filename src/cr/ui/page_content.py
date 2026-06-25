@@ -71,17 +71,19 @@ def browse_prompt(page: str) -> str:
         return "cr:problems> "
     if page == BrowserPage.SOURCE_FILE:
         return "cr:source> "
+    if page == BrowserPage.HELP:
+        return "cr:help> "
     return "cr:list> "
 
 
 def browse_help_lines(style: TerminalStyle) -> list[str]:
     return [
-        style.bold("Interactive review"),
-        "  ↑/↓ or j/k: move    Enter/→: open file   ←/b: back    forward: next page",
-        "  /: filter files     c: clear filter      m: seen      remaining: todo",
-        "  : command prompt    build/test/lint/tasks help    note/notes/copy/save/actions",
-        "  PgUp/PgDn or u/d: page    Home/End: jump    ]/[: next/prev hunk",
-        "  n/p: file prev/next    scopes: scope home    g: commits    w: worktree    r: refresh    q: quit",
+        style.bold("交互式代码审查"),
+        "  ↑/↓ 或 j/k：移动    Enter/→：打开    ←/b：返回    forward：前进",
+        "  /：过滤文件          c：清除过滤       m：标记已看  remaining：待看",
+        "  :：输入命令          help：当前页帮助   commands：命令面板",
+        "  PgUp/PgDn 或 u/d：翻页    Home/End：跳转    ]/[：下/上一个 hunk",
+        "  n/p：上/下个文件    scopes：范围首页    g：提交列表  r：刷新  q：退出",
         "",
     ]
 
@@ -93,92 +95,231 @@ def contextual_action_bar(
 ) -> str:
     actions_by_page = {
         BrowserPage.CHANGED_FILES: (
-            "Enter open",
-            "/ filter",
-            "done next",
-            "stage",
+            "Enter 打开",
+            "/ 过滤",
+            "done next 完成并下一个",
+            "stage 暂存",
             "build",
-            "copy task",
-            "commands",
+            "copy task 复制任务",
+            "help 帮助",
         ),
         BrowserPage.FILE_DETAIL: (
-            "]/[ hunk",
-            "next change",
-            "find",
-            "open line",
-            "copy line",
-            "done next",
-            "b files",
+            "]/[ 跳转 hunk",
+            "next change 下个改动",
+            "find 查找",
+            "open line 打开行",
+            "copy line 复制行",
+            "done next 完成并下一个",
+            "b 文件列表",
+            "help 帮助",
         ),
         BrowserPage.SCOPE_HOME: (
-            "Enter select",
-            "g commits",
+            "Enter 选择",
+            "g commits 提交",
             ":base REF",
             ":range OLD..NEW",
-            "b back",
-            "commands",
+            "b 返回",
+            "commands 命令面板",
+            "help 帮助",
         ),
         BrowserPage.COMMIT_PICKER: (
-            "Enter select",
-            "/ filter commits",
-            "c clear",
-            "b back",
-            "commands",
+            "Enter 选择",
+            "/ 过滤提交",
+            "c 清除",
+            "b 返回",
+            "commands 命令面板",
+            "help 帮助",
         ),
         BrowserPage.COMMAND_PALETTE: (
-            "Enter run",
-            "/ search",
-            "c clear",
-            "b back",
+            "Enter 执行",
+            "/ 搜索",
+            "c 清除",
+            "b 返回",
+            "help 帮助",
+        ),
+        BrowserPage.HELP: (
+            "b 返回",
+            "commands 命令面板",
+            "q 退出",
         ),
         BrowserPage.TASK_OUTPUT: (
-            "↑/↓ scroll",
-            "find",
-            "next match",
-            "problems",
-            "copy task",
-            "save task",
+            "↑/↓ 滚动",
+            "find 查找",
+            "next match 下个匹配",
+            "problems 问题列表",
+            "copy task 复制任务",
+            "save task 保存任务",
             "stop",
             "rerun",
-            "b back",
+            "b 返回",
+            "help 帮助",
         ),
         BrowserPage.TASK_PROBLEMS: (
-            "Enter open",
-            "↑/↓ select",
-            "errors",
-            "warnings",
-            "all",
-            "find",
-            "sort severity",
-            "group file",
-            "view problem",
-            "task output",
-            "copy problem",
-            "copy problems",
-            "copy context",
-            "save context",
-            "copy task",
-            "b back",
+            "Enter 打开",
+            "↑/↓ 选择",
+            "errors 错误",
+            "warnings 警告",
+            "all 全部",
+            "find 查找",
+            "sort severity 按严重度",
+            "group file 按文件分组",
+            "view problem 查看源码",
+            "task output 任务输出",
+            "copy problem 复制问题",
+            "copy problems 复制列表",
+            "copy context 复制上下文",
+            "save context 保存上下文",
+            "copy task 复制任务",
+            "b 返回",
+            "help 帮助",
         ),
         BrowserPage.SOURCE_FILE: (
-            "↑/↓ scroll",
-            "find",
-            "next match",
-            "open",
-            "copy line",
-            "copy source",
-            "copy context",
-            "save context",
-            "source context",
-            "select range",
-            "b back",
+            "↑/↓ 滚动",
+            "find 查找",
+            "next match 下个匹配",
+            "open 打开",
+            "copy line 复制行",
+            "copy source 复制源码",
+            "copy context 复制上下文",
+            "save context 保存上下文",
+            "source context 上下文行数",
+            "select range 选择范围",
+            "b 返回",
+            "help 帮助",
         ),
     }
     actions = actions_by_page.get(page, actions_by_page[BrowserPage.CHANGED_FILES])
-    line = "Actions: " + "  |  ".join(actions)
+    line = "操作：" + "  |  ".join(actions)
     if fit_line is not None:
         line = fit_line(line).rstrip()
     return style.dim(line)
+
+
+def page_help_screen_lines(
+    state: Any,
+    style: TerminalStyle,
+    max_lines: int,
+) -> list[str]:
+    topic_page = getattr(state, "help_topic_page", "") or BrowserPage.CHANGED_FILES
+    title, purpose, commands = _page_help_topic(topic_page)
+    lines = [
+        style.bold(f"{title} 帮助"),
+        "",
+        style.bold("这个页面能做什么"),
+        f"  {purpose}",
+        "",
+        style.bold("常用操作"),
+    ]
+    lines.extend(f"  {command}" for command in commands)
+    lines.extend(
+        [
+            "",
+            style.dim("通用：b 返回上一页，commands 打开命令面板，q 退出。"),
+        ]
+    )
+    return lines[:max_lines]
+
+
+def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
+    topics = {
+        BrowserPage.CHANGED_FILES: (
+            "Changed Files",
+            "查看当前审查范围里的改动文件，按路径层级浏览并进入文件详情。",
+            (
+                "Enter / 1..N：打开选中文件或指定编号的文件",
+                "/QUERY：按路径过滤文件，c 清除过滤",
+                "done next：标记已看并移动到下一个文件",
+                "stage / unstage：暂存或取消暂存当前文件",
+                "build / test / lint：运行仓库配置的任务",
+                "copy path / copy diff / copy prompt：复制路径、diff 或审查提示",
+                "scopes：切换审查范围，g / commits：查看最近提交",
+            ),
+        ),
+        BrowserPage.FILE_DETAIL: (
+            "File Detail",
+            "查看单个文件的改动、hunk、源码行和审查备注。",
+            (
+                "↑/↓ / PgUp/PgDn / Home/End：滚动文件详情",
+                "]/[ 或 next hunk / prev hunk：跳转 hunk",
+                "next change / prev change：跳转改动行",
+                "find TEXT / next match / prev match：查找并跳转匹配",
+                "open line / open hunk：在编辑器打开当前行或 hunk",
+                "copy line / copy hunk / copy change：复制当前上下文",
+                "note change TEXT：给当前改动行追加备注",
+            ),
+        ),
+        BrowserPage.SCOPE_HOME: (
+            "Scope Home",
+            "选择要审查的范围：工作区、暂存区、本地全部改动、基准分支或提交。",
+            (
+                "Enter：选择当前范围",
+                "worktree / staged / all：切换常用审查范围",
+                "base REF：审查相对某个基准的改动",
+                "range OLD..NEW：审查两个 ref 之间的差异",
+                "g / commits：进入最近提交列表",
+            ),
+        ),
+        BrowserPage.COMMIT_PICKER: (
+            "Commit Picker",
+            "从最近提交中选择一个提交作为审查对象。",
+            (
+                "↑/↓：选择提交",
+                "Enter：打开选中提交的改动",
+                "/QUERY：按提交信息过滤，c 清除过滤",
+                "worktree：回到工作区改动",
+            ),
+        ),
+        BrowserPage.COMMAND_PALETTE: (
+            "Command Palette",
+            "搜索并执行可执行命令，适合不记得完整命令时使用。",
+            (
+                "↑/↓：选择命令",
+                "/QUERY：过滤命令，c 清除过滤",
+                "Enter：执行选中命令",
+                "help：查看当前页帮助",
+            ),
+        ),
+        BrowserPage.TASK_OUTPUT: (
+            "Task Output",
+            "查看 build/test/lint 等任务输出，同时可以继续回到代码页面浏览。",
+            (
+                "↑/↓ / PgUp/PgDn：滚动任务输出",
+                "find TEXT / next match / prev match：查找输出",
+                "problems：进入解析出的问题列表",
+                "copy task / save task：复制或保存任务输出",
+                "stop：停止运行中任务，rerun：重跑最近任务",
+            ),
+        ),
+        BrowserPage.TASK_PROBLEMS: (
+            "Task Problems",
+            "查看任务输出解析出来的问题，并跳到源码或复制上下文给 AI。",
+            (
+                "Enter / view problem：打开选中问题的源码位置",
+                "problems errors / warnings / all：切换问题级别",
+                "problems find TEXT / problems clear find：过滤或清除过滤",
+                "problems sort severity / output：按严重度或输出顺序排序",
+                "problems group file / none：按文件分组或恢复平铺列表",
+                "copy problem / copy problems：复制当前问题或当前列表",
+                "copy problem context / save problem context：复制或保存源码和 diff 上下文",
+                "task output：回到任务输出",
+            ),
+        ),
+        BrowserPage.SOURCE_FILE: (
+            "Source File",
+            "围绕任务问题查看原始源码，并复制源码、行锚点或问题上下文。",
+            (
+                "↑/↓ / PgUp/PgDn：滚动源码",
+                "find TEXT / next match / prev match：查找源码内容",
+                "open / copy line：打开或复制当前源码行",
+                "copy source：复制当前源码上下文",
+                "source context N：设置复制源码的上下文行数",
+                "source select START END：选择源码行范围",
+                "source clear selection：清除选择源码行范围",
+                "copy problem context / save problem context：复制或保存问题上下文",
+            ),
+        ),
+    }
+    return topics.get(page, topics[BrowserPage.CHANGED_FILES])
 
 
 def scope_home_entries() -> tuple[ScopeHomeEntry, ...]:
@@ -222,6 +363,8 @@ def product_breadcrumb(state: Any, args: argparse.Namespace) -> str:
         return label
     if state.page == BrowserPage.COMMAND_PALETTE:
         return f"{label} > Commands"
+    if state.page == BrowserPage.HELP:
+        return f"{label} > Help"
     if state.page == BrowserPage.TASK_OUTPUT:
         return f"{label} > Task Output"
     if state.page == BrowserPage.TASK_PROBLEMS:

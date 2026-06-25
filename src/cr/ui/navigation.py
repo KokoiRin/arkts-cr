@@ -17,6 +17,7 @@ class BrowserPage:
     CHANGED_FILES = "list"
     FILE_DETAIL = "file"
     COMMAND_PALETTE = "commands"
+    HELP = "help"
     TASK_OUTPUT = "task-output"
     TASK_PROBLEMS = "problems"
     SOURCE_FILE = "source"
@@ -48,6 +49,7 @@ class BrowserPageSnapshot:
     source_context_lines: int = 3
     source_selection_start: int = 0
     source_selection_end: int = 0
+    help_topic_page: str = ""
 
 
 class _BrowserNavigationState(Protocol):
@@ -75,6 +77,7 @@ class _BrowserNavigationState(Protocol):
     source_context_lines: int
     source_selection_start: int
     source_selection_end: int
+    help_topic_page: str
     page_back_stack: list[BrowserPageSnapshot]
     page_forward_stack: list[BrowserPageSnapshot]
 
@@ -98,6 +101,13 @@ class BrowserNavigation:
         state.page = BrowserPage.COMMAND_PALETTE
         state.command_selected = 0
         state.command_scroll = 0
+
+    @staticmethod
+    def show_page_help(state: _BrowserNavigationState) -> None:
+        topic_page = state.help_topic_page if state.page == BrowserPage.HELP else state.page
+        BrowserNavigation._record_transition(state, BrowserPage.HELP)
+        state.page = BrowserPage.HELP
+        state.help_topic_page = topic_page
 
     @staticmethod
     def show_task_output(state: _BrowserNavigationState) -> None:
@@ -177,6 +187,7 @@ class BrowserNavigation:
             return
         if state.page in {
             BrowserPage.COMMAND_PALETTE,
+            BrowserPage.HELP,
             BrowserPage.SCOPE_HOME,
             BrowserPage.FILE_DETAIL,
             BrowserPage.TASK_OUTPUT,
@@ -239,6 +250,7 @@ class BrowserNavigation:
             source_context_lines=state.source_context_lines,
             source_selection_start=state.source_selection_start,
             source_selection_end=state.source_selection_end,
+            help_topic_page=state.help_topic_page,
         )
 
     @staticmethod
@@ -270,6 +282,7 @@ class BrowserNavigation:
         state.source_context_lines = snapshot.source_context_lines
         state.source_selection_start = snapshot.source_selection_start
         state.source_selection_end = snapshot.source_selection_end
+        state.help_topic_page = snapshot.help_topic_page
 
     @staticmethod
     def _restore_changed_files_fallback(state: _BrowserNavigationState) -> None:

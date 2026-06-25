@@ -124,6 +124,8 @@ open line        用编辑器打开当前渲染行
 view source      在 TUI 中查看当前源码行
 copy source      复制当前源码行附近上下文
 copy source symbol 复制当前函数或方法范围
+copy problem context 复制当前源码行 + diff 上下文
+save problem context 保存当前源码行 + diff 上下文
 copy line        复制当前行锚点
 copy hunk        复制当前 hunk
 copy change      复制当前改动行上下文

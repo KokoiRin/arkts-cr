@@ -588,11 +588,11 @@ class BrowserCommandExecutor:
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_PROBLEM_CONTEXT:
-            message = _copy_problem_context(state, args)
+            message = _copy_problem_context(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_PROBLEM_CONTEXT:
-            message = _save_problem_context(state, args, parsed_command.value)
+            message = _save_problem_context(state, args, style, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SHOW_TASK_OUTPUT:
@@ -1425,10 +1425,15 @@ def _copy_file_task_problems(state: BrowserState, args: argparse.Namespace) -> s
     return f"Copied {len(file_problems)} task problems for {selected_path}."
 
 
-def _copy_problem_context(state: BrowserState, args: argparse.Namespace) -> str:
+def _copy_problem_context(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
     text, anchor, error = _problem_context_text(
         state,
         args,
+        style,
         empty_message="No problem context to copy.",
     )
     if error:
@@ -1442,11 +1447,13 @@ def _copy_problem_context(state: BrowserState, args: argparse.Namespace) -> str:
 def _save_problem_context(
     state: BrowserState,
     args: argparse.Namespace,
+    style: TerminalStyle,
     requested_path: str = "",
 ) -> str:
     text, _anchor, error = _problem_context_text(
         state,
         args,
+        style,
         empty_message="No problem context to save.",
     )
     if error:
@@ -1464,20 +1471,25 @@ def _save_problem_context(
 def _problem_context_text(
     state: BrowserState,
     args: argparse.Namespace,
+    style: TerminalStyle,
     *,
     empty_message: str,
 ) -> tuple[str, str, str]:
-    target = _problem_context_target(state)
+    target = _problem_context_target(state, args, style)
     if target is None:
         return "", "", empty_message
+    if isinstance(target, str):
+        return "", "", target
     content = source_file_module.load_source_file_content(git.repo_root(), target.path)
     if content.error:
         return "", "", content.error
+    symbol_label = _source_symbol_label_for_content(content, target.line)
     if target.source_range is None:
         source_text = source_file_module.source_context_markdown(
             content,
             target_line=target.line,
             context_lines=target.context_lines,
+            symbol_label=symbol_label,
         )
     else:
         start_line, end_line = target.source_range
@@ -1486,7 +1498,7 @@ def _problem_context_text(
             start_line=start_line,
             end_line=end_line,
             target_line=target.line,
-            symbol_label=_source_symbol_label_for_content(content, target.line),
+            symbol_label=symbol_label,
         )
     anchor = f"{content.path}:{max(1, min(target.line, len(content.lines)))}"
     text = problem_context_module.problem_context_markdown(
@@ -1499,7 +1511,11 @@ def _problem_context_text(
     return text, anchor, ""
 
 
-def _problem_context_target(state: BrowserState) -> ProblemContextTarget | None:
+def _problem_context_target(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> ProblemContextTarget | str | None:
     if state.page in {BrowserPage.TASK_OUTPUT, BrowserPage.TASK_PROBLEMS}:
         problem = _current_task_problem_for_action(state)
         if problem is None:
@@ -1517,6 +1533,21 @@ def _problem_context_target(state: BrowserState) -> ProblemContextTarget | None:
             line=max(1, state.source_file_line),
             context_lines=state.source_context_lines,
             source_range=_source_selection_range(state),
+        )
+    if state.page == BrowserPage.FILE_DETAIL:
+        target = _file_detail_source_target(
+            state,
+            args,
+            style,
+            no_file_message="No changed file to copy problem context.",
+        )
+        if isinstance(target, str):
+            return target
+        path, line = target
+        return ProblemContextTarget(
+            path=path,
+            line=line,
+            context_lines=state.source_context_lines,
         )
     return None
 

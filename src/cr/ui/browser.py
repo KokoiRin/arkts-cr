@@ -547,6 +547,10 @@ class BrowserCommandExecutor:
             message = _copy_task_problems(state, args)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_FILE_TASK_PROBLEMS:
+            message = _copy_file_task_problems(state, args)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_PROBLEM_CONTEXT:
             message = _copy_problem_context(state, args)
             _show_browser_message(state, message, raw_keys, frame)
@@ -1315,6 +1319,20 @@ def _copy_task_problems(state: BrowserState, args: argparse.Namespace) -> str:
     if message:
         return message
     return f"Copied {len(problems)} task problems."
+
+
+def _copy_file_task_problems(state: BrowserState, args: argparse.Namespace) -> str:
+    problems = _current_task_problems(state)
+    if not problems:
+        return "No task problems to copy."
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    selected_path = problems[selected].path
+    file_problems = [problem for problem in problems if problem.path == selected_path]
+    text = task_problems_module.problems_handoff_text(file_problems)
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return f"Copied {len(file_problems)} task problems for {selected_path}."
 
 
 def _copy_problem_context(state: BrowserState, args: argparse.Namespace) -> str:

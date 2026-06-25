@@ -57,6 +57,7 @@ class BrowserCommandAction:
     COPY_TASK_OUTPUT = "copy_task_output"
     COPY_TASK_PROBLEM = "copy_task_problem"
     COPY_TASK_PROBLEMS = "copy_task_problems"
+    COPY_FILE_TASK_PROBLEMS = "copy_file_task_problems"
     COPY_PROBLEM_CONTEXT = "copy_problem_context"
     SHOW_TASK_OUTPUT = "show_task_output"
     SHOW_TASK_PROBLEMS = "show_task_problems"
@@ -229,6 +230,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_TASK_PROBLEM)
     if command in {"copy problems", "copy task problems"}:
         return BrowserCommand(BrowserCommandAction.COPY_TASK_PROBLEMS)
+    if command in {"copy file problems", "copy problem file", "copy task file problems"}:
+        return BrowserCommand(BrowserCommandAction.COPY_FILE_TASK_PROBLEMS)
     if command in {"copy problem context", "copy context"}:
         return BrowserCommand(BrowserCommandAction.COPY_PROBLEM_CONTEXT)
     if command in {"task output", "output", BrowserPage.TASK_OUTPUT}:

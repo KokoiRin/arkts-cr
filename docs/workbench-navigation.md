@@ -428,31 +428,31 @@ Status: implemented.
 
 Status: implemented.
 
-`copy problem` copies the selected Task Problems entry, while `copy problems` copies every current visible Task Problems entry in the active visible order. Handoff text includes severity, code, and cleaned message when present, plus the raw summary fallback. `cr.ui.task_problems` owns location, diagnostic fact extraction, severity filtering, optional severity sorting, and handoff text formatting; Browser Action Execution owns clipboard side effects through existing file actions. This intentionally stays lighter than a full diagnostics subsystem: no text query filtering, tool-specific parser registry, history search, persistence, or `save problems`.
+`copy problem` copies the selected Task Problems entry, `copy problems` copies every current visible Task Problems entry in the active visible order, and `copy file problems` copies visible entries that share the selected problem's path. Handoff text includes severity, code, and cleaned message when present, plus the raw summary fallback. `cr.ui.task_problems` owns location, diagnostic fact extraction, severity filtering, optional severity sorting, and handoff text formatting; Browser Action Execution owns clipboard side effects through existing file actions. This intentionally stays lighter than a full diagnostics subsystem: no quick-fix execution, tool-specific parser registry, history search, persistence, or `save problems`.
 
 ### P0: Task Problems severity filter
 
 Status: implemented.
 
-Task Problems supports page-local severity filters with `problems errors`, `problems warnings`, `problems info`, and `problems note`; `problems all` clears the filter. The active filter narrows the visible list before text query filtering and sorting, and movement, Enter/open, `view problem`, `copy problem`, and `copy problems` all operate on the filtered visible list. `BrowserState.problem_filter` is restored through page history snapshots, while `cr.ui.task_problems` owns the pure filtering rule. This intentionally avoids task history search and diagnostics persistence.
+Task Problems supports page-local severity filters with `problems errors`, `problems warnings`, `problems info`, and `problems note`; `problems all` clears the filter. The active filter narrows the visible list before text query filtering and sorting, and movement, Enter/open, `view problem`, `copy problem`, `copy problems`, and `copy file problems` all operate on the filtered visible list. `BrowserState.problem_filter` is restored through page history snapshots, while `cr.ui.task_problems` owns the pure filtering rule. This intentionally avoids task history search and diagnostics persistence.
 
 ### P0: Task Problems text filter
 
 Status: implemented.
 
-Task Problems supports `problems find TEXT` for case-insensitive plain-text filtering over path, `path:line[:column]` location, summary, severity, diagnostic code, and message. `problems clear find` clears the query. Text filtering applies after severity filtering and before sorting; movement, Enter/open, `view problem`, `copy problem`, `copy problems`, and `copy problem context` use the queried visible list. The header shows `find: TEXT`, and page history restores `problem_query`. This intentionally avoids regex, raw task-output history search, source-content search, persistence, and tool-specific diagnostic parsers.
+Task Problems supports `problems find TEXT` for case-insensitive plain-text filtering over path, `path:line[:column]` location, summary, severity, diagnostic code, and message. `problems clear find` clears the query. Text filtering applies after severity filtering and before sorting; movement, Enter/open, `view problem`, `copy problem`, `copy problems`, `copy file problems`, and `copy problem context` use the queried visible list. The header shows `find: TEXT`, and page history restores `problem_query`. This intentionally avoids regex, raw task-output history search, source-content search, persistence, and tool-specific diagnostic parsers.
 
 ### P0: Task Problems severity sort
 
 Status: implemented.
 
-Task Problems defaults to task-output order, then supports `problems sort severity` to group visible problems by `error`, `warning`, `info`, `note`, and unknown severity while preserving original output order inside each bucket. `problems sort output` restores task-output order. Sorting applies after severity and text filtering, updates the header with `sort: severity` only when active, and shares the same visible list used by movement, Enter/open, `view problem`, `copy problem`, and `copy problems`. `BrowserState.problem_sort` is page-local and restored through page history snapshots; it is not persisted across sessions.
+Task Problems defaults to task-output order, then supports `problems sort severity` to group visible problems by `error`, `warning`, `info`, `note`, and unknown severity while preserving original output order inside each bucket. `problems sort output` restores task-output order. Sorting applies after severity and text filtering, updates the header with `sort: severity` only when active, and shares the same visible list used by movement, Enter/open, `view problem`, `copy problem`, `copy problems`, and `copy file problems`. `BrowserState.problem_sort` is page-local and restored through page history snapshots; it is not persisted across sessions.
 
 ### P0: Task Problems file grouping
 
 Status: implemented.
 
-Task Problems supports `problems group file` to insert file headers into the current visible Problems list and `problems group none` to return to the flat list. Grouping is render-only: it applies after severity filtering, text filtering, and sorting have produced the visible problem list, and movement, Enter/open, `view problem`, `copy problem`, `copy problems`, `copy problem context`, and `save problem context` still use the same visible `TaskProblem` indices as flat mode. The header shows `group: file`, and page history restores `problem_group`. This intentionally avoids collapsible groups, group-level selection, group bulk actions, tool-specific diagnostic trees, and persisted grouping preferences.
+Task Problems supports `problems group file` to insert file headers into the current visible Problems list and `problems group none` to return to the flat list. Grouping is render-only: it applies after severity filtering, text filtering, and sorting have produced the visible problem list, and movement, Enter/open, `view problem`, `copy problem`, `copy problems`, `copy file problems`, `copy problem context`, and `save problem context` still use the same visible `TaskProblem` indices as flat mode. The header shows `group: file`, and page history restores `problem_group`. This intentionally avoids collapsible groups, group-level selection state, external quick-fix actions, tool-specific diagnostic trees, and persisted grouping preferences.
 
 ### P0: Task Problems severity counts
 

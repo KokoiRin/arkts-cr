@@ -131,6 +131,11 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("copy problem", "复制选中问题", "copy problem"),
                 CommandEntry("copy problems", "复制当前问题列表", "copy problems"),
                 CommandEntry(
+                    "copy file problems",
+                    "复制当前文件的问题列表",
+                    "copy file problems",
+                ),
+                CommandEntry(
                     "copy problem context",
                     "复制问题源码和 diff 上下文",
                     "copy problem context",

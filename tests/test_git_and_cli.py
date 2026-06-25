@@ -1253,6 +1253,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("problems group none", commands)
         self.assertIn("copy problem", commands)
         self.assertIn("copy problems", commands)
+        self.assertIn("copy file problems", commands)
         self.assertIn("copy problem context", commands)
         self.assertIn("save problem context", commands)
         self.assertIn("view problem", commands)
@@ -1396,6 +1397,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("task output 任务输出", task_problems)
         self.assertIn("copy problem 复制问题", task_problems)
         self.assertIn("copy problems 复制列表", task_problems)
+        self.assertIn("copy file problems 当前文件", task_problems)
         self.assertIn("copy context 复制上下文", task_problems)
         self.assertIn("save context 保存上下文", task_problems)
         self.assertIn("view problem 查看源码", task_problems)
@@ -2211,6 +2213,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy problems").action,
             BrowserCommandAction.COPY_TASK_PROBLEMS,
+        )
+        self.assertEqual(
+            parse_browser_command("copy file problems").action,
+            BrowserCommandAction.COPY_FILE_TASK_PROBLEMS,
         )
         self.assertEqual(
             parse_browser_command("copy problem context").action,
@@ -5342,6 +5348,120 @@ class CliTests(unittest.TestCase):
         self.assertIn("src/One.ets:1:1", copied)
         self.assertNotIn("src/Two.ets", copied)
         self.assertIn("Copied 1 task problems.", state.status_message)
+
+    def test_browser_command_executor_copies_selected_file_task_problems(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error E1: bad one",
+                        "src/One.ets:2:1 warning W2: warn one",
+                        "src/Two.ets:3:1 error E3: bad two",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy file problems"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("1. src/One.ets:1:1", copied)
+        self.assertIn("2. src/One.ets:2:1", copied)
+        self.assertNotIn("src/Two.ets", copied)
+        copy_text.assert_called_once_with(copied, "copy-tool")
+        self.assertIn("Copied 2 task problems for src/One.ets.", state.status_message)
+
+    def test_browser_command_executor_copies_visible_selected_file_task_problems(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_filter="error",
+                problem_selected=0,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error E1: bad one",
+                        "src/One.ets:2:1 warning W2: warn one",
+                        "src/Two.ets:3:1 error E3: bad two",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy file problems"))
+
+        self.assertTrue(result.handled)
+        copied = copy_text.call_args.args[0]
+        self.assertIn("src/One.ets:1:1", copied)
+        self.assertNotIn("src/One.ets:2:1", copied)
+        self.assertNotIn("src/Two.ets", copied)
+        self.assertIn("Copied 1 task problems for src/One.ets.", state.status_message)
+
+    def test_browser_command_executor_reports_empty_selected_file_task_problems(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(copy_cmd="copy-tool"),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+            result = executor.execute(parse_browser_command("copy file problems"))
+
+        self.assertTrue(result.handled)
+        copy_text.assert_not_called()
+        self.assertIn("No task problems to copy.", state.status_message)
 
     def test_browser_command_executor_copies_queried_task_problems(self):
         from cr.ui.browser import parse_browser_command

@@ -46,13 +46,13 @@ FUNCTION_RE = re.compile(
 )
 METHOD_RE = re.compile(
     r"^\s*(?:(?:public|private|protected)\s+)?"
-    r"(?:(?:static|async|override)\s+)*"
+    r"(?:(?:static|async|override|abstract)\s+)*"
     r"(?P<name>[A-Za-z_$][\w$]*)\s*(?:<[^>{}]+>)?\s*\([^)]*\)"
     r"\s*(?::[^={;]+)?[;{]?\s*$"
 )
 ACCESSOR_RE = re.compile(
     r"^\s*(?:(?:public|private|protected)\s+)?"
-    r"(?:(?:static|override)\s+)*"
+    r"(?:(?:static|override|abstract)\s+)*"
     r"(?:get|set)\s+(?P<name>[A-Za-z_$][\w$]*)\s*\([^)]*\)"
     r"\s*(?::[^={;]+)?[;{]?\s*$"
 )
@@ -224,7 +224,7 @@ def _match_symbol(lines: list[str], index: int, line: str) -> Symbol | None:
             name=function.group("name"),
             line=index,
             indent=indent,
-            end_line=_estimate_end_line(lines, index),
+            end_line=_estimate_end_line(lines, index, single_line_without_body=True),
         )
 
     arrow = ARROW_FUNCTION_RE.match(line)
@@ -234,7 +234,7 @@ def _match_symbol(lines: list[str], index: int, line: str) -> Symbol | None:
             name=arrow.group("name"),
             line=index,
             indent=indent,
-            end_line=_estimate_end_line(lines, index),
+            end_line=_estimate_end_line(lines, index, single_line_without_body=True),
         )
 
     field_arrow_name = _field_arrow_function_name(line)
@@ -244,7 +244,7 @@ def _match_symbol(lines: list[str], index: int, line: str) -> Symbol | None:
             name=field_arrow_name,
             line=index,
             indent=indent,
-            end_line=_estimate_end_line(lines, index),
+            end_line=_estimate_end_line(lines, index, single_line_without_body=True),
         )
 
     accessor = ACCESSOR_RE.match(line)
@@ -254,7 +254,7 @@ def _match_symbol(lines: list[str], index: int, line: str) -> Symbol | None:
             name=accessor.group("name"),
             line=index,
             indent=indent,
-            end_line=_estimate_end_line(lines, index),
+            end_line=_estimate_end_line(lines, index, single_line_without_body=True),
         )
 
     method = METHOD_RE.match(line)
@@ -266,7 +266,7 @@ def _match_symbol(lines: list[str], index: int, line: str) -> Symbol | None:
                 name=name,
                 line=index,
                 indent=indent,
-                end_line=_estimate_end_line(lines, index),
+                end_line=_estimate_end_line(lines, index, single_line_without_body=True),
             )
     return None
 
@@ -295,17 +295,26 @@ def _field_assignment_index(text: str) -> int:
     return -1
 
 
-def _estimate_end_line(lines: list[str], start_line: int) -> int:
+def _estimate_end_line(
+    lines: list[str],
+    start_line: int,
+    *,
+    single_line_without_body: bool = False,
+) -> int:
     balance = 0
     seen_open = False
     for offset, raw_line in enumerate(lines[start_line - 1 :], start=start_line):
         line = _strip_line_comment(raw_line)
+        if offset == start_line and single_line_without_body and "{" not in line:
+            return start_line
         balance += line.count("{")
         if "{" in line:
             seen_open = True
         balance -= line.count("}")
         if seen_open and balance <= 0:
             return offset
+    if not seen_open:
+        return start_line
     return len(lines)
 
 

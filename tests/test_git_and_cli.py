@@ -487,6 +487,40 @@ class CliTests(unittest.TestCase):
         self.assertEqual(generic_function, "function parseModel")
         self.assertEqual(top_level_arrow, "function loadModel")
 
+    def test_source_outline_labels_declaration_only_symbols(self):
+        symbols = outline.parse_outline(
+            "\n".join(
+                [
+                    "abstract class BaseCard {",
+                    "  abstract load(): Promise<void>;",
+                    "  protected abstract render(): void;",
+                    "  abstract get title(): string;",
+                    "  hydrate() {",
+                    "    this.render()",
+                    "  }",
+                    "}",
+                    "interface Renderer {",
+                    "  mount(): void;",
+                    "  unmount(): void;",
+                    "}",
+                ]
+            )
+        )
+
+        abstract_method = outline.symbol_label_at_line(symbols, 2)
+        protected_abstract = outline.symbol_label_at_line(symbols, 3)
+        abstract_getter = outline.symbol_label_at_line(symbols, 4)
+        concrete_method = outline.symbol_label_at_line(symbols, 6)
+        first_interface_method = outline.symbol_label_at_line(symbols, 10)
+        second_interface_method = outline.symbol_label_at_line(symbols, 11)
+
+        self.assertEqual(abstract_method, "class BaseCard > method load")
+        self.assertEqual(protected_abstract, "class BaseCard > method render")
+        self.assertEqual(abstract_getter, "class BaseCard > method title")
+        self.assertEqual(concrete_method, "class BaseCard > method hydrate")
+        self.assertEqual(first_interface_method, "interface Renderer > method mount")
+        self.assertEqual(second_interface_method, "interface Renderer > method unmount")
+
     def test_source_outline_labels_exported_arrow_function_symbols(self):
         symbols = outline.parse_outline(
             "\n".join(

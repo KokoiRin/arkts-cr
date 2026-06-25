@@ -36,10 +36,12 @@ class BrowserCommandAction:
     HELP = "help"
     OPEN_FILE = "open_file"
     OPEN_HUNK = "open_hunk"
+    OPEN_LINE = "open_line"
     COPY_PATH = "copy_path"
     COPY_ANCHOR = "copy_anchor"
     COPY_DIFF = "copy_diff"
     COPY_HUNK = "copy_hunk"
+    COPY_LINE = "copy_line"
     COPY_REVIEW_NOTES = "copy_review_notes"
     COPY_PROMPT = "copy_prompt"
     COPY_FILE_PROMPT = "copy_file_prompt"
@@ -147,6 +149,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.OPEN_FILE)
     if command == "open hunk":
         return BrowserCommand(BrowserCommandAction.OPEN_HUNK)
+    if command == "open line":
+        return BrowserCommand(BrowserCommandAction.OPEN_LINE)
     if command in {"copy", "copy path"}:
         return BrowserCommand(BrowserCommandAction.COPY_PATH)
     if command == "copy anchor":
@@ -155,6 +159,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_DIFF)
     if command == "copy hunk":
         return BrowserCommand(BrowserCommandAction.COPY_HUNK)
+    if command == "copy line":
+        return BrowserCommand(BrowserCommandAction.COPY_LINE)
     if command in {"copy notes", "notes copy"}:
         return BrowserCommand(BrowserCommandAction.COPY_REVIEW_NOTES)
     if command.startswith("copy notes "):

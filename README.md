@@ -78,7 +78,7 @@ o             用编辑器打开当前文件
 q             退出
 ```
 
-在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`]` / `[` 会跳到下一个 / 上一个 diff hunk；`: find TEXT` 会在当前文件详情里查找文本，`: next match` / `: prev match` 会继续跳到下一个 / 上一个匹配；`: open hunk` 会打开当前 hunk，`: copy hunk` 会复制当前 hunk review 片段；`r` 刷新后如果当前文件仍在当前 scope/filter 里，会留在这个文件详情；`n/p` 仍然用于切到下一个 / 上一个文件。
+在文件 review 视图里，`↑/↓` 或 `j/k` 会滚动当前文件内容；`]` / `[` 会跳到下一个 / 上一个 diff hunk；`: find TEXT` 会在当前文件详情里查找文本，`: next match` / `: prev match` 会继续跳到下一个 / 上一个匹配；`: open line` / `: copy line` 会对当前渲染行的新文件行号执行打开或复制锚点；`: open hunk` 会打开当前 hunk，`: copy hunk` 会复制当前 hunk review 片段；`r` 刷新后如果当前文件仍在当前 scope/filter 里，会留在这个文件详情；`n/p` 仍然用于切到下一个 / 上一个文件。
 
 打开 command palette：
 
@@ -150,11 +150,13 @@ copy notes             复制当前 review 备注汇总
 copy notes QUERY       复制过滤后的 review 备注汇总
 copy diff              复制当前文件的轻量 diff review 片段
 copy hunk              复制当前 diff hunk review 片段
+copy line              复制当前文件详情行的 path:line
 save diff [PATH]       保存当前文件的轻量 diff review 片段
 find TEXT              在当前文件详情里查找渲染文本
 next match             跳到当前 find 的下一个匹配
 prev match             跳到当前 find 的上一个匹配
 open hunk              在编辑器里打开当前 diff hunk
+open line              在编辑器里打开当前文件详情行
 next hunk / ]          跳到当前文件的下一个 diff hunk
 prev hunk / [          跳到当前文件的上一个 diff hunk
 copy prompt            复制当前可见改动的 AI review handoff
@@ -203,12 +205,14 @@ cr --copy-cmd 'pbcopy' --reveal-cmd 'open -R {file}'
 : copy anchor  复制当前文件 path:line review anchor
 : copy diff    复制当前文件的轻量 diff review 片段
 : copy hunk    复制当前 diff hunk review 片段
+: copy line    复制当前文件详情行的 path:line
 : save diff    保存当前文件的轻量 diff review 片段
 : find TEXT    在当前文件详情里查找渲染文本
 : next match   跳到当前 find 的下一个匹配
 : prev match   跳到当前 find 的上一个匹配
 : next hunk    跳到当前文件的下一个 diff hunk
 : prev hunk    跳到当前文件的上一个 diff hunk
+: open line    打开当前文件详情行到编辑器
 : copy prompt  复制当前可见改动的 AI review handoff
 : copy prompt file 复制当前文件的 AI review handoff
 : save prompt  保存当前可见改动的 AI review handoff

@@ -129,6 +129,17 @@ def active_hunk_new_line(lines: list[str], current_scroll: int) -> int | None:
     return hunk.new_line
 
 
+def current_new_line(lines: list[str], current_scroll: int) -> int | None:
+    body = lines[1:]
+    if current_scroll < 0 or current_scroll >= len(body):
+        return None
+    line = _plain_text(body[current_scroll]).lstrip()
+    hunk = HUNK_HEADER_RE.match(line)
+    if hunk:
+        return int(hunk.group("new"))
+    return _rendered_row_new_line(line)
+
+
 def active_hunk(lines: list[str], current_scroll: int) -> ActiveHunk | None:
     body = lines[1:]
     hunk_headers = _hunk_headers(body)
@@ -167,6 +178,20 @@ def _hunk_headers(body: list[str]) -> list[tuple[int, str]]:
 
 def _is_hunk_header(line: str) -> bool:
     return _plain_text(line).lstrip().startswith("@@")
+
+
+def _rendered_row_new_line(line: str) -> int | None:
+    if "|" not in line:
+        return None
+    prefix, text = line.split("|", 1)
+    columns = prefix.split()
+    if len(columns) >= 2 and columns[-1].isdigit():
+        return int(columns[-1])
+    if len(columns) == 1 and columns[0].isdigit():
+        marker = text.lstrip()[:1]
+        if marker == "+":
+            return int(columns[0])
+    return None
 
 
 def _clean_hunk_line(line: str) -> str:

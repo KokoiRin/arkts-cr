@@ -1,7 +1,7 @@
 """Selected-file workflows for the interactive browser.
 
 This module owns action workflows that depend on the current changed-file
-selection: path/anchor/diff/hunk copy, editor/reveal/hunk handoff,
+selection: path/anchor/diff/hunk/line copy, editor/reveal/hunk/line handoff,
 selected-file notes, and prompt handoff selection. Platform subprocess details
 stay in `cr.ui.file_actions`; browser command execution decides where returned
 messages are displayed.
@@ -180,6 +180,27 @@ def open_selected_hunk(
     return f"Opened hunk {shorten_path(change.path)}:{line}"
 
 
+def open_selected_line(
+    change,
+    lines: list[str],
+    current_scroll: int,
+    args,
+    *,
+    repo_path=None,
+    open_path=None,
+) -> str:
+    repo_path = git.repo_path if repo_path is None else repo_path
+    open_path = file_actions.open_path if open_path is None else open_path
+    line = file_detail_navigation.current_new_line(lines, current_scroll)
+    if line is None:
+        return "No current new-file line in File Detail."
+    repo_file = repo_path(change.path)
+    message = open_path(repo_file, line, getattr(args, "open_cmd", None))
+    if message:
+        return message
+    return f"Opened line {shorten_path(change.path)}:{line}"
+
+
 def copy_selected_hunk(
     change,
     lines: list[str],
@@ -197,6 +218,25 @@ def copy_selected_hunk(
     if message:
         return message
     return f"Copied hunk {hunk.index}/{hunk.total} for {shorten_path(change.path)}:{hunk.new_line}"
+
+
+def copy_selected_line(
+    change,
+    lines: list[str],
+    current_scroll: int,
+    args,
+    *,
+    copy_text=None,
+) -> str:
+    copy_text = file_actions.copy_text if copy_text is None else copy_text
+    line = file_detail_navigation.current_new_line(lines, current_scroll)
+    if line is None:
+        return "No current new-file line in File Detail."
+    anchor = f"{change.path}:{line}"
+    message = copy_text(anchor, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return f"Copied line {shorten_path(change.path)}:{line}"
 
 
 def _render_hunk_copy_text(path: str, hunk: file_detail_navigation.ActiveHunk) -> str:

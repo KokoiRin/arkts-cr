@@ -396,6 +396,10 @@ class BrowserCommandExecutor:
             message = _open_current_hunk(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.OPEN_LINE:
+            message = _open_current_line(state, args, style)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_PATH:
             visible = state.visible_changes
             if visible:
@@ -432,6 +436,10 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_HUNK:
             message = _copy_current_hunk(state, args, style)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_LINE:
+            message = _copy_current_line(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_DIFF:
@@ -1443,6 +1451,34 @@ def _open_current_hunk(
     )
 
 
+def _open_current_line(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to open line."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to open line."
+    state.clamp_selection()
+    change = visible[state.selected]
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    return selected_file_actions.open_selected_line(
+        change,
+        lines,
+        state.file_scroll,
+        args,
+    )
+
+
 def _copy_current_hunk(
     state: BrowserState,
     args: argparse.Namespace,
@@ -1464,6 +1500,34 @@ def _copy_current_hunk(
         style,
     )
     return selected_file_actions.copy_selected_hunk(
+        change,
+        lines,
+        state.file_scroll,
+        args,
+    )
+
+
+def _copy_current_line(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    if state.page != BrowserPage.FILE_DETAIL:
+        return "Open a file detail to copy line."
+    visible = state.visible_changes
+    if not visible:
+        return "No changed file to copy line."
+    state.clamp_selection()
+    change = visible[state.selected]
+    lines = _cached_file_lines(
+        state,
+        change,
+        state.selected,
+        len(visible),
+        args,
+        style,
+    )
+    return selected_file_actions.copy_selected_line(
         change,
         lines,
         state.file_scroll,

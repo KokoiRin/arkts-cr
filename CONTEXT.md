@@ -169,9 +169,10 @@ Product navigation terms:
   while `open hunk` opens the active hunk's new-file line in the editor and
   `copy hunk` copies the active rendered hunk block as compact review context.
   `find TEXT` searches the current rendered File Detail text, and `next match`
-  / `prev match` repeat the last non-empty File Detail query. This is local
-  navigation inside the current selected file, not a new product hierarchy
-  layer or persisted workspace state.
+  / `prev match` repeat the last non-empty File Detail query. `open line` and
+  `copy line` act on the current rendered File Detail row when that row has a
+  new-file line number. This is local navigation inside the current selected
+  file, not a new product hierarchy layer or persisted workspace state.
 - `Browser Command Dispatch`: the internal module that maps command text and
   key aliases to stable browser actions. It parses intent but does not execute
   it.

@@ -175,6 +175,30 @@ class CliTests(unittest.TestCase):
         self.assertEqual(second, 31)
         self.assertIsNone(none)
 
+    def test_file_detail_navigation_resolves_current_new_line(self):
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -1,2 +10,2 @@",
+            "     1   10 | context",
+            "     \033[32m11 | +added\033[0m",
+            "    2      | -deleted",
+            "  purpose: sample",
+        ]
+
+        hunk_header = file_detail_navigation.current_new_line(lines, 0)
+        context_line = file_detail_navigation.current_new_line(lines, 1)
+        added_line = file_detail_navigation.current_new_line(lines, 2)
+        deleted_line = file_detail_navigation.current_new_line(lines, 3)
+        metadata_line = file_detail_navigation.current_new_line(lines, 4)
+        out_of_range = file_detail_navigation.current_new_line(lines, 99)
+
+        self.assertEqual(hunk_header, 10)
+        self.assertEqual(context_line, 10)
+        self.assertEqual(added_line, 11)
+        self.assertIsNone(deleted_line)
+        self.assertIsNone(metadata_line)
+        self.assertIsNone(out_of_range)
+
     def test_file_detail_navigation_extracts_active_hunk_lines(self):
         lines = [
             "File 1/1  src/Sample.ts",
@@ -604,7 +628,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("Review scope", text)
         self.assertIn("copy prompt file", text)
         self.assertIn("open hunk", text)
+        self.assertIn("open line", text)
         self.assertIn("copy hunk", text)
+        self.assertIn("copy line", text)
         self.assertIn("find TEXT", text)
         self.assertIn("next match", text)
         self.assertIn("prev match", text)
@@ -627,7 +653,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt", commands)
         self.assertIn("copy prompt file", commands)
         self.assertIn("open hunk", commands)
+        self.assertIn("open line", commands)
         self.assertIn("copy hunk", commands)
+        self.assertIn("copy line", commands)
         self.assertIn("find TEXT", commands)
         self.assertIn("next match", commands)
         self.assertIn("prev match", commands)
@@ -878,8 +906,16 @@ class CliTests(unittest.TestCase):
             BrowserCommandAction.COPY_HUNK,
         )
         self.assertEqual(
+            parse_browser_command("copy line").action,
+            BrowserCommandAction.COPY_LINE,
+        )
+        self.assertEqual(
             parse_browser_command("open hunk").action,
             BrowserCommandAction.OPEN_HUNK,
+        )
+        self.assertEqual(
+            parse_browser_command("open line").action,
+            BrowserCommandAction.OPEN_LINE,
         )
         find_command = parse_browser_command("find TargetValue")
         self.assertEqual(find_command.action, BrowserCommandAction.FIND_IN_FILE)
@@ -1396,6 +1432,62 @@ class CliTests(unittest.TestCase):
         )
         self.assertEqual(message, "Opened hunk src/Sample.ts:31")
 
+    def test_selected_file_actions_opens_selected_line(self):
+        args = argparse_namespace(open_cmd="editor {fileline}")
+        change = FileChange("src/Sample.ts", 1, 0)
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch(
+            "cr.ui.selected_file_actions.git.repo_path",
+            return_value=Path("/repo/src/Sample.ts"),
+        ):
+            with patch(
+                "cr.ui.selected_file_actions.file_actions.open_path",
+                return_value=None,
+            ) as open_path:
+                message = selected_file_actions.open_selected_line(
+                    change,
+                    lines,
+                    2,
+                    args,
+                )
+
+        open_path.assert_called_once_with(
+            Path("/repo/src/Sample.ts"),
+            32,
+            "editor {fileline}",
+        )
+        self.assertEqual(message, "Opened line src/Sample.ts:32")
+
+    def test_selected_file_actions_copies_selected_line_anchor(self):
+        args = argparse_namespace(copy_cmd="copy-tool")
+        change = FileChange("src/Sample.ts", 1, 0)
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch(
+            "cr.ui.selected_file_actions.file_actions.copy_text",
+            return_value=None,
+        ) as copy_text:
+            message = selected_file_actions.copy_selected_line(
+                change,
+                lines,
+                2,
+                args,
+            )
+
+        copy_text.assert_called_once_with("src/Sample.ts:32", "copy-tool")
+        self.assertEqual(message, "Copied line src/Sample.ts:32")
+
     def test_selected_file_actions_copies_selected_hunk(self):
         args = argparse_namespace(copy_cmd="copy-tool")
         change = FileChange("src/Sample.ts", 1, 0)
@@ -1750,6 +1842,157 @@ class CliTests(unittest.TestCase):
         open_path.assert_not_called()
         self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
         self.assertIn("Open a file detail to open hunk.", state.status_message)
+
+    def test_browser_command_executor_opens_current_line_in_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(open_cmd="editor {fileline}")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+            review_notes={"src/Sample.ts": "keep note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch("cr.ui.browser.git.repo_path", return_value=Path("/repo/src/Sample.ts")):
+                with patch(
+                    "cr.ui.browser.file_actions.open_path",
+                    return_value=None,
+                ) as open_path:
+                    result = executor.execute(
+                        parse_browser_command("open line", raw_keys=True)
+                    )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        open_path.assert_called_once_with(
+            Path("/repo/src/Sample.ts"),
+            32,
+            "editor {fileline}",
+        )
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertEqual(state.review_notes["src/Sample.ts"], "keep note")
+        self.assertIsNotNone(state.task)
+        self.assertIn("Opened line src/Sample.ts:32", state.status_message)
+
+    def test_browser_command_executor_copies_current_line_in_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+            review_notes={"src/Sample.ts": "keep note"},
+        )
+        state.task = TaskState(["build"], subprocess.Popen(["true"]))
+        state.task.process.wait(timeout=1)
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20   31 | context",
+            "          32 | +second",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch(
+                "cr.ui.browser.file_actions.copy_text",
+                return_value=None,
+            ) as copy_text:
+                result = executor.execute(
+                    parse_browser_command("copy line", raw_keys=True)
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_called_once_with("src/Sample.ts:32", "copy-tool")
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertEqual(state.review_notes["src/Sample.ts"], "keep note")
+        self.assertIsNotNone(state.task)
+        self.assertIn("Copied line src/Sample.ts:32", state.status_message)
+
+    def test_browser_command_executor_reports_line_action_outside_file_detail(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace()
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("open line", raw_keys=True))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertIn("Open a file detail to open line.", state.status_message)
+
+    def test_browser_command_executor_reports_line_action_without_new_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20      | -deleted",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+                result = executor.execute(
+                    parse_browser_command("copy line", raw_keys=True)
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertEqual(state.file_scroll, 2)
+        self.assertIn("No current new-file line in File Detail.", state.status_message)
 
     def test_browser_command_executor_copies_current_hunk_in_file_detail(self):
         from cr.ui.browser import parse_browser_command
@@ -7020,7 +7263,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt", text)
         self.assertIn("copy prompt file", text)
         self.assertIn("open hunk", text)
+        self.assertIn("open line", text)
         self.assertIn("copy hunk", text)
+        self.assertIn("copy line", text)
         self.assertIn("find TEXT", text)
         self.assertIn("next match", text)
         self.assertIn("prev match", text)
@@ -7049,7 +7294,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy prompt file", commands)
         self.assertIn("copy diff", commands)
         self.assertIn("open hunk", commands)
+        self.assertIn("open line", commands)
         self.assertIn("copy hunk", commands)
+        self.assertIn("copy line", commands)
         self.assertIn("find TEXT", commands)
         self.assertIn("next match", commands)
         self.assertIn("prev match", commands)

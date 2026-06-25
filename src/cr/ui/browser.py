@@ -464,7 +464,10 @@ class BrowserCommandExecutor:
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_LINE:
-            message = _copy_current_line(state, args, style)
+            if state.page == BrowserPage.SOURCE_FILE:
+                message = _copy_source_line(state, args)
+            else:
+                message = _copy_current_line(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_CHANGE:
@@ -1922,6 +1925,20 @@ def _copy_current_line(
         state.file_scroll,
         args,
     )
+
+
+def _copy_source_line(
+    state: BrowserState,
+    args: argparse.Namespace,
+) -> str:
+    if not state.source_file_path:
+        return "No source file line to copy."
+    line_number = max(1, state.source_file_line)
+    anchor = f"{state.source_file_path}:{line_number}"
+    error = file_actions.copy_text(anchor, getattr(args, "copy_cmd", None))
+    if error:
+        return error
+    return f"Copied source line {anchor}."
 
 
 def _copy_current_change(

@@ -205,6 +205,7 @@ Task Output Page is now explicit as a current-task output detail page. It can be
 Task Problems Page is now explicit as a lightweight current-task Problems panel. It can be opened with `problems` / `task problems`, keeps its own selection and scroll state, and opens repo-local `path:line[:column]` anchors through the existing editor handoff.
 Source File Page is now explicit as a cross-layer read-only source preview. It can be opened from Task Problems with `view problem`, keeps its own source path, target line, and scroll state, and does not change Review Scope or require the file to be in Changed Files.
 Source File Page find is explicit as page-local text navigation. `find TEXT`, `next match`, and `prev match` search only the current source preview, update the Source File Page target line, and keep File Detail find and Task Output find state separate.
+Source File Page copy-line is explicit as source-preview handoff. `copy line` copies the current Source File Page target `path:line`, reusing the same command vocabulary as File Detail without adding source snippets or multi-line selection.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
 Review workspace rules are now explicit without changing Git review facts or persistence format. `ReviewWorkspace` owns scope switching, commit scope selection, filter/progress/note state, selected file state, and workspace-state data mapping.
@@ -434,6 +435,12 @@ Status: implemented.
 Status: implemented.
 
 Source File Page supports `find TEXT`, `next match`, and `prev match` over the current repo-local source preview. Search is case-insensitive plain text, keeps a separate `source_find_text` from File Detail and Task Output, updates the target-line marker, and wraps for repeated matches. It intentionally avoids syntax-aware search, cross-file search, diagnostics parsing, persistence, and editing.
+
+### P0: Source File Page copy-line
+
+Status: implemented.
+
+Source File Page supports `copy line` for the current target-line marker. It copies the repo-relative `path:line` anchor through the configured copy command, preserves Source File Page state, and reports an empty state if no source file is active. It intentionally avoids copying source text snippets, multi-line selections, editing, and File Detail line-resolution changes.
 
 Task output handoff remains output-panel handoff, not diagnostics. `cr.ui.tasks` owns the task output text format; Browser Action Execution owns clipboard/save side effects; `cr.ui.handoff` owns default file paths and writes.
 

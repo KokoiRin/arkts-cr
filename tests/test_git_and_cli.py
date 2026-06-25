@@ -1077,6 +1077,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("find", source_file_bar)
         self.assertIn("next match", source_file_bar)
         self.assertIn("open", source_file_bar)
+        self.assertIn("copy line", source_file_bar)
         self.assertIn("b back", source_file_bar)
         self.assertNotEqual(changed_files, file_detail)
 
@@ -4434,6 +4435,55 @@ class CliTests(unittest.TestCase):
         self.assertTrue(opened.needs_redraw)
         open_path.assert_called_once_with(source, 20, "editor {fileline}")
         self.assertIn("Opened source src/Foo.ets:20", state.status_message)
+
+    def test_browser_command_executor_copies_source_file_page_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [],
+            page=BrowserPage.SOURCE_FILE,
+            source_file_path="src/Foo.ets",
+            source_file_line=20,
+            source_file_scroll=7,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(copy_cmd="copy {text}"),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.copy_text", return_value=None) as copy_text:
+            result = executor.execute(parse_browser_command("copy line"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_called_once_with("src/Foo.ets:20", "copy {text}")
+        self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+        self.assertEqual(state.source_file_line, 20)
+        self.assertEqual(state.source_file_scroll, 7)
+        self.assertIn("Copied source line src/Foo.ets:20", state.status_message)
+
+    def test_browser_command_executor_reports_empty_source_file_line_copy(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([], page=BrowserPage.SOURCE_FILE)
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(copy_cmd="copy {text}"),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+            result = executor.execute(parse_browser_command("copy line"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertIn("No source file line to copy.", state.status_message)
 
     def test_browser_command_executor_finds_text_in_source_file_page(self):
         from cr.ui.browser import parse_browser_command

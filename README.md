@@ -154,7 +154,7 @@ copy notes             复制当前 review 备注汇总
 copy notes QUERY       复制过滤后的 review 备注汇总
 copy diff              复制当前文件的轻量 diff review 片段
 copy hunk              复制当前 diff hunk review 片段
-copy line              复制当前文件详情行的 path:line
+copy line              复制当前文件详情行或 Source File Page 目标行的 path:line
 copy change            复制当前实际改动行 review 片段
 save diff [PATH]       保存当前文件的轻量 diff review 片段
 find TEXT              在当前文件详情里查找渲染文本
@@ -260,7 +260,7 @@ build
 : rerun    重跑最近一次任务
 ```
 
-任务面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。`: task output` / `: output` 会打开当前任务的完整输出视图，支持 `↑/↓`、`PgUp/PgDn`、`Home/End` 滚动，`find TEXT` 搜索当前日志，`next match` / `prev match` 继续跳转匹配，`b` 回到之前的代码页面；`: problems` / `: task problems` 会从当前任务输出里提取 `path:line[:column]` 文件位置，进入 Problems 页后可以选择并按 `Enter` 打开到编辑器，用 `view problem` 在 TUI 内查看问题附近源码，Source File Page 内也支持 `find TEXT` / `next match` / `prev match`，或用 `copy problem` / `copy problems` 复制选中问题或全部问题。后台任务会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个任务进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓的 build 会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置 build，用 `--test-cmd` / `CR_TEST_CMD` 配置 test，用 `--lint-cmd` / `CR_LINT_CMD` 配置 lint：
+任务面板会区分 `running`、`stopping`、`stopped`、`succeeded` 和 `failed`，并显示 compact recent task history。`: task output` / `: output` 会打开当前任务的完整输出视图，支持 `↑/↓`、`PgUp/PgDn`、`Home/End` 滚动，`find TEXT` 搜索当前日志，`next match` / `prev match` 继续跳转匹配，`b` 回到之前的代码页面；`: problems` / `: task problems` 会从当前任务输出里提取 `path:line[:column]` 文件位置，进入 Problems 页后可以选择并按 `Enter` 打开到编辑器，用 `view problem` 在 TUI 内查看问题附近源码，Source File Page 内也支持 `find TEXT` / `next match` / `prev match` 和 `copy line`，或用 `copy problem` / `copy problems` 复制选中问题或全部问题。后台任务会放进独立进程组，`: stop` / `: cancel` 会先温和收口整个任务进程组；如果短时间内仍未退出，会升级强杀，减少残留子进程继续刷日志。`DouyinHarmony` 仓的 build 会默认执行 `./remote buildEntry --app douyin`；其他仓可以用 `--build-cmd` 或 `CR_BUILD_CMD` 配置 build，用 `--test-cmd` / `CR_TEST_CMD` 配置 test，用 `--lint-cmd` / `CR_LINT_CMD` 配置 lint：
 
 ```bash
 cr --build-cmd './remote buildEntry --app douyin' --test-cmd 'npm test' --lint-cmd 'npm run lint'

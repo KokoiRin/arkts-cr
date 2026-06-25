@@ -191,6 +191,13 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "选择源码行范围",
                     "source select 1 3",
                 ),
+                CommandEntry("source mark", "标记当前源码行", "source mark"),
+                CommandEntry(
+                    "source select to",
+                    "选中源码标记到当前行",
+                    "source select to",
+                ),
+                CommandEntry("source clear mark", "清除源码标记", "source clear mark"),
                 CommandEntry(
                     "source clear selection",
                     "清除已选择的源码行范围",

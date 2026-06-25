@@ -184,6 +184,7 @@ def contextual_action_bar(
             "save context 保存上下文",
             "source context 上下文行数",
             "select range 选择范围",
+            "source mark 标记",
             "b 返回",
             "help 帮助",
         ),
@@ -314,6 +315,9 @@ def _page_help_topic(page: str) -> tuple[str, str, tuple[str, ...]]:
                 "copy source：复制当前源码上下文",
                 "source context N：设置复制源码的上下文行数",
                 "source select START END：选择源码行范围",
+                "source mark：标记当前源码行",
+                "source select to：选中标记行到当前行",
+                "source clear mark：清除源码标记",
                 "source clear selection：清除选择源码行范围",
                 "copy problem context / save problem context：复制或保存问题上下文",
             ),
@@ -975,6 +979,7 @@ def source_file_screen_lines(
     context_lines: int = 3,
     selection_start: int = 0,
     selection_end: int = 0,
+    mark_line: int = 0,
 ) -> list[str]:
     source_labels = [f"context: {context_lines}"]
     if selection_start > 0 and selection_end > 0:
@@ -983,6 +988,11 @@ def source_file_screen_lines(
             start = max(1, min(start, view.total_lines))
             end = max(1, min(end, view.total_lines))
         source_labels.append(f"selection: {start}-{end}")
+    if mark_line > 0:
+        mark = mark_line
+        if view.total_lines > 0:
+            mark = max(1, min(mark, view.total_lines))
+        source_labels.append(f"mark: {mark}")
     lines = [
         f"{style.bold('Source')} {style.file_path(view.path)}  "
         f"{style.dim('; '.join(source_labels))}",

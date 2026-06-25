@@ -49,6 +49,7 @@ class BrowserPageSnapshot:
     source_context_lines: int = 3
     source_selection_start: int = 0
     source_selection_end: int = 0
+    source_mark_line: int = 0
     help_topic_page: str = ""
 
 
@@ -77,6 +78,7 @@ class _BrowserNavigationState(Protocol):
     source_context_lines: int
     source_selection_start: int
     source_selection_end: int
+    source_mark_line: int
     help_topic_page: str
     page_back_stack: list[BrowserPageSnapshot]
     page_forward_stack: list[BrowserPageSnapshot]
@@ -148,6 +150,7 @@ class BrowserNavigation:
         state.source_context_lines = 3
         state.source_selection_start = 0
         state.source_selection_end = 0
+        state.source_mark_line = 0
 
     @staticmethod
     def show_commit_picker(
@@ -250,6 +253,7 @@ class BrowserNavigation:
             source_context_lines=state.source_context_lines,
             source_selection_start=state.source_selection_start,
             source_selection_end=state.source_selection_end,
+            source_mark_line=state.source_mark_line,
             help_topic_page=state.help_topic_page,
         )
 
@@ -282,6 +286,7 @@ class BrowserNavigation:
         state.source_context_lines = snapshot.source_context_lines
         state.source_selection_start = snapshot.source_selection_start
         state.source_selection_end = snapshot.source_selection_end
+        state.source_mark_line = snapshot.source_mark_line
         state.help_topic_page = snapshot.help_topic_page
 
     @staticmethod

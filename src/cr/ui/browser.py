@@ -93,6 +93,7 @@ class BrowserState:
     source_context_lines: int = 3
     source_selection_start: int = 0
     source_selection_end: int = 0
+    source_mark_line: int = 0
     help_topic_page: str = ""
     page: str = BrowserPage.CHANGED_FILES
     filter_text: str = ""
@@ -496,6 +497,18 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.CLEAR_SOURCE_SELECTION:
             message = _clear_source_selection(state)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SET_SOURCE_MARK:
+            message = _set_source_mark(state)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.SELECT_SOURCE_TO_MARK:
+            message = _select_source_to_mark(state)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.CLEAR_SOURCE_MARK:
+            message = _clear_source_mark(state)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.COPY_CHANGE:
@@ -2242,6 +2255,31 @@ def _clear_source_selection(state: BrowserState) -> str:
     return "Source selection cleared."
 
 
+def _set_source_mark(state: BrowserState) -> str:
+    if state.page != BrowserPage.SOURCE_FILE:
+        return "Open a source file before marking source."
+    state.source_mark_line = max(1, state.source_file_line)
+    return f"Source mark set to line {state.source_mark_line}."
+
+
+def _select_source_to_mark(state: BrowserState) -> str:
+    if state.page != BrowserPage.SOURCE_FILE:
+        return "Open a source file before selecting source."
+    if state.source_mark_line <= 0:
+        return "Set a source mark before selecting to it."
+    start, end = sorted((state.source_mark_line, max(1, state.source_file_line)))
+    state.source_selection_start = start
+    state.source_selection_end = end
+    return f"Source selection set to {start}-{end}."
+
+
+def _clear_source_mark(state: BrowserState) -> str:
+    if state.page != BrowserPage.SOURCE_FILE:
+        return "Open a source file before clearing source mark."
+    state.source_mark_line = 0
+    return "Source mark cleared."
+
+
 def _source_selection_range(state: BrowserState) -> tuple[int, int] | None:
     if state.source_selection_start <= 0 or state.source_selection_end <= 0:
         return None
@@ -2904,6 +2942,7 @@ def _browse_source_file_screen_lines(
         context_lines=state.source_context_lines,
         selection_start=state.source_selection_start,
         selection_end=state.source_selection_end,
+        mark_line=state.source_mark_line,
     )
 
 

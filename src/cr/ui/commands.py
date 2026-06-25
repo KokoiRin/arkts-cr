@@ -22,6 +22,9 @@ class BrowserCommandAction:
     SET_SOURCE_CONTEXT_LINES = "set_source_context_lines"
     SET_SOURCE_SELECTION = "set_source_selection"
     CLEAR_SOURCE_SELECTION = "clear_source_selection"
+    SET_SOURCE_MARK = "set_source_mark"
+    SELECT_SOURCE_TO_MARK = "select_source_to_mark"
+    CLEAR_SOURCE_MARK = "clear_source_mark"
     MARK_SEEN = "mark_seen"
     MARK_SEEN_AND_NEXT = "mark_seen_and_next"
     MARK_TODO = "mark_todo"
@@ -133,6 +136,12 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
             BrowserCommandAction.SET_SOURCE_CONTEXT_LINES,
             command.removeprefix("source context ").strip(),
         )
+    if command in {"source mark", "mark source"}:
+        return BrowserCommand(BrowserCommandAction.SET_SOURCE_MARK)
+    if command in {"source select to", "source select mark", "select source to"}:
+        return BrowserCommand(BrowserCommandAction.SELECT_SOURCE_TO_MARK)
+    if command in {"source clear mark", "clear source mark"}:
+        return BrowserCommand(BrowserCommandAction.CLEAR_SOURCE_MARK)
     if command.startswith("source select "):
         return BrowserCommand(
             BrowserCommandAction.SET_SOURCE_SELECTION,

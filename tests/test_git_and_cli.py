@@ -1200,6 +1200,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy change", text)
         self.assertIn("source context N", text)
         self.assertIn("source select START END", text)
+        self.assertIn("source mark", text)
+        self.assertIn("source select to", text)
         self.assertIn("source clear selection", text)
         self.assertIn("find TEXT", text)
         self.assertIn("next match", text)
@@ -1262,6 +1264,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy source", commands)
         self.assertIn("source context 3", commands)
         self.assertIn("source select 1 3", commands)
+        self.assertIn("source mark", commands)
+        self.assertIn("source select to", commands)
+        self.assertIn("source clear mark", commands)
         self.assertIn("source clear selection", commands)
         self.assertIn("copy change", commands)
         self.assertNotIn("note change TEXT", commands)
@@ -1325,6 +1330,8 @@ class CliTests(unittest.TestCase):
 
         self.assertIn("Source File 帮助", text)
         self.assertIn("source select START END", text)
+        self.assertIn("source mark", text)
+        self.assertIn("source select to", text)
         self.assertIn("copy source", text)
         self.assertIn("选择源码行范围", text)
 
@@ -1681,12 +1688,14 @@ class CliTests(unittest.TestCase):
             context_lines=8,
             selection_start=1,
             selection_end=3,
+            mark_line=2,
         )
         text = "\n".join(lines)
 
         self.assertIn("Source src/Foo.ets", text)
         self.assertIn("context: 8", text)
         self.assertIn("selection: 1-3", text)
+        self.assertIn("mark: 2", text)
         self.assertIn("* 1  first", text)
         self.assertIn("> 2  target", text)
         self.assertIn("* 3  third", text)
@@ -1831,6 +1840,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_context_lines, 3)
         self.assertEqual(state.source_selection_start, 0)
         self.assertEqual(state.source_selection_end, 0)
+        self.assertEqual(state.source_mark_line, 0)
 
         BrowserNavigation.show_page_help(state)
         self.assertEqual(state.page, BrowserPage.HELP)
@@ -1935,6 +1945,7 @@ class CliTests(unittest.TestCase):
         state.source_context_lines = 8
         state.source_selection_start = 2
         state.source_selection_end = 5
+        state.source_mark_line = 4
         BrowserNavigation.go_back(state)
         BrowserNavigation.go_forward(state)
 
@@ -1946,6 +1957,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_context_lines, 8)
         self.assertEqual(state.source_selection_start, 2)
         self.assertEqual(state.source_selection_end, 5)
+        self.assertEqual(state.source_mark_line, 4)
 
         BrowserNavigation.show_task_problems(
             state,
@@ -2234,6 +2246,18 @@ class CliTests(unittest.TestCase):
             BrowserCommandAction.SET_SOURCE_SELECTION,
         )
         self.assertEqual(source_selection.value, "2 5")
+        self.assertEqual(
+            parse_browser_command("source mark").action,
+            BrowserCommandAction.SET_SOURCE_MARK,
+        )
+        self.assertEqual(
+            parse_browser_command("source select to").action,
+            BrowserCommandAction.SELECT_SOURCE_TO_MARK,
+        )
+        self.assertEqual(
+            parse_browser_command("source clear mark").action,
+            BrowserCommandAction.CLEAR_SOURCE_MARK,
+        )
         self.assertEqual(
             parse_browser_command("source clear selection").action,
             BrowserCommandAction.CLEAR_SOURCE_SELECTION,
@@ -6044,6 +6068,61 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_selection_start, 0)
         self.assertEqual(state.source_selection_end, 0)
         self.assertIn("Source selection cleared.", state.status_message)
+
+    def test_browser_command_executor_selects_source_range_from_mark_to_current_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [],
+            page=BrowserPage.SOURCE_FILE,
+            source_file_path="src/Foo.ets",
+            source_file_line=5,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        mark_result = executor.execute(parse_browser_command("source mark"))
+        state.source_file_line = 9
+        select_result = executor.execute(parse_browser_command("source select to"))
+        state.source_file_line = 3
+        reverse_result = executor.execute(parse_browser_command("source select to"))
+        clear_mark_result = executor.execute(parse_browser_command("source clear mark"))
+
+        self.assertTrue(mark_result.needs_redraw)
+        self.assertTrue(select_result.needs_redraw)
+        self.assertTrue(reverse_result.needs_redraw)
+        self.assertTrue(clear_mark_result.needs_redraw)
+        self.assertEqual((state.source_selection_start, state.source_selection_end), (3, 5))
+        self.assertEqual(state.source_mark_line, 0)
+        self.assertIn("Source mark cleared.", state.status_message)
+
+    def test_browser_command_executor_reports_source_select_to_without_mark(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [],
+            page=BrowserPage.SOURCE_FILE,
+            source_file_path="src/Foo.ets",
+            source_file_line=5,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("source select to"))
+
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual((state.source_selection_start, state.source_selection_end), (0, 0))
+        self.assertIn("Set a source mark before selecting to it.", state.status_message)
 
     def test_browser_command_executor_reports_source_selection_without_source_page(self):
         from cr.ui.browser import parse_browser_command

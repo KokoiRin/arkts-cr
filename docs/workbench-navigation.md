@@ -163,6 +163,7 @@ Source File Page
     source_file_path / source_file_line / source_file_scroll
     source_find_text
     source_context_lines
+    source_mark_line
     repo-local UTF-8 file preview only
 
 Task Panel / Browser Frame
@@ -209,6 +210,7 @@ Source File Page is now explicit as a cross-layer read-only source preview. It c
 Source File Page find is explicit as page-local text navigation. `find TEXT`, `next match`, and `prev match` search only the current source preview, update the Source File Page target line, and keep File Detail find and Task Output find state separate.
 Source File Page copy-line is explicit as source-preview handoff. `copy line` copies the current Source File Page target `path:line`, reusing the same command vocabulary as File Detail without adding source snippets or multi-line selection.
 Source File Page source-snippet handoff is explicit as AI/review handoff. `copy source` copies Markdown source context around the current target line, while `source context N` adjusts the copied context radius without adding selection state or editing behavior.
+Source File Page mark selection is explicit as page-local range ergonomics. `source mark` records the current target line, `source select to` selects the range between the mark and current target line, and `source clear mark` clears only the mark.
 Problem Context handoff is explicit as focused failure handoff. `copy problem context` copies the selected Task Problems entry or current Source File Page target, source context, and same-file diff from the current Review Scope when available.
 Page naming is now explicit without adding a true navigation stack or changing user-visible navigation behavior. `BrowserState.page` is the primary field; `BrowserState.mode` remains a compatibility property.
 Navigation rules are now explicit. `BrowserNavigation` owns page transitions, local reset rules, and in-session back/forward page history for Changed Files, File Detail, Scope Home, Commit Picker, and Command Palette.
@@ -493,6 +495,10 @@ Source File Page supports `source context N` to set the copied source context ra
 Status: implemented.
 
 Source File Page supports `source select START END` to select an exact repo-local source line range and `source clear selection` to clear it. The header shows `selection: A-B`, selected rows render with a `*` marker while the target line keeps `>`, and page history restores the range with the rest of Source File Page state. When a range is active, `copy source` copies only that selected range; without a range, it keeps the existing context-radius copy behavior. This intentionally avoids source editing, syntax-aware expansion, cross-file ranges, mouse selection, multiple ranges, and workspace persistence.
+
+### P0: Source File Page mark selection
+
+Source File Page supports `source mark`, `source select to`, and `source clear mark` so users can select a range without typing both line numbers. The mark is page-local, shown in the header as `mark: N`, restored through in-session page history, cleared when a different Source File Page opens, and does not clear or overwrite an existing selection until `source select to` runs. `source select to` normalizes direction, so marking line 9 and selecting to line 3 produces `selection: 3-9`. This intentionally avoids syntax-aware expansion, mouse/shift selection, multiple marks, cross-file marks, source editing, and workspace persistence.
 
 ### P0: Problem Context handoff
 

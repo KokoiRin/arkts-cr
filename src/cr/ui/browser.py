@@ -539,6 +539,10 @@ class BrowserCommandExecutor:
             message = _copy_task_output(state, args)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_TASK_OUTPUT_TAIL:
+            message = _copy_task_output_tail(state, args, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.COPY_TASK_PROBLEM:
             message = _copy_selected_task_problem(state, args)
             _show_browser_message(state, message, raw_keys, frame)
@@ -652,6 +656,10 @@ class BrowserCommandExecutor:
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SAVE_TASK_OUTPUT:
             message = _save_task_output(state, parsed_command.value)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.SAVE_TASK_OUTPUT_TAIL:
+            message = _save_task_output_tail(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.REVEAL_FILE:
@@ -1308,6 +1316,36 @@ def _copy_task_output(state: BrowserState, args: argparse.Namespace) -> str:
     return "Copied task output."
 
 
+def _copy_task_output_tail(
+    state: BrowserState,
+    args: argparse.Namespace,
+    raw_max_lines: str = "",
+) -> str:
+    if state.task is None:
+        return "No task output tail to copy."
+    max_lines = _task_output_tail_line_count(raw_max_lines)
+    if max_lines is None:
+        return "Task output tail size must be a positive integer."
+    text = task_runtime.task_output_tail_handoff_text(state.task, max_lines=max_lines)
+    message = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if message:
+        return message
+    return "Copied task output tail."
+
+
+def _task_output_tail_line_count(raw_value: str, default: int = 40) -> int | None:
+    value = raw_value.strip()
+    if not value:
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        return None
+    if parsed <= 0:
+        return None
+    return min(parsed, 500)
+
+
 def _copy_selected_task_problem(state: BrowserState, args: argparse.Namespace) -> str:
     problems = _current_task_problems(state)
     if not problems:
@@ -1504,6 +1542,20 @@ def _save_task_output(state: BrowserState, requested_path: str = "") -> str:
     if result.error:
         return result.error
     return f"Saved task output to {result.display_path}"
+
+
+def _save_task_output_tail(state: BrowserState, requested_path: str = "") -> str:
+    if state.task is None:
+        return "No task output tail to save."
+    text = task_runtime.task_output_tail_handoff_text(state.task, max_lines=40)
+    result = handoff_module.save_task_output_tail_text(
+        text,
+        git.repo_root(),
+        requested_path,
+    )
+    if result.error:
+        return result.error
+    return f"Saved task output tail to {result.display_path}"
 
 
 def _prompt_handoff_text(

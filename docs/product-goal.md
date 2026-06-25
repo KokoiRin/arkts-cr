@@ -155,6 +155,7 @@ P0 必须服务上面的主线。优先级判断：
    - 复制函数块或相关上下文。
 
 4. Task Output 轻量日志能力
+   - Status: first slice implemented for copying/saving task output tail.
    - 搜索、复制尾部、保存失败片段。
    - 不做复杂日志平台。
 

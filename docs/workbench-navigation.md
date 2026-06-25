@@ -412,6 +412,12 @@ Status: implemented.
 
 `copy task` copies the current Task Panel output as Markdown, including task kind, status, command, and captured output lines. `save task [PATH]` writes the same text to disk, defaulting to `.cr/handoff/task-output.md`.
 
+### P0: Task output tail handoff
+
+Status: implemented.
+
+`copy task tail [N]` copies compact Markdown for the current task output tail, defaulting to the last 40 captured lines and allowing a positive line count for copy. `save task tail [PATH]` writes the default 40-line tail to `.cr/handoff/task-output-tail.md` or a requested path. The feature uses the current task snapshot only and intentionally avoids task history browsing, log filtering, Problems parser changes, capture-capacity changes, and workspace persistence.
+
 ### P0: Task output detail page
 
 Status: implemented.

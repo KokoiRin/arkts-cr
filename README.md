@@ -129,6 +129,24 @@ note change TEXT 给当前改动行追加备注
 b                返回文件列表
 ```
 
+### Task Output：查看和交接构建日志
+
+运行 `build`、`test` 或 `lint` 后，输入 `task output` 可以打开完整任务输出页。底部任务面板只保留最近几行，Task Output 页用于需要认真看日志的时候。
+
+常用动作：
+
+```text
+task output              打开当前任务输出
+find TEXT                在任务输出里查找
+next match               下一个匹配
+problems                 从输出进入 Problems 页
+copy task                复制完整任务输出
+copy task tail           复制最后 40 行任务输出
+copy task tail 80        复制最后 80 行任务输出
+save task                保存完整任务输出
+save task tail           保存最后 40 行到 .cr/handoff/task-output-tail.md
+```
+
 ### Task Problems：按文件扫描构建问题
 
 ![Task Problems](docs/assets/cr-task-problems.png)

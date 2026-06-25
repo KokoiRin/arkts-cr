@@ -55,6 +55,7 @@ class BrowserCommandAction:
     COPY_PROMPT = "copy_prompt"
     COPY_FILE_PROMPT = "copy_file_prompt"
     COPY_TASK_OUTPUT = "copy_task_output"
+    COPY_TASK_OUTPUT_TAIL = "copy_task_output_tail"
     COPY_TASK_PROBLEM = "copy_task_problem"
     COPY_TASK_PROBLEMS = "copy_task_problems"
     COPY_FILE_TASK_PROBLEMS = "copy_file_task_problems"
@@ -74,6 +75,7 @@ class BrowserCommandAction:
     SAVE_PROMPT = "save_prompt"
     SAVE_FILE_PROMPT = "save_file_prompt"
     SAVE_TASK_OUTPUT = "save_task_output"
+    SAVE_TASK_OUTPUT_TAIL = "save_task_output_tail"
     SAVE_PROBLEM_CONTEXT = "save_problem_context"
     REVEAL_FILE = "reveal_file"
     STAGE_FILE = "stage_file"
@@ -226,6 +228,13 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_PROMPT)
     if command in {"copy prompt file", "copy file prompt"}:
         return BrowserCommand(BrowserCommandAction.COPY_FILE_PROMPT)
+    if command == "copy task tail":
+        return BrowserCommand(BrowserCommandAction.COPY_TASK_OUTPUT_TAIL)
+    if command.startswith("copy task tail "):
+        return BrowserCommand(
+            BrowserCommandAction.COPY_TASK_OUTPUT_TAIL,
+            command.removeprefix("copy task tail ").strip(),
+        )
     if command in {"copy task", "copy task output"}:
         return BrowserCommand(BrowserCommandAction.COPY_TASK_OUTPUT)
     if command in {"copy problem", "copy task problem"}:
@@ -317,6 +326,13 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(
             BrowserCommandAction.SAVE_PROMPT,
             command.removeprefix("save prompt ").strip(),
+        )
+    if command == "save task tail":
+        return BrowserCommand(BrowserCommandAction.SAVE_TASK_OUTPUT_TAIL)
+    if command.startswith("save task tail "):
+        return BrowserCommand(
+            BrowserCommandAction.SAVE_TASK_OUTPUT_TAIL,
+            command.removeprefix("save task tail ").strip(),
         )
     if command == "save task":
         return BrowserCommand(BrowserCommandAction.SAVE_TASK_OUTPUT)

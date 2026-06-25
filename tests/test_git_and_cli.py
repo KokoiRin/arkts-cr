@@ -939,6 +939,26 @@ class CliTests(unittest.TestCase):
         self.assertIn("Command: ./build.sh", text)
         self.assertIn("(no output captured)", text)
 
+    def test_task_runtime_renders_task_output_tail_handoff_text(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        task = TaskState(
+            ["./build.sh"],
+            process,
+            kind="build",
+            lines=[f"line {index}" for index in range(1, 7)],
+            returncode=1,
+        )
+
+        text = task_runtime.task_output_tail_handoff_text(task, max_lines=3)
+
+        self.assertIn("# Build output tail", text)
+        self.assertIn("Status: failed (1)", text)
+        self.assertIn("Command: ./build.sh", text)
+        self.assertIn("Last 3 of 6 output lines", text)
+        self.assertNotIn("line 3", text)
+        self.assertIn("```text\nline 4\nline 5\nline 6\n```", text)
+
     def test_browser_frame_module_draws_task_panel_without_full_clear(self):
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         task = TaskState(["true"], process, lines=["compile line"])
@@ -1197,6 +1217,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy line", text)
         self.assertIn("copy source", text)
         self.assertIn("copy problem context", text)
+        self.assertIn("copy task tail", text)
+        self.assertIn("save task tail", text)
         self.assertIn("copy change", text)
         self.assertIn("source context N", text)
         self.assertIn("source select START END", text)
@@ -1320,6 +1342,18 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy problem context", text)
         self.assertIn("save problem context", text)
 
+        state.help_topic_page = BrowserPage.TASK_OUTPUT
+        task_output_text = "\n".join(
+            page_content.page_help_screen_lines(
+                state,
+                TerminalStyle(False),
+                max_lines=40,
+            )
+        )
+        self.assertIn("Task Output 帮助", task_output_text)
+        self.assertIn("copy task tail", task_output_text)
+        self.assertIn("save task tail", task_output_text)
+
     def test_page_content_help_screen_lists_source_file_commands(self):
         state = BrowserState([], page=BrowserPage.HELP, help_topic_page=BrowserPage.SOURCE_FILE)
 
@@ -1379,6 +1413,7 @@ class CliTests(unittest.TestCase):
             BrowserPage.TASK_OUTPUT,
             style,
         )
+        self.assertIn("copy task tail 复制尾部", task_output)
         self.assertIn("copy task 复制任务", task_output)
         self.assertIn("save task 保存任务", task_output)
         self.assertIn("find 查找", task_output)
@@ -2194,6 +2229,18 @@ class CliTests(unittest.TestCase):
             parse_browser_command("copy task").action,
             BrowserCommandAction.COPY_TASK_OUTPUT,
         )
+        copy_task_tail = parse_browser_command("copy task tail")
+        self.assertEqual(
+            copy_task_tail.action,
+            BrowserCommandAction.COPY_TASK_OUTPUT_TAIL,
+        )
+        self.assertEqual(copy_task_tail.value, "")
+        copy_task_tail_size = parse_browser_command("copy task tail 5")
+        self.assertEqual(
+            copy_task_tail_size.action,
+            BrowserCommandAction.COPY_TASK_OUTPUT_TAIL,
+        )
+        self.assertEqual(copy_task_tail_size.value, "5")
         self.assertEqual(
             parse_browser_command("task output").action,
             BrowserCommandAction.SHOW_TASK_OUTPUT,
@@ -2346,6 +2393,18 @@ class CliTests(unittest.TestCase):
         save_task_path = parse_browser_command("save task tmp/task.md")
         self.assertEqual(save_task_path.action, BrowserCommandAction.SAVE_TASK_OUTPUT)
         self.assertEqual(save_task_path.value, "tmp/task.md")
+        save_task_tail = parse_browser_command("save task tail")
+        self.assertEqual(
+            save_task_tail.action,
+            BrowserCommandAction.SAVE_TASK_OUTPUT_TAIL,
+        )
+        self.assertEqual(save_task_tail.value, "")
+        save_task_tail_path = parse_browser_command("save task tail tmp/tail.md")
+        self.assertEqual(
+            save_task_tail_path.action,
+            BrowserCommandAction.SAVE_TASK_OUTPUT_TAIL,
+        )
+        self.assertEqual(save_task_tail_path.value, "tmp/tail.md")
         self.assertEqual(
             parse_browser_command("tasks").action,
             BrowserCommandAction.SHOW_TASK_DIAGNOSTICS,
@@ -4742,6 +4801,66 @@ class CliTests(unittest.TestCase):
         copy.assert_not_called()
         self.assertIn("No task output to copy.", output.getvalue())
 
+    def test_browser_command_executor_copies_task_output_tail(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState(
+            [],
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                kind="build",
+                lines=[f"line {index}" for index in range(1, 7)],
+                returncode=1,
+            ),
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text", return_value=None) as copy:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy task tail 2"))
+
+        self.assertTrue(result.handled)
+        copied_text = copy.call_args.args[0]
+        self.assertIn("# Build output tail", copied_text)
+        self.assertNotIn("line 4", copied_text)
+        self.assertIn("line 5", copied_text)
+        self.assertIn("line 6", copied_text)
+        self.assertEqual(copy.call_args.args[1], "copy-tool")
+        self.assertIn("Copied task output tail.", output.getvalue())
+
+    def test_browser_command_executor_copy_task_tail_reports_empty_state(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(copy_cmd="copy-tool")
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with patch("cr.ui.browser.file_actions.copy_text") as copy:
+            with redirect_stdout(output):
+                result = executor.execute(parse_browser_command("copy task tail"))
+
+        self.assertTrue(result.handled)
+        copy.assert_not_called()
+        self.assertIn("No task output tail to copy.", output.getvalue())
+
     def test_browser_command_executor_saves_task_output(self):
         from cr.ui.browser import parse_browser_command
 
@@ -4776,6 +4895,70 @@ class CliTests(unittest.TestCase):
             self.assertTrue(result.handled)
             self.assertIn("# Build output", target.read_text(encoding="utf-8"))
             self.assertIn("Saved task output to tmp/task.md", output.getvalue())
+
+    def test_browser_command_executor_saves_task_output_tail(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [],
+            task=TaskState(
+                ["./build.sh"],
+                process,
+                kind="build",
+                lines=[f"line {index}" for index in range(1, 45)],
+                returncode=1,
+            ),
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with redirect_stdout(output):
+                    result = executor.execute(parse_browser_command("save task tail"))
+
+            target = repo / ".cr" / "handoff" / "task-output-tail.md"
+            saved_text = target.read_text(encoding="utf-8")
+            self.assertTrue(result.handled)
+            self.assertIn("# Build output tail", saved_text)
+            self.assertNotIn("\nline 4\n", saved_text)
+            self.assertIn("line 44", saved_text)
+            self.assertIn(
+                "Saved task output tail to .cr/handoff/task-output-tail.md",
+                output.getvalue(),
+            )
+
+    def test_browser_command_executor_save_task_tail_reports_empty_state(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with redirect_stdout(output):
+                    result = executor.execute(parse_browser_command("save task tail"))
+
+            self.assertTrue(result.handled)
+            self.assertFalse((repo / ".cr").exists())
+            self.assertIn("No task output tail to save.", output.getvalue())
 
     def test_browser_command_executor_save_task_reports_empty_state(self):
         from cr.ui.browser import parse_browser_command

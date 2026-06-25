@@ -246,22 +246,46 @@ def task_status(task: TaskState) -> str:
 
 
 def task_output_handoff_text(task: TaskState) -> str:
+    return _task_output_handoff_text(
+        task,
+        title=f"{task_label(task.kind)} output",
+        output_lines=task.lines,
+    )
+
+
+def task_output_tail_handoff_text(task: TaskState, max_lines: int = 40) -> str:
+    line_count = max(1, max_lines)
+    tail_lines = task.lines[-line_count:] if task.lines else []
+    title = f"{task_label(task.kind)} output tail"
+    return _task_output_handoff_text(
+        task,
+        title=title,
+        output_lines=tail_lines,
+        note=f"Last {len(tail_lines)} of {len(task.lines)} output lines",
+    )
+
+
+def _task_output_handoff_text(
+    task: TaskState,
+    *,
+    title: str,
+    output_lines: list[str],
+    note: str = "",
+) -> str:
     command = _format_command(task.command) if task.command else "(no command)"
-    output = "\n".join(task.lines).strip()
+    output = "\n".join(output_lines).strip()
     if not output:
         output = "(no output captured)"
-    return "\n".join(
-        [
-            f"# {task_label(task.kind)} output",
-            "",
-            f"Status: {task_status(task)}",
-            f"Command: {command}",
-            "",
-            "```text",
-            output,
-            "```",
-        ]
-    )
+    lines = [
+        f"# {title}",
+        "",
+        f"Status: {task_status(task)}",
+        f"Command: {command}",
+    ]
+    if note:
+        lines.append(note)
+    lines.extend(["", "```text", output, "```"])
+    return "\n".join(lines)
 
 
 def record_completed_task(state: TaskRuntimeState) -> None:

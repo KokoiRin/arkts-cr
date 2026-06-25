@@ -493,6 +493,10 @@ class BrowserCommandExecutor:
             message = _copy_source_context(state, args, style)
             _show_browser_message(state, message, raw_keys, frame)
             return BrowserActionResult(needs_redraw=raw_keys)
+        if action == BrowserCommandAction.COPY_SOURCE_SYMBOL:
+            message = _copy_source_symbol(state, args, style)
+            _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=raw_keys)
         if action == BrowserCommandAction.SET_SOURCE_CONTEXT_LINES:
             message = _set_source_context_lines(state, parsed_command.value)
             _show_browser_message(state, message, raw_keys, frame)
@@ -2402,6 +2406,55 @@ def _copy_file_detail_source_context(
         return error
     target_line = max(1, min(line, len(content.lines)))
     return f"Copied source context {content.path}:{target_line}."
+
+
+def _copy_source_symbol(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> str:
+    target = _source_symbol_copy_target(state, args, style)
+    if isinstance(target, str):
+        return target
+    path, line = target
+    content = source_file_module.load_source_file_content(git.repo_root(), path)
+    if content.error:
+        return content.error
+    target_line = max(1, min(line, len(content.lines)))
+    symbol_path = _source_symbol_path_for_content(content, target_line)
+    if not symbol_path:
+        return "No source symbol at current line."
+    symbol = symbol_path[-1]
+    start, end = _clamp_source_range(symbol.line, symbol.end_line, len(content.lines))
+    label = " > ".join(f"{item.kind} {item.name}" for item in symbol_path)
+    text = source_file_module.source_range_markdown(
+        content,
+        start_line=start,
+        end_line=end,
+        target_line=target_line,
+        symbol_label=label,
+    )
+    error = file_actions.copy_text(text, getattr(args, "copy_cmd", None))
+    if error:
+        return error
+    return f"Copied source symbol {content.path}:{start}-{end}."
+
+
+def _source_symbol_copy_target(
+    state: BrowserState,
+    args: argparse.Namespace,
+    style: TerminalStyle,
+) -> tuple[str, int] | str:
+    if state.page == BrowserPage.FILE_DETAIL:
+        return _file_detail_source_target(
+            state,
+            args,
+            style,
+            no_file_message="No changed file to copy source symbol.",
+        )
+    if state.page == BrowserPage.SOURCE_FILE and state.source_file_path:
+        return state.source_file_path, max(1, state.source_file_line)
+    return "No source symbol to copy."
 
 
 def _source_symbol_label(state: BrowserState) -> str:

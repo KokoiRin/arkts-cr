@@ -123,6 +123,7 @@ prev match       上一个查找匹配
 open line        用编辑器打开当前渲染行
 view source      在 TUI 中查看当前源码行
 copy source      复制当前源码行附近上下文
+copy source symbol 复制当前函数或方法范围
 copy line        复制当前行锚点
 copy hunk        复制当前 hunk
 copy change      复制当前改动行上下文
@@ -198,6 +199,7 @@ save problem context     保存同一份上下文
 find TEXT            在源码预览里查找
 copy line            复制当前源码行锚点
 copy source          复制当前源码上下文，包含 symbol 提示
+copy source symbol   复制当前函数或方法范围
 source context N     设置复制源码的上下文行数
 source mark          标记当前源码行
 source select to     选择标记行到当前行

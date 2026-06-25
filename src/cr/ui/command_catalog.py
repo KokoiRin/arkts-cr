@@ -200,6 +200,11 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                 CommandEntry("copy line", "复制当前行锚点", "copy line"),
                 CommandEntry("copy source", "复制当前源码上下文", "copy source"),
                 CommandEntry(
+                    "copy source symbol",
+                    "复制当前函数或方法范围",
+                    "copy source symbol",
+                ),
+                CommandEntry(
                     "source context N",
                     "设置复制源码时的上下文半径",
                     "source context 3",

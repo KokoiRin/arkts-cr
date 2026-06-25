@@ -1266,6 +1266,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy hunk", text)
         self.assertIn("copy line", text)
         self.assertIn("copy source", text)
+        self.assertIn("copy source symbol", text)
         self.assertIn("copy problem context", text)
         self.assertIn("copy task tail", text)
         self.assertIn("save task tail", text)
@@ -1339,6 +1340,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("copy hunk", commands)
         self.assertIn("copy line", commands)
         self.assertIn("copy source", commands)
+        self.assertIn("copy source symbol", commands)
         self.assertIn("source context 3", commands)
         self.assertIn("source select 1 3", commands)
         self.assertIn("source select symbol", commands)
@@ -1421,6 +1423,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("File Detail 帮助", file_detail_text)
         self.assertIn("view source", file_detail_text)
         self.assertIn("copy source", file_detail_text)
+        self.assertIn("copy source symbol", file_detail_text)
 
     def test_page_content_help_screen_lists_source_file_commands(self):
         state = BrowserState([], page=BrowserPage.HELP, help_topic_page=BrowserPage.SOURCE_FILE)
@@ -1438,6 +1441,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("source select symbol", text)
         self.assertIn("source mark", text)
         self.assertIn("source select to", text)
+        self.assertIn("copy source symbol", text)
         self.assertIn("copy source", text)
         self.assertIn("选择源码行范围", text)
 
@@ -1475,6 +1479,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("find 查找", file_detail)
         self.assertIn("view source 看源码", file_detail)
         self.assertIn("copy source 复制源码", file_detail)
+        self.assertIn("copy symbol 复制函数", file_detail)
         self.assertIn("copy line 复制行", file_detail)
         self.assertIn("Enter 选择", scope_home)
         self.assertIn(":base", scope_home)
@@ -2230,6 +2235,18 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy source").action,
             BrowserCommandAction.COPY_SOURCE_CONTEXT,
+        )
+        self.assertEqual(
+            parse_browser_command("copy source symbol").action,
+            BrowserCommandAction.COPY_SOURCE_SYMBOL,
+        )
+        self.assertEqual(
+            parse_browser_command("copy symbol").action,
+            BrowserCommandAction.COPY_SOURCE_SYMBOL,
+        )
+        self.assertEqual(
+            parse_browser_command("copy current symbol").action,
+            BrowserCommandAction.COPY_SOURCE_SYMBOL,
         )
         self.assertEqual(
             parse_browser_command("copy change").action,
@@ -4012,6 +4029,104 @@ class CliTests(unittest.TestCase):
             with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
                 result = executor.execute(
                     parse_browser_command("copy source", raw_keys=True)
+                )
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        copy_text.assert_not_called()
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertIn("No current new-file line in File Detail.", state.status_message)
+
+    def test_browser_command_executor_copies_file_detail_source_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Sample.ts"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "class Sample {",
+                        "  render() {",
+                        "    const title = 'old'",
+                        "    const title = 'new'",
+                        "    return title",
+                        "  }",
+                        "  other() {",
+                        "    return 'nope'",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [FileChange("src/Sample.ts", 1, 0)],
+                page=BrowserPage.FILE_DETAIL,
+                selected=0,
+                file_scroll=2,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy-tool"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+            lines = [
+                "File 1/1  src/Sample.ts",
+                "  @@ -3,2 +3,3 @@",
+                "     3    3 |     const title = 'old'",
+                "          4 | +   const title = 'new'",
+            ]
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+                    with patch(
+                        "cr.ui.browser.file_actions.copy_text",
+                        return_value=None,
+                    ) as copy_text:
+                        result = executor.execute(
+                            parse_browser_command("copy source symbol", raw_keys=True)
+                        )
+
+        copied = copy_text.call_args.args[0]
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertIn("src/Sample.ts:2-6", copied)
+        self.assertIn("Symbol: class Sample > method render", copied)
+        self.assertIn("const title = 'new'", copied)
+        self.assertNotIn("other() {", copied)
+        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
+        self.assertIn("Copied source symbol src/Sample.ts:2-6.", state.status_message)
+
+    def test_browser_command_executor_reports_file_detail_copy_symbol_without_new_line(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0)],
+            page=BrowserPage.FILE_DETAIL,
+            selected=0,
+            file_scroll=2,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(copy_cmd="copy-tool"),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+        lines = [
+            "File 1/1  src/Sample.ts",
+            "  @@ -20,2 +31,3 @@",
+            "    20      | -deleted",
+        ]
+
+        with patch("cr.ui.browser._cached_file_lines", return_value=lines):
+            with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+                result = executor.execute(
+                    parse_browser_command("copy source symbol", raw_keys=True)
                 )
 
         self.assertTrue(result.handled)
@@ -7304,6 +7419,90 @@ class CliTests(unittest.TestCase):
         self.assertIn("const title = 'hi'", copied)
         self.assertNotIn("other() {", copied)
         self.assertIn("Copied selected source src/Foo.ets:2-5.", state.status_message)
+
+    def test_browser_command_executor_copies_source_file_symbol_directly(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "struct Foo {",
+                        "  build() {",
+                        "    const title = 'hi'",
+                        "    Text(title)",
+                        "  }",
+                        "  other() {",
+                        "    Text('nope')",
+                        "  }",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=3,
+                source_selection_start=7,
+                source_selection_end=8,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch(
+                    "cr.ui.browser.file_actions.copy_text",
+                    return_value=None,
+                ) as copy_text:
+                    result = executor.execute(parse_browser_command("copy source symbol"))
+
+        copied = copy_text.call_args.args[0]
+        self.assertTrue(result.handled)
+        self.assertIn("src/Foo.ets:2-5", copied)
+        self.assertIn("Symbol: struct Foo > method build", copied)
+        self.assertNotIn("other() {", copied)
+        self.assertEqual((state.source_selection_start, state.source_selection_end), (7, 8))
+        self.assertIn("Copied source symbol src/Foo.ets:2-5.", state.status_message)
+
+    def test_browser_command_executor_reports_copy_source_symbol_without_symbol(self):
+        from cr.ui.browser import parse_browser_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            source = repo / "src" / "Foo.ets"
+            source.parent.mkdir(parents=True)
+            source.write_text("const title = 'hi'\nText(title)\n", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.SOURCE_FILE,
+                source_file_path="src/Foo.ets",
+                source_file_line=1,
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(copy_cmd="copy {text}"),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
+                    result = executor.execute(parse_browser_command("copy source symbol"))
+
+        self.assertTrue(result.handled)
+        copy_text.assert_not_called()
+        self.assertIn("No source symbol at current line.", state.status_message)
 
     def test_browser_command_executor_reports_source_context_without_source_page(self):
         from cr.ui.browser import parse_browser_command

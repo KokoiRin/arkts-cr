@@ -52,6 +52,7 @@ class BrowserCommandAction:
     COPY_HUNK = "copy_hunk"
     COPY_LINE = "copy_line"
     COPY_SOURCE_CONTEXT = "copy_source_context"
+    COPY_SOURCE_SYMBOL = "copy_source_symbol"
     COPY_CHANGE = "copy_change"
     COPY_REVIEW_NOTES = "copy_review_notes"
     COPY_PROMPT = "copy_prompt"
@@ -221,6 +222,8 @@ def parse_browser_command(command: str, *, raw_keys: bool = False) -> BrowserCom
         return BrowserCommand(BrowserCommandAction.COPY_HUNK)
     if command == "copy line":
         return BrowserCommand(BrowserCommandAction.COPY_LINE)
+    if command in {"copy source symbol", "copy symbol", "copy current symbol"}:
+        return BrowserCommand(BrowserCommandAction.COPY_SOURCE_SYMBOL)
     if command in {"copy source", "copy source context"}:
         return BrowserCommand(BrowserCommandAction.COPY_SOURCE_CONTEXT)
     if command == "copy change":

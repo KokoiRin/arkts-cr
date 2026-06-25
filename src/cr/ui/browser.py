@@ -617,6 +617,16 @@ class BrowserCommandExecutor:
         if action == BrowserCommandAction.SHOW_TASK_PROBLEMS:
             BrowserNavigation.show_task_problems(state)
             return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.NEXT_TASK_PROBLEM_FILE:
+            message = _jump_task_problem_file(state, "next")
+            if message:
+                _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
+        if action == BrowserCommandAction.PREVIOUS_TASK_PROBLEM_FILE:
+            message = _jump_task_problem_file(state, "previous")
+            if message:
+                _show_browser_message(state, message, raw_keys, frame)
+            return BrowserActionResult(needs_redraw=True)
         if action == BrowserCommandAction.VIEW_TASK_PROBLEM:
             message = _view_selected_task_problem(state)
             if message:
@@ -1816,6 +1826,28 @@ def _move_task_problem_selection(state: BrowserState, delta: int) -> None:
     if not total:
         return
     state.problem_selected = max(0, min(state.problem_selected + delta, total - 1))
+
+
+def _jump_task_problem_file(state: BrowserState, direction: str) -> str:
+    problems = _current_task_problems(state)
+    if not problems:
+        return "没有可跳转的问题。"
+    selected = max(0, min(state.problem_selected, len(problems) - 1))
+    current_path = problems[selected].path
+    if direction == "next":
+        for index in range(selected + 1, len(problems)):
+            if problems[index].path != current_path:
+                state.problem_selected = index
+                return ""
+        return "已经在最后一个问题文件。"
+    for index in range(selected - 1, -1, -1):
+        if problems[index].path != current_path:
+            target_path = problems[index].path
+            while index > 0 and problems[index - 1].path == target_path:
+                index -= 1
+            state.problem_selected = index
+            return ""
+    return "已经在第一个问题文件。"
 
 
 def _scroll_source_file(state: BrowserState, delta: int) -> None:

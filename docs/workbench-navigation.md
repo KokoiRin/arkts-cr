@@ -452,7 +452,7 @@ Task Problems defaults to task-output order, then supports `problems sort severi
 
 Status: implemented.
 
-Task Problems supports `problems group file` to insert file headers into the current visible Problems list and `problems group none` to return to the flat list. Grouping is render-only: it applies after severity filtering, text filtering, and sorting have produced the visible problem list, and movement, Enter/open, `view problem`, `copy problem`, `copy problems`, `copy file problems`, `copy problem context`, and `save problem context` still use the same visible `TaskProblem` indices as flat mode. The header shows `group: file`, and page history restores `problem_group`. This intentionally avoids collapsible groups, group-level selection state, external quick-fix actions, tool-specific diagnostic trees, and persisted grouping preferences.
+Task Problems supports `problems group file` to insert file headers into the current visible Problems list and `problems group none` to return to the flat list. Grouping is render-only: it applies after severity filtering, text filtering, and sorting have produced the visible problem list, and movement, Enter/open, `view problem`, `copy problem`, `copy problems`, `copy file problems`, `copy problem context`, and `save problem context` still use the same visible `TaskProblem` indices as flat mode. `next problem file` and `prev problem file` jump the selection between visible file groups without making headers selectable. The header shows `group: file`, and page history restores `problem_group`. This intentionally avoids collapsible groups, group-level selection state, external quick-fix actions, tool-specific diagnostic trees, and persisted grouping preferences.
 
 ### P0: Task Problems severity counts
 

@@ -127,6 +127,16 @@ def command_catalog() -> tuple[CommandGroup, ...]:
                     "恢复平铺任务问题列表",
                     "problems group none",
                 ),
+                CommandEntry(
+                    "next problem file",
+                    "跳到下一个问题文件",
+                    "next problem file",
+                ),
+                CommandEntry(
+                    "prev problem file",
+                    "跳到上一个问题文件",
+                    "prev problem file",
+                ),
                 CommandEntry("view problem", "查看选中问题的源码位置", "view problem"),
                 CommandEntry("copy problem", "复制选中问题", "copy problem"),
                 CommandEntry("copy problems", "复制当前问题列表", "copy problems"),

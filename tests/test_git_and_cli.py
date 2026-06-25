@@ -1251,6 +1251,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("problems sort output", commands)
         self.assertIn("problems group file", commands)
         self.assertIn("problems group none", commands)
+        self.assertIn("next problem file", commands)
+        self.assertIn("prev problem file", commands)
         self.assertIn("copy problem", commands)
         self.assertIn("copy problems", commands)
         self.assertIn("copy file problems", commands)
@@ -1394,6 +1396,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("find 查找", task_problems)
         self.assertIn("sort severity 按严重度", task_problems)
         self.assertIn("group file 按文件分组", task_problems)
+        self.assertIn("next file 下个文件", task_problems)
+        self.assertIn("prev file 上个文件", task_problems)
         self.assertIn("task output 任务输出", task_problems)
         self.assertIn("copy problem 复制问题", task_problems)
         self.assertIn("copy problems 复制列表", task_problems)
@@ -2217,6 +2221,14 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             parse_browser_command("copy file problems").action,
             BrowserCommandAction.COPY_FILE_TASK_PROBLEMS,
+        )
+        self.assertEqual(
+            parse_browser_command("next problem file").action,
+            BrowserCommandAction.NEXT_TASK_PROBLEM_FILE,
+        )
+        self.assertEqual(
+            parse_browser_command("prev problem file").action,
+            BrowserCommandAction.PREVIOUS_TASK_PROBLEM_FILE,
         )
         self.assertEqual(
             parse_browser_command("copy problem context").action,
@@ -5027,6 +5039,173 @@ class CliTests(unittest.TestCase):
         self.assertEqual(selected_after_down, 1)
         self.assertEqual(selected_after_end, 2)
         self.assertEqual(state.problem_selected, 0)
+
+    def test_browser_command_executor_jumps_to_next_task_problem_file(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets", "Three.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=0,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/One.ets:2:1 warning",
+                        "src/Two.ets:3:1 error",
+                        "src/Three.ets:4:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("next problem file"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
+        self.assertEqual(state.problem_selected, 2)
+
+    def test_browser_command_executor_jumps_to_previous_task_problem_file(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets", "Three.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=4,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:2:1 error",
+                        "src/Two.ets:3:1 warning",
+                        "src/Three.ets:4:1 error",
+                        "src/Three.ets:5:1 warning",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("prev problem file"))
+
+        self.assertTrue(result.handled)
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.problem_selected, 1)
+
+    def test_browser_command_executor_jumps_between_visible_task_problem_files(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets", "Three.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_filter="error",
+                problem_selected=0,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error E1: bad one",
+                        "src/Two.ets:2:1 warning W2: skipped",
+                        "src/Three.ets:3:1 error E3: bad three",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                result = executor.execute(parse_browser_command("next problem file"))
+
+        self.assertTrue(result.handled)
+        self.assertEqual(state.problem_selected, 1)
+
+    def test_browser_command_executor_keeps_task_problem_selection_at_file_edges(self):
+        from cr.ui.browser import parse_browser_command
+
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for name in ("One.ets", "Two.ets"):
+                (repo / "src").mkdir(exist_ok=True)
+                (repo / "src" / name).write_text("sample", encoding="utf-8")
+            state = BrowserState(
+                [],
+                page=BrowserPage.TASK_PROBLEMS,
+                problem_selected=1,
+                task=TaskState(
+                    ["./build.sh"],
+                    process,
+                    lines=[
+                        "src/One.ets:1:1 error",
+                        "src/Two.ets:2:1 error",
+                    ],
+                ),
+            )
+            executor = BrowserCommandExecutor(
+                state,
+                argparse_namespace(),
+                TerminalStyle(),
+                BrowserFrame(),
+                raw_keys=True,
+            )
+
+            with patch("cr.ui.browser.git.repo_root", return_value=repo):
+                next_result = executor.execute(parse_browser_command("next problem file"))
+                next_message = state.status_message
+                selected_after_next = state.problem_selected
+                state.problem_selected = 0
+                prev_result = executor.execute(parse_browser_command("prev problem file"))
+                previous_message = state.status_message
+
+        self.assertTrue(next_result.handled)
+        self.assertTrue(prev_result.handled)
+        self.assertEqual(selected_after_next, 1)
+        self.assertIn("已经在最后一个问题文件。", next_message)
+        self.assertEqual(state.problem_selected, 0)
+        self.assertIn("已经在第一个问题文件。", previous_message)
 
     def test_browser_command_executor_opens_selected_task_problem(self):
         from cr.ui.browser import parse_browser_command
@@ -11595,7 +11774,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(_normalize_command_query(" build "), "build")
 
     def test_command_list_lines_group_commands_by_purpose(self):
-        lines = _browse_command_lines(TerminalStyle(False), max_lines=100)
+        lines = _browse_command_lines(TerminalStyle(False), max_lines=120)
         text = "\n".join(lines)
 
         self.assertIn("命令", text)

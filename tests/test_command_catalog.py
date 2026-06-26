@@ -1,6 +1,7 @@
 import unittest
 
 from cr.ui import command_catalog
+from cr.ui.browser import _browse_command_lines, _normalize_command_query
 from cr.ui.terminal import TerminalStyle
 
 
@@ -158,6 +159,46 @@ class CommandCatalogTests(unittest.TestCase):
         self.assertIn("过滤：build", text)
         self.assertIn("> ", text)
 
+    def test_command_query_empty_or_question_mark_opens_command_list(self):
+        self.assertEqual(_normalize_command_query(""), "commands")
+        self.assertEqual(_normalize_command_query("?"), "commands")
+        self.assertEqual(_normalize_command_query(" build "), "build")
+
+    def test_command_list_lines_group_commands_by_purpose(self):
+        lines = _browse_command_lines(TerminalStyle(False), max_lines=120)
+        text = "\n".join(lines)
+
+        self.assertIn("命令", text)
+        self.assertIn("导航", text)
+        self.assertIn("审查范围", text)
+        self.assertIn("任务", text)
+        self.assertIn("文件", text)
+        self.assertIn("会话", text)
+        self.assertIn("staged", text)
+        self.assertIn("build", text)
+        self.assertIn("done next", text)
+        self.assertIn("note TEXT", text)
+        self.assertIn("note change TEXT", text)
+        self.assertIn("notes QUERY", text)
+        self.assertIn("copy notes QUERY", text)
+        self.assertIn("save notes", text)
+        self.assertIn("copy prompt", text)
+        self.assertIn("copy prompt file", text)
+        self.assertIn("open hunk", text)
+        self.assertIn("open line", text)
+        self.assertIn("copy hunk", text)
+        self.assertIn("copy line", text)
+        self.assertIn("copy change", text)
+        self.assertIn("find TEXT", text)
+        self.assertIn("next match", text)
+        self.assertIn("prev match", text)
+        self.assertIn("next change", text)
+        self.assertIn("prev change", text)
+        self.assertIn("save diff", text)
+        self.assertIn("next hunk", text)
+        self.assertIn("prev hunk", text)
+        self.assertIn("save prompt", text)
+        self.assertIn("save prompt file", text)
 
 if __name__ == "__main__":
     unittest.main()

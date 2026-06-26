@@ -185,68 +185,6 @@ class CliTests(unittest.TestCase):
         self.assertIn("bad call", text)
         self.assertIn("cr:problems> ", text)
 
-    def test_browser_remaining_only_filters_seen_paths(self):
-        state = BrowserState(
-            [
-                FileChange("src/First.ts", 1, 0),
-                FileChange("src/Second.ts", 2, 1),
-                FileChange("src/Third.ts", 3, 0),
-            ],
-            seen_paths={"src/First.ts", "src/Third.ts"},
-            remaining_only=True,
-        )
-
-        self.assertEqual(
-            [change.path for change in state.visible_changes],
-            ["src/Second.ts"],
-        )
-
-    def test_switch_review_scope_resets_view_state_but_keeps_task_panel(self):
-        args = argparse_namespace(
-            staged=False,
-            all_changes=False,
-            base=None,
-            ref_range=None,
-            untracked=False,
-            sort="git",
-            paths=[],
-            code=False,
-        )
-        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
-        build = TaskState(["true"], process, returncode=0)
-        state = BrowserState(
-            [FileChange("src/Old.ts", 1, 1)],
-            task=build,
-            selected=3,
-            list_scroll=4,
-            commit_scroll=2,
-            file_scroll=9,
-            page="file",
-            filter_text="Old",
-        )
-        state.first_line_cache["src/Old.ts"] = 1
-        state.file_line_cache["src/Old.ts"] = ["cached"]
-
-        with patch("cr.ui.browser._load_browse_changes", return_value=[FileChange("src/New.ts", 2, 0)]):
-            _switch_review_scope(
-                state,
-                args,
-                ReviewScope(True, False, None, None, False),
-            )
-
-        self.assertTrue(args.staged)
-        self.assertEqual(state.changes, [FileChange("src/New.ts", 2, 0)])
-        self.assertIs(state.task, build)
-        self.assertEqual(state.mode, "list")
-        self.assertEqual(state.selected, 0)
-        self.assertEqual(state.list_scroll, 0)
-        self.assertEqual(state.commit_scroll, 0)
-        self.assertEqual(state.file_scroll, 0)
-        self.assertEqual(state.filter_text, "")
-        self.assertEqual(state.first_line_cache, {})
-        self.assertEqual(state.file_line_cache, {})
-        process.wait(timeout=1)
-
     def test_browse_screen_only_measures_visible_list_rows(self):
         changes = [FileChange(f"src/File{index}.ts", 1, 0) for index in range(30)]
         args = argparse_namespace(

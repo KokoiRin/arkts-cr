@@ -1,8 +1,17 @@
 from pathlib import Path
+import subprocess
 import unittest
+from unittest.mock import patch
 
 import cr.ui.browser as browser_module
-from cr.ui.browser import BrowserPage, BrowserState, ReviewScope, ReviewWorkspace
+from cr.ui.browser import (
+    BrowserPage,
+    BrowserState,
+    ReviewScope,
+    ReviewWorkspace,
+    TaskState,
+    _switch_review_scope,
+)
 from cr.vcs.git import CommitSummary, FileChange
 
 
@@ -17,6 +26,7 @@ def argparse_namespace(**kwargs):
 
 
 class ReviewWorkspaceTests(unittest.TestCase):
+
     def test_review_workspace_loads_filters_and_switches_scope(self):
         loads: list[tuple[bool, bool, str | None, str | None, bool]] = []
 
@@ -216,6 +226,68 @@ class ReviewWorkspaceTests(unittest.TestCase):
             {"src/Second.ts": "check lifecycle edge case"},
         )
         self.assertEqual(mode, "file")
+
+    def test_browser_remaining_only_filters_seen_paths(self):
+        state = BrowserState(
+            [
+                FileChange("src/First.ts", 1, 0),
+                FileChange("src/Second.ts", 2, 1),
+                FileChange("src/Third.ts", 3, 0),
+            ],
+            seen_paths={"src/First.ts", "src/Third.ts"},
+            remaining_only=True,
+        )
+
+        self.assertEqual(
+            [change.path for change in state.visible_changes],
+            ["src/Second.ts"],
+        )
+
+    def test_switch_review_scope_resets_view_state_but_keeps_task_panel(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            untracked=False,
+            sort="git",
+            paths=[],
+            code=False,
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        build = TaskState(["true"], process, returncode=0)
+        state = BrowserState(
+            [FileChange("src/Old.ts", 1, 1)],
+            task=build,
+            selected=3,
+            list_scroll=4,
+            commit_scroll=2,
+            file_scroll=9,
+            page="file",
+            filter_text="Old",
+        )
+        state.first_line_cache["src/Old.ts"] = 1
+        state.file_line_cache["src/Old.ts"] = ["cached"]
+
+        with patch("cr.ui.browser._load_browse_changes", return_value=[FileChange("src/New.ts", 2, 0)]):
+            _switch_review_scope(
+                state,
+                args,
+                ReviewScope(True, False, None, None, False),
+            )
+
+        self.assertTrue(args.staged)
+        self.assertEqual(state.changes, [FileChange("src/New.ts", 2, 0)])
+        self.assertIs(state.task, build)
+        self.assertEqual(state.mode, "list")
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(state.list_scroll, 0)
+        self.assertEqual(state.commit_scroll, 0)
+        self.assertEqual(state.file_scroll, 0)
+        self.assertEqual(state.filter_text, "")
+        self.assertEqual(state.first_line_cache, {})
+        self.assertEqual(state.file_line_cache, {})
+        process.wait(timeout=1)
 
     def test_review_workspace_source_filter_combines_with_path_and_remaining_filters(self):
         workspace = ReviewWorkspace(

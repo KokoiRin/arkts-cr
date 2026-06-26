@@ -1,16 +1,13 @@
 import json
 import os
 from pathlib import Path
-import subprocess
-import sys
 import tempfile
 import unittest
 
+from tests.cli_test_support import CliTestCase
 
-ROOT = Path(__file__).resolve().parents[1]
 
-
-class CliBrowserWorkflowTests(unittest.TestCase):
+class CliBrowserWorkflowTests(CliTestCase):
 
     def test_cli_defaults_to_interactive_browser(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -719,33 +716,6 @@ class CliBrowserWorkflowTests(unittest.TestCase):
                 (repo / "test.out").read_text(encoding="utf-8").strip(),
                 "test ran",
             )
-
-    def _cr(self, cwd, *args):
-        return self._cr_input(cwd, None, *args)
-
-    def _cr_input(self, cwd, input_text, *args):
-        env = os.environ.copy()
-        env["PYTHONPATH"] = str(ROOT / "src")
-        return subprocess.run(
-            [sys.executable, "-m", "cr", *args],
-            cwd=cwd,
-            text=True,
-            input=input_text,
-            capture_output=True,
-            env=env,
-            check=False,
-        )
-
-    def _run(self, cwd, *args):
-        result = subprocess.run(
-            args,
-            cwd=cwd,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-
 
 if __name__ == "__main__":
     unittest.main()

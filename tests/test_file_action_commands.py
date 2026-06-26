@@ -107,6 +107,45 @@ class FileActionCommandTests(unittest.TestCase):
         self.assertTrue(result.handled)
         copy.assert_called_once_with("asset.bin", None)
 
+    def test_browser_command_executor_opens_selected_file(self):
+        from cr.ui.browser import parse_browser_command
+
+        args = argparse_namespace(
+            staged=True,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            open_cmd="code -g {fileline}",
+        )
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
+        executor = BrowserCommandExecutor(
+            state,
+            args,
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+        repo_file = Path("/tmp/repo/src/Sample.ts")
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=12) as first_line:
+            with patch("cr.ui.browser.git.repo_path", return_value=repo_file):
+                with patch("cr.ui.browser.file_actions.open_path", return_value=None) as open_path:
+                    with redirect_stdout(output):
+                        result = executor.execute(parse_browser_command("open"))
+
+        self.assertTrue(result.handled)
+        self.assertFalse(result.needs_redraw)
+        first_line.assert_called_once_with(
+            "src/Sample.ts",
+            staged=True,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+        )
+        open_path.assert_called_once_with(repo_file, 12, "code -g {fileline}")
+        self.assertIn("Opened src/Sample.ts:12", output.getvalue())
+
     def test_browser_command_executor_reveals_selected_file(self):
         from cr.ui.browser import parse_browser_command
 

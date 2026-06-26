@@ -82,7 +82,6 @@ def argparse_namespace(**kwargs):
 
 class CliTests(unittest.TestCase):
 
-
     def test_file_diff_snippet_renders_compact_selected_file_context(self):
         text = render_file_diff_snippet(
             {
@@ -131,150 +130,6 @@ class CliTests(unittest.TestCase):
         )
         self.assertNotIn("docs/Other.md", str(data))
 
-
-    def test_browser_command_executor_opens_selected_file(self):
-        from cr.ui.browser import parse_browser_command
-
-        args = argparse_namespace(
-            staged=True,
-            all_changes=False,
-            base=None,
-            ref_range=None,
-            open_cmd="code -g {fileline}",
-        )
-        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
-        executor = BrowserCommandExecutor(
-            state,
-            args,
-            TerminalStyle(),
-            BrowserFrame(),
-            raw_keys=False,
-        )
-        output = StringIO()
-        repo_file = Path("/tmp/repo/src/Sample.ts")
-
-        with patch("cr.ui.browser.git.first_changed_line", return_value=12) as first_line:
-            with patch("cr.ui.browser.git.repo_path", return_value=repo_file):
-                with patch("cr.ui.browser.file_actions.open_path", return_value=None) as open_path:
-                    with redirect_stdout(output):
-                        result = executor.execute(parse_browser_command("open"))
-
-        self.assertTrue(result.handled)
-        self.assertFalse(result.needs_redraw)
-        first_line.assert_called_once_with(
-            "src/Sample.ts",
-            staged=True,
-            all_changes=False,
-            base=None,
-            ref_range=None,
-        )
-        open_path.assert_called_once_with(repo_file, 12, "code -g {fileline}")
-        self.assertIn("Opened src/Sample.ts:12", output.getvalue())
-
-
-    def test_browser_command_executor_copies_selected_diff_snippet(self):
-        from cr.ui.browser import parse_browser_command
-
-        args = argparse_namespace(copy_cmd="copy-tool")
-        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
-        executor = BrowserCommandExecutor(
-            state,
-            args,
-            TerminalStyle(),
-            BrowserFrame(),
-            raw_keys=False,
-        )
-        output = StringIO()
-
-        with patch(
-            "cr.ui.browser.selected_file_actions.copy_selected_diff_snippet",
-            return_value="Copied diff for src/Sample.ts",
-        ) as copy_diff:
-            with redirect_stdout(output):
-                result = executor.execute(parse_browser_command("copy diff"))
-
-        self.assertTrue(result.handled)
-        self.assertFalse(result.needs_redraw)
-        copy_diff.assert_called_once_with(state, args)
-        self.assertIn("Copied diff for src/Sample.ts", output.getvalue())
-
-    def test_browser_command_executor_copies_selected_diff_in_raw_status(self):
-        from cr.ui.browser import parse_browser_command
-
-        args = argparse_namespace(copy_cmd="copy-tool")
-        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
-        executor = BrowserCommandExecutor(
-            state,
-            args,
-            TerminalStyle(),
-            BrowserFrame(),
-            raw_keys=True,
-        )
-
-        with patch(
-            "cr.ui.browser.selected_file_actions.copy_selected_diff_snippet",
-            return_value="Copied diff for src/Sample.ts",
-        ):
-            result = executor.execute(parse_browser_command("copy diff", raw_keys=True))
-
-        self.assertTrue(result.handled)
-        self.assertTrue(result.needs_redraw)
-        self.assertIn("Copied diff for src/Sample.ts", state.status_message)
-
-    def test_browser_command_executor_saves_selected_diff_snippet(self):
-        from cr.ui.browser import parse_browser_command
-
-        args = argparse_namespace()
-        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
-        executor = BrowserCommandExecutor(
-            state,
-            args,
-            TerminalStyle(),
-            BrowserFrame(),
-            raw_keys=False,
-        )
-        output = StringIO()
-
-        with patch(
-            "cr.ui.browser.selected_file_actions.save_selected_diff_snippet",
-            return_value="Saved diff for src/Sample.ts to tmp/current.md",
-        ) as save_diff:
-            with redirect_stdout(output):
-                result = executor.execute(
-                    parse_browser_command("save diff tmp/current.md")
-                )
-
-        self.assertTrue(result.handled)
-        self.assertFalse(result.needs_redraw)
-        save_diff.assert_called_once_with(state, args, "tmp/current.md")
-        self.assertIn(
-            "Saved diff for src/Sample.ts to tmp/current.md",
-            output.getvalue(),
-        )
-
-    def test_browser_command_executor_saves_selected_diff_in_raw_status(self):
-        from cr.ui.browser import parse_browser_command
-
-        args = argparse_namespace()
-        state = BrowserState([FileChange("src/Sample.ts", 1, 0)])
-        executor = BrowserCommandExecutor(
-            state,
-            args,
-            TerminalStyle(),
-            BrowserFrame(),
-            raw_keys=True,
-        )
-
-        with patch(
-            "cr.ui.browser.selected_file_actions.save_selected_diff_snippet",
-            return_value="Saved diff for src/Sample.ts to .cr/handoff/review-diff.md",
-        ):
-            result = executor.execute(parse_browser_command("save diff", raw_keys=True))
-
-        self.assertTrue(result.handled)
-        self.assertTrue(result.needs_redraw)
-        self.assertIn("Saved diff for src/Sample.ts", state.status_message)
-
     def test_browser_command_executor_marks_done_and_moves_next_in_changed_files(self):
         from cr.ui.browser import parse_browser_command
 
@@ -304,7 +159,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.selected, 1)
         self.assertEqual(state.seen_paths, {"src/First.ts"})
         self.assertIn("Moved to src/Second.ts", state.status_message)
-
 
     def test_browser_command_executor_done_next_does_not_skip_remaining_file(self):
         from cr.ui.browser import parse_browser_command
@@ -388,7 +242,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.seen_paths, set())
         self.assertIn("No changed file to mark seen.", state.status_message)
 
-
     def test_browser_command_executor_reports_repeat_find_without_query(self):
         from cr.ui.browser import parse_browser_command
 
@@ -444,7 +297,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 2)
         self.assertIn('No matches for "owner".', state.status_message)
 
-
     def test_browser_command_executor_steps_source_file_task_problems(self):
         from cr.ui.browser import parse_browser_command
 
@@ -498,7 +350,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.source_file_line, 2)
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
-
 
     def test_browser_command_executor_does_not_use_stale_source_problem_for_context(self):
         from cr.ui.browser import parse_browser_command
@@ -564,7 +415,6 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("other bad", copied)
         self.assertIn("# File Diff: src/Foo.ets", copied)
 
-
     def test_browser_command_executor_views_selected_task_problem_source(self):
         from cr.ui.browser import parse_browser_command
 
@@ -609,7 +459,6 @@ class CliTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
 
-
     def test_browser_command_executor_views_sorted_task_problem_source(self):
         from cr.ui.browser import parse_browser_command
 
@@ -651,7 +500,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
         self.assertEqual(state.source_file_path, "src/Two.ets")
         self.assertEqual(state.source_file_line, 2)
-
 
     def test_browser_command_executor_reports_no_task_problem_to_view(self):
         from cr.ui.browser import parse_browser_command
@@ -699,7 +547,6 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result.needs_redraw)
         copy_text.assert_not_called()
         self.assertIn("No task problems to copy.", state.status_message)
-
 
     def test_switch_review_scope_resets_page_history(self):
         args = argparse_namespace(
@@ -760,7 +607,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.page_back_stack, [])
         self.assertEqual(state.page_forward_stack, [])
 
-
     def test_browser_main_loop_delegates_action_execution(self):
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
         run_loop_source = source[source.index("def run_browser") : source.index("def _should_restore")]
@@ -770,10 +616,8 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("BrowserCommandAction.RUN_BUILD", run_loop_source)
         self.assertNotIn("BrowserCommandAction.CHOOSE_NUMBER", run_loop_source)
 
-
     def test_format_counts_handles_binary_stats(self):
         self.assertEqual(format_counts(FileChange("asset.bin", None, None)), "+? -?")
-
 
     def test_browse_screen_renders_task_problems_page(self):
         args = argparse_namespace(
@@ -817,7 +661,6 @@ class CliTests(unittest.TestCase):
         self.assertIn("src/Foo.ets:12:3", text)
         self.assertIn("bad call", text)
         self.assertIn("cr:problems> ", text)
-
 
     def test_command_prompt_cancel_forces_full_browser_redraw(self):
         args = argparse_namespace(
@@ -901,7 +744,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(draw.call_count, 2)
 
-
     def test_task_problems_page_tick_redraws_main_content_not_panel_only(self):
         args = argparse_namespace(
             color="never",
@@ -974,7 +816,6 @@ class CliTests(unittest.TestCase):
         self.assertGreaterEqual(draw.call_count, 4)
         panel_only.assert_not_called()
 
-
     def test_browser_remaining_only_filters_seen_paths(self):
         state = BrowserState(
             [
@@ -990,7 +831,6 @@ class CliTests(unittest.TestCase):
             [change.path for change in state.visible_changes],
             ["src/Second.ts"],
         )
-
 
     def test_switch_review_scope_resets_view_state_but_keeps_task_panel(self):
         args = argparse_namespace(
@@ -1037,7 +877,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(state.first_line_cache, {})
         self.assertEqual(state.file_line_cache, {})
         process.wait(timeout=1)
-
 
     def test_browse_screen_only_measures_visible_list_rows(self):
         changes = [FileChange(f"src/File{index}.ts", 1, 0) for index in range(30)]
@@ -1260,7 +1099,6 @@ class CliTests(unittest.TestCase):
         self.assertIn("note", "\n".join(list_lines))
         self.assertIn("note", "\n".join(screen_lines))
         self.assertIn("note: check lifecycle edge case", "\n".join(detail_lines))
-
 
     def test_cli_diff_outline_and_review_in_temp_repo(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2437,7 +2275,6 @@ struct SamplePage {
             all_changes = self._cr(repo, "review", "--all", "--untracked", "--code")
             self.assertEqual(all_changes.returncode, 0, all_changes.stderr)
             self.assertIn("src/pages/NewPage.ets", all_changes.stdout)
-
 
     def test_git_all_changes_marks_mixed_staged_and_unstaged_sources(self):
         with tempfile.TemporaryDirectory() as tmp:

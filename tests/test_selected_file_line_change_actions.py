@@ -21,7 +21,7 @@ def argparse_namespace(**kwargs):
 
 class SelectedFileLineChangeActionTests(unittest.TestCase):
 
-    def test_open_selected_hunk_uses_active_hunk_line(self):
+    def test_open_hunk_targets_the_active_hunk_line(self):
         args = argparse_namespace(open_cmd="editor {fileline}")
         change = FileChange("src/Sample.ts", 1, 0)
         lines = [
@@ -53,7 +53,7 @@ class SelectedFileLineChangeActionTests(unittest.TestCase):
             "editor {fileline}",
         )
         self.assertEqual(message, "Opened hunk src/Sample.ts:31")
-    def test_open_selected_line_uses_current_new_file_line(self):
+    def test_open_line_targets_the_current_added_line(self):
         args = argparse_namespace(open_cmd="editor {fileline}")
         change = FileChange("src/Sample.ts", 1, 0)
         lines = [

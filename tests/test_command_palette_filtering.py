@@ -69,7 +69,7 @@ class CommandPaletteFilteringTests(unittest.TestCase):
         self.assertLess(unfiltered.index("forward"), unfiltered.index("scopes"))
         self.assertLess(scope_filtered.index("scopes"), scope_filtered.index("staged"))
         self.assertLess(file_filtered.index("file actions"), file_filtered.index("open"))
-    def test_command_palette_filter_prompt_does_not_change_file_filter(self):
+    def test_command_palette_search_keeps_the_changed_file_filter(self):
         args = argparse_namespace(
             color="never",
             links="file",

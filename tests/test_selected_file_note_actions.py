@@ -37,7 +37,7 @@ class SelectedFileNoteActionTests(unittest.TestCase):
             {"src/Sample.ts": "check lifecycle"},
         )
         self.assertEqual(state.file_line_cache, {})
-    def test_append_selected_change_review_note_uses_current_added_row(self):
+    def test_change_note_describes_the_current_added_row(self):
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 0)],
             review_notes={"src/Sample.ts": "file level note"},
@@ -65,7 +65,7 @@ class SelectedFileNoteActionTests(unittest.TestCase):
         )
         self.assertEqual(state.workspace.review_notes, state.review_notes)
         self.assertEqual(state.file_line_cache, {})
-    def test_append_selected_change_review_note_uses_current_deleted_row(self):
+    def test_change_note_describes_the_current_deleted_row(self):
         state = BrowserState([FileChange("src/Sample.ts", 0, 1)])
         lines = [
             "File 1/1  src/Sample.ts",

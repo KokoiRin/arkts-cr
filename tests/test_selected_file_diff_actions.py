@@ -21,7 +21,7 @@ def argparse_namespace(**kwargs):
 
 class SelectedFileDiffActionTests(unittest.TestCase):
 
-    def test_copy_selected_diff_snippet_uses_selected_file_only(self):
+    def test_copy_diff_handoff_contains_only_the_selected_file(self):
         args = argparse_namespace(
             staged=False,
             all_changes=False,

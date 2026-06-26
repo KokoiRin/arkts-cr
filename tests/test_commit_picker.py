@@ -123,7 +123,7 @@ class CommitPickerTests(unittest.TestCase):
             [commits[0]],
         )
 
-    def test_commit_picker_selected_commit_uses_filtered_results(self):
+    def test_commit_picker_opens_the_selected_filtered_commit(self):
         commits = [
             CommitSummary(
                 commit="1111111111111111",
@@ -297,7 +297,7 @@ class CommitPickerTests(unittest.TestCase):
         self.assertEqual(state.selected_commit.subject, "Feature login")
         self.assertEqual(args.ref_range, "1234567890abcdef..abcdef1234567890")
 
-    def test_commit_picker_filter_prompt_does_not_change_file_filter(self):
+    def test_commit_picker_search_keeps_the_changed_file_filter(self):
         args = argparse_namespace(
             color="never",
             links="file",

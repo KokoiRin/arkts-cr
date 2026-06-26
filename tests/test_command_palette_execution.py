@@ -75,7 +75,7 @@ class CommandPaletteExecutionTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         start_build.assert_called_once()
-    def test_command_palette_back_returns_to_list_without_changing_file_selection(self):
+    def test_command_palette_back_restores_the_changed_file_list_selection(self):
         args = argparse_namespace(
             color="never",
             links="file",

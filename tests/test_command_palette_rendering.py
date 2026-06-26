@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 
 
 class CommandPaletteRenderingTests(unittest.TestCase):
-    def test_commands_mode_selection_does_not_change_selected_file(self):
+    def test_command_palette_selection_is_independent_from_file_selection(self):
         state = BrowserState(
             [
                 FileChange("src/First.ts", 1, 0),

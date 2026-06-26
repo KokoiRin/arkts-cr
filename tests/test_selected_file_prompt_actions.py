@@ -21,7 +21,7 @@ def argparse_namespace(**kwargs):
 
 class SelectedFilePromptActionTests(unittest.TestCase):
 
-    def test_prompt_handoff_text_uses_selected_file_only(self):
+    def test_prompt_handoff_contains_only_the_selected_file(self):
         args = argparse_namespace(
             staged=False,
             all_changes=False,

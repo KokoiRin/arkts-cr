@@ -33,7 +33,7 @@ class SelectedFileReferenceActionTests(unittest.TestCase):
 
         self.assertEqual(message, "Copied src/Sample.ts")
         copy.assert_called_once_with("src/Sample.ts", "copy-tool")
-    def test_copy_selected_anchor_uses_first_changed_line(self):
+    def test_copy_anchor_points_to_the_first_changed_line(self):
         args = argparse_namespace(
             staged=True,
             all_changes=False,

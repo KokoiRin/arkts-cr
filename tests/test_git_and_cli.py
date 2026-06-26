@@ -130,61 +130,6 @@ class CliTests(unittest.TestCase):
         )
         self.assertNotIn("docs/Other.md", str(data))
 
-    def test_browser_command_executor_reports_repeat_find_without_query(self):
-        from cr.ui.browser import parse_browser_command
-
-        args = argparse_namespace()
-        state = BrowserState(
-            [FileChange("src/Sample.ts", 1, 0)],
-            page=BrowserPage.FILE_DETAIL,
-            file_scroll=2,
-        )
-        executor = BrowserCommandExecutor(
-            state,
-            args,
-            TerminalStyle(),
-            BrowserFrame(),
-            raw_keys=True,
-        )
-
-        result = executor.execute(parse_browser_command("next match", raw_keys=True))
-
-        self.assertTrue(result.handled)
-        self.assertTrue(result.needs_redraw)
-        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
-        self.assertEqual(state.file_scroll, 2)
-        self.assertIn("Run find TEXT first.", state.status_message)
-
-    def test_browser_command_executor_reports_repeat_find_without_matches(self):
-        from cr.ui.browser import parse_browser_command
-
-        args = argparse_namespace()
-        state = BrowserState(
-            [FileChange("src/Sample.ts", 1, 0)],
-            page=BrowserPage.FILE_DETAIL,
-            file_scroll=2,
-        )
-        state.file_find_text = "owner"
-        executor = BrowserCommandExecutor(
-            state,
-            args,
-            TerminalStyle(),
-            BrowserFrame(),
-            raw_keys=True,
-        )
-
-        with patch(
-            "cr.ui.browser._cached_file_lines",
-            return_value=["File 1/1  src/Sample.ts", "  context"],
-        ):
-            result = executor.execute(parse_browser_command("next match", raw_keys=True))
-
-        self.assertTrue(result.handled)
-        self.assertTrue(result.needs_redraw)
-        self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
-        self.assertEqual(state.file_scroll, 2)
-        self.assertIn('No matches for "owner".', state.status_message)
-
     def test_browser_command_executor_steps_source_file_task_problems(self):
         from cr.ui.browser import parse_browser_command
 

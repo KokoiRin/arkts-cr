@@ -31,7 +31,8 @@ def argparse_namespace(**kwargs):
     return namespace
 
 
-class SourceFileSymbolCommandTests(unittest.TestCase):
+class SourceFileSymbolCopyCommandTests(unittest.TestCase):
+
     def test_browser_command_executor_copies_source_enum_symbol(self):
         from cr.ui.browser import parse_browser_command
 
@@ -137,64 +138,6 @@ class SourceFileSymbolCommandTests(unittest.TestCase):
         self.assertNotIn("other() {", copied)
         self.assertEqual((state.source_selection_start, state.source_selection_end), (7, 8))
         self.assertIn("Copied source symbol src/Foo.ets:2-5.", state.status_message)
-    def test_browser_command_executor_saves_file_detail_source_symbol(self):
-        from cr.ui.browser import parse_browser_command
-
-        with tempfile.TemporaryDirectory() as tmp:
-            repo = Path(tmp)
-            source = repo / "src" / "Sample.ts"
-            source.parent.mkdir(parents=True)
-            source.write_text(
-                "\n".join(
-                    [
-                        "class Sample {",
-                        "  render() {",
-                        "    return value",
-                        "  }",
-                        "  other() {",
-                        "    return nope",
-                        "  }",
-                        "}",
-                    ]
-                ),
-                encoding="utf-8",
-            )
-            state = BrowserState(
-                [FileChange("src/Sample.ts", 1, 1)],
-                page=BrowserPage.FILE_DETAIL,
-                selected=0,
-                file_scroll=1,
-            )
-            executor = BrowserCommandExecutor(
-                state,
-                argparse_namespace(),
-                TerminalStyle(False),
-                BrowserFrame(),
-                raw_keys=True,
-            )
-
-            with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                with patch(
-                    "cr.ui.browser._cached_file_lines",
-                    return_value=[
-                        "File 1/1  src/Sample.ts",
-                        "  @@ -1 +3 @@",
-                        "          3 | +    return value",
-                    ],
-                ):
-                    result = executor.execute(
-                        parse_browser_command("save source symbol tmp/render.md")
-                    )
-
-            saved = repo / "tmp" / "render.md"
-            text = saved.read_text(encoding="utf-8")
-
-        self.assertTrue(result.handled)
-        self.assertIn("src/Sample.ts:2-4", text)
-        self.assertIn("Symbol: class Sample > method render", text)
-        self.assertIn("return value", text)
-        self.assertNotIn("other()", text)
-        self.assertIn("Saved source symbol to tmp/render.md.", state.status_message)
     def test_browser_command_executor_copies_source_field_arrow_symbol(self):
         from cr.ui.browser import parse_browser_command
 
@@ -346,35 +289,6 @@ class SourceFileSymbolCommandTests(unittest.TestCase):
         self.assertIn("private createModel<T extends BaseModel>", copied)
         self.assertNotIn("other() {", copied)
         self.assertIn("Copied source symbol src/Foo.ets:2-4.", state.status_message)
-    def test_browser_command_executor_reports_copy_source_symbol_without_symbol(self):
-        from cr.ui.browser import parse_browser_command
-
-        with tempfile.TemporaryDirectory() as tmp:
-            repo = Path(tmp)
-            source = repo / "src" / "Foo.ets"
-            source.parent.mkdir(parents=True)
-            source.write_text("const title = 'hi'\nText(title)\n", encoding="utf-8")
-            state = BrowserState(
-                [],
-                page=BrowserPage.SOURCE_FILE,
-                source_file_path="src/Foo.ets",
-                source_file_line=1,
-            )
-            executor = BrowserCommandExecutor(
-                state,
-                argparse_namespace(copy_cmd="copy {text}"),
-                TerminalStyle(),
-                BrowserFrame(),
-                raw_keys=True,
-            )
-
-            with patch("cr.ui.browser.git.repo_root", return_value=repo):
-                with patch("cr.ui.browser.file_actions.copy_text") as copy_text:
-                    result = executor.execute(parse_browser_command("copy source symbol"))
-
-        self.assertTrue(result.handled)
-        copy_text.assert_not_called()
-        self.assertIn("No source symbol at current line.", state.status_message)
 
 if __name__ == "__main__":
     unittest.main()

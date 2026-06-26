@@ -26,7 +26,7 @@ def argparse_namespace(**kwargs):
 
 class BrowserCommandExecutorTests(unittest.TestCase):
     def test_browser_command_executor_reports_quit_intent(self):
-        # Behavior: 当用户在产品行为遇到reports、quit、intent时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在产品通用行为中处理异常「BrowserCommandExecutor 提示 quit intent」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([])
@@ -43,7 +43,7 @@ class BrowserCommandExecutorTests(unittest.TestCase):
         self.assertEqual(result, BrowserActionResult(exit_code=0))
 
     def test_browser_command_executor_changes_page_and_requests_redraw(self):
-        # Behavior: 当用户在产品行为中验证changes、requests、redraw时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在产品通用行为中执行操作「BrowserCommandExecutor changes page and requests 重绘」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([])
@@ -62,7 +62,7 @@ class BrowserCommandExecutorTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.COMMAND_PALETTE)
 
     def test_browser_command_executor_reports_unknown_command_feedback(self):
-        # Behavior: 当用户在产品行为遇到reports、unknown、feedback时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在产品通用行为中处理异常「BrowserCommandExecutor 提示 unknown 命令 feedback」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([])
@@ -83,7 +83,7 @@ class BrowserCommandExecutorTests(unittest.TestCase):
         self.assertIn("Unknown command.", output.getvalue())
 
     def test_browser_command_executor_runs_forward_navigation(self):
-        # Behavior: 当用户在navigation中运行导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在产品通用行为中导航「BrowserCommandExecutor runs 前进 导航」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
@@ -103,7 +103,7 @@ class BrowserCommandExecutorTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
 
     def test_browser_command_executor_opens_page_help(self):
-        # Behavior: 当用户在产品行为中打开opens、help时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在产品通用行为中打开或定位「BrowserCommandExecutor 打开 page 帮助」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.SOURCE_FILE, source_file_path="src/Foo.ets")
@@ -124,7 +124,7 @@ class BrowserCommandExecutorTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
 
     def test_browser_command_executor_applies_source_filter(self):
-        # Behavior: 当用户在产品行为中过滤applies、filter时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在产品通用行为中过滤「BrowserCommandExecutor applies 源码 过滤」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -154,7 +154,7 @@ class BrowserCommandExecutorTests(unittest.TestCase):
         )
 
     def test_browser_command_executor_rejects_unknown_source_filter(self):
-        # Behavior: 当用户在产品行为中过滤rejects、unknown、filter时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在产品通用行为中过滤「BrowserCommandExecutor rejects unknown 源码 过滤」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([FileChange("src/Sample.ts", 1, 0, source="staged")])
@@ -175,7 +175,7 @@ class BrowserCommandExecutorTests(unittest.TestCase):
         self.assertIn("Unknown source filter", output.getvalue())
 
     def test_browser_command_executor_clears_source_filter(self):
-        # Behavior: 当用户在产品行为中过滤clears、filter时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在产品通用行为中过滤「BrowserCommandExecutor clears 源码 过滤」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(

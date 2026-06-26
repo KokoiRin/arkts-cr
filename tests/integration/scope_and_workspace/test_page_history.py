@@ -27,7 +27,7 @@ def argparse_namespace(**kwargs):
 class PageHistoryTests(unittest.TestCase):
 
     def test_switch_review_scope_resets_page_history(self):
-        # Behavior: 当用户在scope home中切换history、switch、scope、resets时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「切换 review 范围 重置 页面历史」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -55,7 +55,7 @@ class PageHistoryTests(unittest.TestCase):
         self.assertEqual(state.page_forward_stack, [])
 
     def test_refresh_resets_page_history_for_reloaded_changes(self):
-        # Behavior: 当用户在navigation中加载history、refresh、resets、history时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中恢复状态「刷新 重置 页面历史 for reloaded changes」时，系统应保存、恢复或重置预期状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(

@@ -28,7 +28,7 @@ def argparse_namespace(**kwargs):
 class ReviewWorkspaceScopeLifecycleTests(unittest.TestCase):
 
     def test_review_workspace_loads_filters_and_switches_scope(self):
-        # Behavior: 当用户在scope home中过滤工作区、生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「ReviewWorkspace loads 过滤 and 切换 范围」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         loads: list[tuple[bool, bool, str | None, str | None, bool]] = []
 
         def loader(args):
@@ -85,7 +85,7 @@ class ReviewWorkspaceScopeLifecycleTests(unittest.TestCase):
         self.assertIsNone(workspace.previous_scope)
         self.assertEqual(loads[-1], (True, False, None, None, False))
     def test_review_workspace_reloads_changes_preserving_selected_path(self):
-        # Behavior: 当用户在scope home中选择工作区、生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「ReviewWorkspace reloads changes preserving 选中 路径」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace()
         workspace = ReviewWorkspace(
             [
@@ -117,7 +117,7 @@ class ReviewWorkspaceScopeLifecycleTests(unittest.TestCase):
         self.assertEqual(workspace.filter_text, "src/")
         self.assertEqual(workspace.list_scroll, 5)
     def test_review_workspace_is_used_by_main_browser_implementation(self):
-        # Behavior: 当用户在scope home中验证工作区、生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「ReviewWorkspace is used by main browser implementation」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
 
         self.assertIn("ReviewWorkspace", source)
@@ -125,7 +125,7 @@ class ReviewWorkspaceScopeLifecycleTests(unittest.TestCase):
         self.assertNotIn("selected_changes", source)
         self.assertNotIn("sort_changes", source)
     def test_review_workspace_selects_commit_scope_and_captures_previous_scope(self):
-        # Behavior: 当用户在scope home中选择工作区、生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「ReviewWorkspace 选择 commit 范围 and captures previous 范围」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         loads: list[str | None] = []
 
         def loader(args):
@@ -168,7 +168,7 @@ class ReviewWorkspaceScopeLifecycleTests(unittest.TestCase):
         self.assertEqual(workspace.list_scroll, 0)
         self.assertEqual(loads[-1], "1234567890abcdef..abcdef1234567890")
     def test_switch_review_scope_resets_view_state_but_keeps_task_panel(self):
-        # Behavior: 当用户在scope home中切换工作区、生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「切换 review 范围 重置 查看 状态 but keeps Task Panel」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

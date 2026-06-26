@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 
 class ReviewNoteEditCommandTests(unittest.TestCase):
     def test_browser_command_executor_sets_and_clears_selected_file_note(self):
-        # Behavior: 当用户在review note中选择评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中选择「BrowserCommandExecutor sets and clears 选中文件 note」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()

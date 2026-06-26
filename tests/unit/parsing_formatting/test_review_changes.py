@@ -6,7 +6,7 @@ from cr.vcs.git import FileChange
 
 class ReviewChangeFormattingTests(unittest.TestCase):
     def test_format_counts_handles_binary_stats(self):
-        # Behavior: 当系统处理产品行为的changes、format、counts、handles时，系统应统计出正确结果 [Requirement: TODO]
+        # Behavior: 当用户在底层解析与格式化中执行操作「format counts handles 二进制 stats」时，系统应产出稳定、可读的格式化结果 [Requirement: TODO]
         self.assertEqual(format_counts(FileChange("asset.bin", None, None)), "+? -?")
 
 

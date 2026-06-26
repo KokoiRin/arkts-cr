@@ -9,7 +9,7 @@ from tests.cli_test_support import CliTestCase
 class CliReviewScopeTests(CliTestCase):
 
     def test_cli_review_compares_against_named_base(self):
-        # Behavior: 当用户在scope home中验证cli、scopes、cli、compares时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「CLI review compares against named base」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "Sample.ets"
@@ -65,7 +65,7 @@ struct SamplePage {
             self.assertEqual(data["files"][0]["modified_symbols"], ["build"])
             self.assertEqual(data["other_changes"], {"staged": 0, "unstaged": 0})
     def test_cli_review_compares_explicit_ref_range_without_checkout(self):
-        # Behavior: 当用户在scope home遇到缺少前置条件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「CLI review compares explicit ref range 不包含 checkout」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "Sample.ets"
@@ -129,7 +129,7 @@ struct SamplePage {
             self.assertEqual(data["files"][0]["modified_symbols"], ["build", "helper"])
             self.assertIn("build, helper", data["files"][0]["purpose"])
     def test_cli_includes_untracked_files_only_when_requested(self):
-        # Behavior: 当用户在scope home中验证cli、scopes、cli、includes时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中执行操作「cli 包含 未跟踪 文件 只读 when requested」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             tracked = repo / "README.md"
@@ -185,7 +185,7 @@ struct SamplePage {
             self.assertEqual(all_changes.returncode, 0, all_changes.stderr)
             self.assertIn("src/pages/NewPage.ets", all_changes.stdout)
     def test_cli_can_review_staged_changes(self):
-        # Behavior: 当用户在scope home中验证cli、scopes、cli、can时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「cli 可以 review 已暂存 changes」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "Sample.ets"
@@ -219,7 +219,7 @@ struct SamplePage {
             self.assertIn("+    Text('hello staged')", staged_review.stdout)
             self.assertIn("modified: build", staged_review.stdout)
     def test_cli_can_review_staged_deletions(self):
-        # Behavior: 当用户在scope home中验证cli、scopes、cli、can时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「cli 可以 review 已暂存 deletions」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             helper = repo / "helper.ts"
@@ -242,7 +242,7 @@ struct SamplePage {
             self.assertIn("-export function helper()", review.stdout)
             self.assertNotIn("purpose:", review.stdout)
     def test_cli_notes_when_the_other_git_side_has_changes(self):
-        # Behavior: 当用户在scope home中验证cli、scopes、cli、notes时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中执行操作「cli notes when the other Git 侧 has changes」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             staged = repo / "staged.ts"
@@ -279,7 +279,7 @@ struct SamplePage {
             data = json.loads(json_review.stdout)
             self.assertEqual(data["other_changes"], {"staged": 1, "unstaged": 0})
     def test_cli_can_review_all_staged_and_unstaged_changes_together(self):
-        # Behavior: 当用户在scope home中验证cli、scopes、cli、can时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「cli 可以 review 全部 已暂存 and 未暂存 changes 一起」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             staged = repo / "staged.ts"

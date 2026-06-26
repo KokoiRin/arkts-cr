@@ -33,7 +33,7 @@ def argparse_namespace(**kwargs):
 
 class SourceFileRenderingTests(unittest.TestCase):
     def test_browse_source_file_screen_lines_show_current_symbol(self):
-        # Behavior: 当用户在source file中展示源码文件、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中查看「browse Source File screen 行 显示 当前 符号」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             source = repo / "src" / "Foo.ets"
@@ -68,7 +68,7 @@ class SourceFileRenderingTests(unittest.TestCase):
         self.assertIn("symbol: struct Foo > method build", text)
         self.assertIn("> 3", text)
     def test_browse_source_file_screen_lines_show_matching_task_problem(self):
-        # Behavior: 当用户在source file中展示源码文件、任务问题、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中查看「browse Source File screen 行 显示 matching Task Problems」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
         with tempfile.TemporaryDirectory() as tmp:
@@ -99,7 +99,7 @@ class SourceFileRenderingTests(unittest.TestCase):
         self.assertIn("problem: 1/1 ERROR TS123", text)
         self.assertIn("bad value", text)
     def test_browse_source_file_screen_lines_hides_stale_task_problem(self):
-        # Behavior: 当用户在source file遇到过期状态、源码文件、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Source File中查看「browse Source File screen 行 hides stale Task Problems」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
         with tempfile.TemporaryDirectory() as tmp:
@@ -130,7 +130,7 @@ class SourceFileRenderingTests(unittest.TestCase):
         self.assertNotIn("problem:", text)
         self.assertNotIn("bad value", text)
     def test_browse_screen_renders_source_file_page(self):
-        # Behavior: 当用户在source file中渲染源码文件、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中查看「browse screen 渲染 Source File page」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

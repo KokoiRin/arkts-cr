@@ -38,7 +38,7 @@ def argparse_namespace(**kwargs):
 class TaskOutputPageContentTests(unittest.TestCase):
 
     def test_task_output_screen_renders_current_task(self):
-        # Behavior: 当用户在task output中渲染任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中查看「Task Output screen 渲染 当前 task」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
         state = BrowserState(
@@ -65,7 +65,7 @@ class TaskOutputPageContentTests(unittest.TestCase):
         self.assertIn("start tests", text)
         self.assertIn("failed test", text)
     def test_task_output_screen_renders_selected_problem(self):
-        # Behavior: 当用户在task problem中渲染任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中查看「Task Output screen 渲染 选中 问题」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
         state = BrowserState(
@@ -100,7 +100,7 @@ class TaskOutputPageContentTests(unittest.TestCase):
 
         self.assertIn("Problem: 2/2 src/Two.ets:2:4", text)
     def test_task_output_screen_renders_empty_state(self):
-        # Behavior: 当用户在task output遇到空状态、任务输出时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中查看「Task Output screen 渲染 空态 状态」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         state = BrowserState([])
 
         lines = page_content.task_output_screen_lines(

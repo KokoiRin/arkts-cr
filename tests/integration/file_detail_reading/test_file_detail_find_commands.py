@@ -26,7 +26,7 @@ def argparse_namespace(**kwargs):
 class FileDetailFindCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_finds_text_in_file_detail(self):
-        # Behavior: 当用户在file detail中查找文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中执行操作「BrowserCommandExecutor finds text in File Detail」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -71,7 +71,7 @@ class FileDetailFindCommandTests(unittest.TestCase):
         self.assertIn('Found "targetvalue" at line 4.', state.status_message)
 
     def test_browser_command_executor_repeats_file_detail_find_matches(self):
-        # Behavior: 当用户在file detail中验证文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中执行操作「BrowserCommandExecutor repeats File Detail find 匹配」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -124,7 +124,7 @@ class FileDetailFindCommandTests(unittest.TestCase):
         self.assertIn('Found "target" at line 1.', state.status_message)
 
     def test_browser_command_executor_reports_repeat_find_without_query(self):
-        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中处理异常「BrowserCommandExecutor 提示 repeat find 不包含 查询」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -150,7 +150,7 @@ class FileDetailFindCommandTests(unittest.TestCase):
         self.assertIn("Run find TEXT first.", state.status_message)
 
     def test_browser_command_executor_reports_repeat_find_without_matches(self):
-        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中处理异常「BrowserCommandExecutor 提示 repeat find 不包含 匹配」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -181,7 +181,7 @@ class FileDetailFindCommandTests(unittest.TestCase):
         self.assertIn('No matches for "owner".', state.status_message)
 
     def test_browser_command_executor_reports_find_outside_file_detail(self):
-        # Behavior: 当用户在file detail遇到文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中处理异常「BrowserCommandExecutor 提示 find outside File Detail」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -202,7 +202,7 @@ class FileDetailFindCommandTests(unittest.TestCase):
         self.assertIn("Open a file detail to find text.", state.status_message)
 
     def test_browser_command_executor_reports_repeat_find_outside_file_detail(self):
-        # Behavior: 当用户在file detail遇到文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中处理异常「BrowserCommandExecutor 提示 repeat find outside File Detail」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -224,7 +224,7 @@ class FileDetailFindCommandTests(unittest.TestCase):
         self.assertIn("Open a file detail to find text.", state.status_message)
 
     def test_browser_command_executor_reports_empty_and_missing_find(self):
-        # Behavior: 当用户在file detail遇到缺失状态、文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中处理异常「BrowserCommandExecutor 提示 空态 and 缺失 find」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()

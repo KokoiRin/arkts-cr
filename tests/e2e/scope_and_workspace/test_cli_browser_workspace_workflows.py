@@ -10,7 +10,7 @@ from tests.cli_test_support import CliTestCase
 class CliBrowserWorkspaceWorkflowTests(CliTestCase):
 
     def test_cli_browser_restores_saved_workspace_filter_and_file(self):
-        # Behavior: 当用户在CLI browser中保存工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中保存「CLI browser 恢复 saved workspace 过滤 and 文件」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             first = repo / "src" / "First.ts"
@@ -55,7 +55,7 @@ class CliBrowserWorkspaceWorkflowTests(CliTestCase):
             self.assertIn("Second.ts", second_session.stdout)
             self.assertNotIn("First.ts", second_session.stdout)
     def test_cli_browser_explicit_scope_ignores_saved_workspace(self):
-        # Behavior: 当用户在scope home中保存工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中保存「CLI browser explicit 范围 忽略 saved workspace」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -106,7 +106,7 @@ class CliBrowserWorkspaceWorkflowTests(CliTestCase):
             self.assertIn("+export const sample = 'staged'", session.stdout)
             self.assertNotIn("+export const sample = 'worktree'", session.stdout)
     def test_cli_browser_ignores_malformed_saved_workspace(self):
-        # Behavior: 当用户在CLI browser中保存工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中保存「CLI browser 忽略 格式错误 saved workspace」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -128,7 +128,7 @@ class CliBrowserWorkspaceWorkflowTests(CliTestCase):
             self.assertIn("Changed files", session.stdout)
             self.assertIn("Sample.ts", session.stdout)
     def test_cli_browser_pathspec_ignores_saved_workspace_filter(self):
-        # Behavior: 当用户在CLI browser中保存工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中保存「CLI browser pathspec 忽略 saved workspace 过滤」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             first = repo / "src" / "First.ts"
@@ -180,7 +180,7 @@ class CliBrowserWorkspaceWorkflowTests(CliTestCase):
             self.assertNotIn("Second.ts", session.stdout)
             self.assertNotIn("Filter: Second", session.stdout)
     def test_cli_browser_can_mark_seen_and_show_remaining_files(self):
-        # Behavior: 当用户在CLI browser中展示工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中查看「CLI browser 可以 标记 已看 and 显示 剩余 文件」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             first = repo / "src" / "First.ts"
@@ -214,7 +214,7 @@ class CliBrowserWorkspaceWorkflowTests(CliTestCase):
             self.assertIn("[ ]", session.stdout)
             self.assertIn("Second.ts", session.stdout)
     def test_cli_browser_can_unmark_seen_and_return_to_all_files(self):
-        # Behavior: 当用户在CLI browser中验证工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中标记「CLI browser 可以 取消标记 已看 and 返回 to 全部 文件」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             first = repo / "src" / "First.ts"

@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemListSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_file_detail_current_file_task_problems(self):
-        # Behavior: 当用户在file detail中保存文件详情、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中保存「BrowserCommandExecutor 保存 File Detail 当前文件 task 问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -79,7 +79,7 @@ class TaskProblemListSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_saves_task_problems_default_path(self):
-        # Behavior: 当用户在task problem中保存任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中保存「BrowserCommandExecutor 保存 task 问题 默认 路径」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -125,7 +125,7 @@ class TaskProblemListSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_saves_file_task_problems_requested_path(self):
-        # Behavior: 当用户在task problem中保存任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中保存「BrowserCommandExecutor 保存 文件 task 问题 requested 路径」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

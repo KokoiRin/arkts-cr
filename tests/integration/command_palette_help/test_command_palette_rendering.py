@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 
 class CommandPaletteRenderingTests(unittest.TestCase):
     def test_command_palette_selection_is_independent_from_file_selection(self):
-        # Behavior: 当用户在command palette中选择命令面板、渲染、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Command Palette / Help中选择「Command Palette 选择 is independent from 文件 选择」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         state = BrowserState(
             [
                 FileChange("src/First.ts", 1, 0),
@@ -45,7 +45,7 @@ class CommandPaletteRenderingTests(unittest.TestCase):
         self.assertEqual(state.selected, 1)
         self.assertEqual(state.command_selected, 1)
     def test_command_palette_screen_marks_selected_command(self):
-        # Behavior: 当用户在command palette中选择命令面板、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Command Palette / Help中选择「Command Palette screen 标记 选中 命令」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -68,7 +68,7 @@ class CommandPaletteRenderingTests(unittest.TestCase):
         self.assertIn("Enter：执行选中命令", text)
         self.assertIn("> ", text)
     def test_command_palette_screen_shows_filter_and_empty_results(self):
-        # Behavior: 当用户在command palette遇到命令面板、渲染时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Command Palette / Help中查看「Command Palette screen 显示 过滤 and 空态 results」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -92,7 +92,7 @@ class CommandPaletteRenderingTests(unittest.TestCase):
         self.assertIn("没有匹配命令。", text)
         self.assertNotIn("运行仓库配置的编译命令", text)
     def test_command_palette_screen_shows_filter_match_count(self):
-        # Behavior: 当用户在command palette中展示命令面板、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Command Palette / Help中查看「Command Palette screen 显示 过滤 match count」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         state = BrowserState([], page="commands", command_filter_text="build")
         lines = _browse_command_palette_screen_lines(
             state,

@@ -9,7 +9,7 @@ from cr.vcs.git import CommitSummary, FileChange
 
 class BrowserNavigationTests(unittest.TestCase):
     def test_page_model_names_current_pages(self):
-        # Behavior: 当用户在navigation中验证导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中执行操作「page model names 当前 pages」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         self.assertEqual(BrowserPage.SCOPE_HOME, "scopes")
         self.assertEqual(BrowserPage.COMMIT_PICKER, "commits")
         self.assertEqual(BrowserPage.CHANGED_FILES, "list")
@@ -31,7 +31,7 @@ class BrowserNavigationTests(unittest.TestCase):
         self.assertEqual(state.mode, BrowserPage.COMMAND_PALETTE)
 
     def test_browser_implementation_uses_page_model_and_navigation(self):
-        # Behavior: 当用户在navigation中验证导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中导航「browser implementation 使用 page model and 导航」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
 
         self.assertIn("BrowserPage.CHANGED_FILES", source)
@@ -49,7 +49,7 @@ class BrowserNavigationTests(unittest.TestCase):
         self.assertNotIn("state.page = BrowserPage", source)
 
     def test_opening_pages_resets_local_page_state(self):
-        # Behavior: 当用户在navigation中打开导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中打开或定位「打开 pages 重置 本地 page 状态」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
             selected=3,
@@ -139,7 +139,7 @@ class BrowserNavigationTests(unittest.TestCase):
         self.assertEqual(state.help_topic_page, BrowserPage.SOURCE_FILE)
 
     def test_replace_pages_does_not_modify_history(self):
-        # Behavior: 当用户在navigation中不执行导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中执行操作「replace pages 不会 modify 历史」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
             page=BrowserPage.FILE_DETAIL,
@@ -171,7 +171,7 @@ class BrowserNavigationTests(unittest.TestCase):
         self.assertEqual(len(state.page_back_stack), 1)
 
     def test_back_preserves_existing_hierarchy_fallbacks(self):
-        # Behavior: 当用户在navigation中保持导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中恢复状态「返回 保留 existing hierarchy fallbacks」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
             page=BrowserPage.COMMAND_PALETTE,
@@ -209,7 +209,7 @@ class BrowserNavigationTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 0)
 
     def test_back_and_forward_restore_page_snapshots(self):
-        # Behavior: 当用户在navigation中验证导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中恢复状态「返回 and 前进 恢复 page snapshots」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         state = BrowserState(
             [
                 FileChange("src/First.ts", 1, 0),
@@ -282,7 +282,7 @@ class BrowserNavigationTests(unittest.TestCase):
         self.assertEqual(state.help_topic_page, BrowserPage.TASK_PROBLEMS)
 
     def test_back_returns_to_page_that_opened_command_palette(self):
-        # Behavior: 当用户在command palette中打开命令面板、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中打开或定位「返回 返回 to page that opened Command Palette」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
             page=BrowserPage.FILE_DETAIL,
@@ -297,7 +297,7 @@ class BrowserNavigationTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 12)
 
     def test_back_returns_to_page_that_opened_help(self):
-        # Behavior: 当用户在navigation中打开导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中打开或定位「返回 返回 to page that opened 帮助」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
             page=BrowserPage.FILE_DETAIL,
@@ -312,7 +312,7 @@ class BrowserNavigationTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 12)
 
     def test_new_branch_clears_forward_stack(self):
-        # Behavior: 当用户在navigation中验证导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中执行操作「new branch clears 前进 stack」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
             page=BrowserPage.CHANGED_FILES,

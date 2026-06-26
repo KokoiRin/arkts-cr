@@ -49,7 +49,7 @@ def argparse_namespace(**kwargs):
 
 class TaskRerunTests(unittest.TestCase):
     def test_build_rerun_starts_new_process_after_completion(self):
-        # Behavior: 当用户在task output中启动rerun、build、rerun、starts时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「build rerun starts new process after completion」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             script = repo / "build.py"
@@ -82,7 +82,7 @@ class TaskRerunTests(unittest.TestCase):
             self.assertEqual(state.task.returncode, 0)
             self.assertEqual(output.read_text(encoding="utf-8"), "run\nrun\n")
     def test_rerun_repeats_recent_test_task_kind(self):
-        # Behavior: 当用户在task output中验证rerun、rerun、repeats、recent时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「rerun repeats 最近 test task kind」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             script = repo / "test_task.py"
@@ -123,7 +123,7 @@ class TaskRerunTests(unittest.TestCase):
             self.assertEqual(state.task.returncode, 0)
             self.assertEqual(output.read_text(encoding="utf-8"), "test\ntest\n")
     def test_build_rerun_keeps_previous_task_history(self):
-        # Behavior: 当用户在task output中保持rerun、build、rerun、keeps时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「build rerun keeps previous task 历史」时，系统应保存、恢复或重置预期状态 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             script = repo / "build.py"
@@ -161,7 +161,7 @@ class TaskRerunTests(unittest.TestCase):
             if state.task.process.stdout is not None:
                 state.task.process.stdout.close()
     def test_build_rerun_while_running_does_not_start_second_process(self):
-        # Behavior: 当用户在task output中不执行rerun、build、rerun、while时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「build rerun while running 不会 start second process」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"import time; time.sleep(10)\""

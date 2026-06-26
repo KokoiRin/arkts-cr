@@ -38,7 +38,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemPageContentTests(unittest.TestCase):
 
     def test_task_problems_screen_renders_problem_facts(self):
-        # Behavior: 当用户在task problem中渲染任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中查看「task 问题 screen 渲染 问题 facts」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         problems = [
             task_problems.TaskProblem(
                 path="src/Foo.ets",
@@ -77,7 +77,7 @@ class TaskProblemPageContentTests(unittest.TestCase):
         self.assertIn("bad call", text)
         self.assertIn("src/Bar.ets:8", text)
     def test_task_problems_screen_renders_sort_state(self):
-        # Behavior: 当用户在task problem中渲染任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中查看「task 问题 screen 渲染 排序 状态」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         problems = [
             task_problems.TaskProblem(
                 path="src/Foo.ets",
@@ -104,7 +104,7 @@ class TaskProblemPageContentTests(unittest.TestCase):
 
         self.assertIn("sort: severity", text)
     def test_task_problems_screen_renders_query_state(self):
-        # Behavior: 当用户在task problem中渲染任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中查看「task 问题 screen 渲染 查询 状态」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         problems = [
             task_problems.TaskProblem(
                 path="src/Foo.ets",
@@ -131,7 +131,7 @@ class TaskProblemPageContentTests(unittest.TestCase):
 
         self.assertIn("find: Foo", text)
     def test_task_problems_screen_renders_grouped_by_file(self):
-        # Behavior: 当用户在task problem中渲染任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中查看「task 问题 screen 渲染 grouped by 文件」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         problems = [
             task_problems.TaskProblem(
                 path="src/Foo.ets",
@@ -180,7 +180,7 @@ class TaskProblemPageContentTests(unittest.TestCase):
         self.assertIn("> 2  src/Foo.ets:20", text)
         self.assertIn("  3  src/Bar.ets:3", text)
     def test_task_problems_screen_renders_filtered_empty_state(self):
-        # Behavior: 当用户在task problem遇到空状态、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中查看「task 问题 screen 渲染 filtered 空态 状态」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         state = BrowserState(
             [],
             page=BrowserPage.TASK_PROBLEMS,
@@ -201,7 +201,7 @@ class TaskProblemPageContentTests(unittest.TestCase):
         self.assertIn("No error task problems found.", text)
         self.assertIn("problems all", text)
     def test_task_problems_screen_renders_query_empty_state(self):
-        # Behavior: 当用户在task problem遇到空状态、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中查看「task 问题 screen 渲染 查询 空态 状态」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         state = BrowserState(
             [],
             page=BrowserPage.TASK_PROBLEMS,
@@ -220,7 +220,7 @@ class TaskProblemPageContentTests(unittest.TestCase):
         self.assertIn("No task problems match Foo.", text)
         self.assertIn("problems clear find", text)
     def test_task_problems_screen_renders_empty_state(self):
-        # Behavior: 当用户在task problem遇到空状态、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中查看「task 问题 screen 渲染 空态 状态」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
 
         lines = page_content.task_problems_screen_lines(
@@ -234,7 +234,7 @@ class TaskProblemPageContentTests(unittest.TestCase):
         self.assertIn("No task problems found.", text)
         self.assertIn("Run build, test, or lint", text)
     def test_browse_screen_renders_task_problems_page(self):
-        # Behavior: 当用户在task problem中渲染任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中查看「browse screen 渲染 task 问题 page」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

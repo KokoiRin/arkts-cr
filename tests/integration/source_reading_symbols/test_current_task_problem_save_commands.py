@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 class CurrentTaskProblemSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_selected_task_problem_default_path(self):
-        # Behavior: 当用户在task problem中保存任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中保存「BrowserCommandExecutor 保存 选中 Task Problems 默认 路径」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -82,7 +82,7 @@ class CurrentTaskProblemSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_saves_source_file_current_task_problem(self):
-        # Behavior: 当用户在source file中保存源码文件、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中保存「BrowserCommandExecutor 保存 Source File 当前 Task Problems」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -130,7 +130,7 @@ class CurrentTaskProblemSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_does_not_save_stale_source_file_problem(self):
-        # Behavior: 当用户在source file遇到过期状态、源码文件、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Source File中保存「BrowserCommandExecutor 不会 保存 stale Source File 问题」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -171,7 +171,7 @@ class CurrentTaskProblemSaveCommandTests(unittest.TestCase):
         self.assertFalse(saved.exists())
         self.assertIn("No current source problem to save.", state.status_message)
     def test_browser_command_executor_saves_file_detail_current_row_task_problem(self):
-        # Behavior: 当用户在file detail中保存文件详情、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中保存「BrowserCommandExecutor 保存 File Detail 当前 row Task Problems」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

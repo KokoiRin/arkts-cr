@@ -28,7 +28,7 @@ def argparse_namespace(**kwargs):
 
 class PromptHandoffRenderingTests(unittest.TestCase):
     def test_prompt_handoff_renders_review_notes_in_summary_and_detail(self):
-        # Behavior: 当用户在prompt handoff中渲染提示词交接、评审备注、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Prompt Handoff中打开或定位「Prompt Handoff 渲染 review notes in summary and detail」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         prompt = render_prompt_handoff(
             {
                 "summary": {"files": 1, "added": 2, "deleted": 1},

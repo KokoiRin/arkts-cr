@@ -9,7 +9,7 @@ from cr.ui.browser import _read_browse_command
 
 class BrowserInputTests(unittest.TestCase):
     def test_raw_key_command_read_does_not_print_newline(self):
-        # Behavior: 当用户在产品行为中不执行input、raw、key、read时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中执行操作「raw-key 输入 命令 读取 不会 print newline」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         output = StringIO()
 
         with patch("cr.ui.browser._read_raw_key", return_value="down"):
@@ -20,7 +20,7 @@ class BrowserInputTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
 
     def test_browser_input_raw_key_reader_does_not_print_newline(self):
-        # Behavior: 当用户在产品行为中不执行input、input、raw、key时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中执行操作「browser 输入 raw-key 输入 读取器 不会 print newline」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         output = StringIO()
 
         with redirect_stdout(output):
@@ -34,7 +34,7 @@ class BrowserInputTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
 
     def test_browser_input_line_mode_returns_eof_and_interrupt_sentinels(self):
-        # Behavior: 当用户在产品行为中验证input、input、line、mode时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中执行操作「browser 输入 line-mode 返回 eof and interrupt sentinels」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         eof_output = StringIO()
         interrupt_output = StringIO()
 
@@ -54,7 +54,7 @@ class BrowserInputTests(unittest.TestCase):
         self.assertEqual(interrupt_output.getvalue(), "\n")
 
     def test_browser_input_idle_tick_uses_raw_idle_timeout(self):
-        # Behavior: 当用户在产品行为中验证input、input、idle、tick时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中执行操作「browser 输入 idle tick 使用 raw idle timeout」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         seen_timeouts = []
 
         command = browser_input.read_browse_command(

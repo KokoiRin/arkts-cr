@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 class SourceProblemContextSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_selected_source_problem_context(self):
-        # Behavior: 当用户在task problem中保存问题上下文时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中保存「BrowserCommandExecutor 保存 选中 源码问题上下文」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -72,7 +72,7 @@ class SourceProblemContextSaveCommandTests(unittest.TestCase):
         self.assertNotIn("line 7", text)
         self.assertIn("Saved problem context to tmp/source-selected.md", state.status_message)
     def test_browser_command_executor_saves_source_page_problem_context_default_path(self):
-        # Behavior: 当用户在task problem中保存问题上下文时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中保存「BrowserCommandExecutor 保存 源码 page Problem Context 默认 路径」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

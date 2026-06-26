@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 class PromptHandoffSelectedFileSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_selected_file_prompt_explicit_path(self):
-        # Behavior: 当用户在prompt handoff中保存提示词交接时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中保存「BrowserCommandExecutor 保存 选中文件 提示词 explicit 路径」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -114,7 +114,7 @@ class PromptHandoffSelectedFileSaveCommandTests(unittest.TestCase):
                 output.getvalue(),
             )
     def test_browser_command_executor_saves_selected_file_prompt_default_path(self):
-        # Behavior: 当用户在prompt handoff中保存提示词交接时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中保存「BrowserCommandExecutor 保存 选中文件 提示词 默认 路径」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

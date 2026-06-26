@@ -22,7 +22,7 @@ def argparse_namespace(**kwargs):
 
 class BrowserFeedbackTests(unittest.TestCase):
     def test_browse_context_line_shows_status_message(self):
-        # Behavior: 当用户在产品行为中展示feedback、browse、context、line时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中查看「browse 上下文 行 显示 status message」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -47,7 +47,7 @@ class BrowserFeedbackTests(unittest.TestCase):
         )
 
     def test_raw_key_open_feedback_stays_inside_browser_frame(self):
-        # Behavior: 当用户在产品行为中打开feedback、raw、key、open时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中打开或定位「raw-key 输入 打开 feedback stays inside browser frame」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -103,7 +103,7 @@ class BrowserFeedbackTests(unittest.TestCase):
         self.assertIn("Opened src/Sample.ts:3", frames)
 
     def test_raw_key_invalid_selection_feedback_stays_inside_browser_frame(self):
-        # Behavior: 当用户在产品行为中选择选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中选择「raw-key 输入 非法 选择 feedback stays inside browser frame」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -149,7 +149,7 @@ class BrowserFeedbackTests(unittest.TestCase):
         self.assertIn("Choose 1-1.", frames)
 
     def test_raw_key_unknown_command_feedback_stays_inside_browser_frame(self):
-        # Behavior: 当用户在产品行为中验证feedback、raw、key、unknown时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在TUI 导航中执行操作「raw-key 输入 unknown 命令 feedback stays inside browser frame」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",

@@ -7,7 +7,7 @@ from cr.vcs.git import FileChange
 
 class ReviewDataTests(unittest.TestCase):
     def test_build_review_data_attaches_matching_review_notes(self):
-        # Behavior: 当用户在task output中验证评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中打开或定位「build review data attaches matching review notes」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         change = FileChange("src/Sample.ts", 2, 1)
 
         with patch("cr.review.data.git.first_changed_line", return_value=3):

@@ -28,7 +28,7 @@ def argparse_namespace(**kwargs):
 class ReviewWorkspaceStatePersistenceTests(unittest.TestCase):
 
     def test_review_workspace_serializes_and_restores_workspace_state_data(self):
-        # Behavior: 当用户在workspace中验证工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「ReviewWorkspace serializes and 恢复 工作区状态 data」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             staged=True,
             all_changes=False,
@@ -88,7 +88,7 @@ class ReviewWorkspaceStatePersistenceTests(unittest.TestCase):
         )
         self.assertEqual(mode, "file")
     def test_review_workspace_persists_source_filter(self):
-        # Behavior: 当用户在workspace中过滤工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「ReviewWorkspace persists 源码 过滤」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=True,

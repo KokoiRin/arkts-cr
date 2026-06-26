@@ -49,7 +49,7 @@ def argparse_namespace(**kwargs):
 
 class TaskPanelRefreshTests(unittest.TestCase):
     def test_task_panel_partial_refresh_does_not_clear_screen(self):
-        # Behavior: 当用户在产品行为中刷新panel、refresh、panel、partial时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中执行操作「Task Panel partial 刷新 不会 clear screen」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         build = TaskState(["true"], process, lines=["compile line"])
         output = StringIO()
@@ -79,7 +79,7 @@ class TaskPanelRefreshTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
         process.wait(timeout=1)
     def test_full_browser_redraw_primes_task_panel_frame_cache(self):
-        # Behavior: 当用户在产品行为中验证panel、refresh、full、redraw时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中执行操作「full browser 重绘 primes Task Panel frame cache」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -116,7 +116,7 @@ class TaskPanelRefreshTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
         process.wait(timeout=1)
     def test_task_panel_partial_refresh_refuses_stale_frame_layout(self):
-        # Behavior: 当用户在产品行为遇到过期状态时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中处理异常「Task Panel partial 刷新 拒绝 stale frame layout」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         build = TaskState(["true"], process, lines=["first line"])
         frame = BrowserFrame(
@@ -141,7 +141,7 @@ class TaskPanelRefreshTests(unittest.TestCase):
         self.assertTrue(frame.dirty)
         process.wait(timeout=1)
     def test_task_panel_partial_refresh_refuses_dirty_frame(self):
-        # Behavior: 当用户在产品行为中刷新panel、refresh、panel、partial时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中处理异常「Task Panel partial 刷新 拒绝 dirty frame」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         build = TaskState(["true"], process, lines=["first line"])
         frame = BrowserFrame(
@@ -164,7 +164,7 @@ class TaskPanelRefreshTests(unittest.TestCase):
         self.assertTrue(frame.dirty)
         process.wait(timeout=1)
     def test_browser_status_message_marks_frame_dirty_before_task_refresh(self):
-        # Behavior: 当用户在产品行为中刷新panel、refresh、status、message时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中标记「browser status message 标记 frame dirty before task 刷新」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         build = TaskState(["true"], process, lines=["first line"])
         frame = BrowserFrame(

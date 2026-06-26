@@ -22,7 +22,7 @@ def argparse_namespace(**kwargs):
 class SelectedFileLineChangeActionTests(unittest.TestCase):
 
     def test_open_hunk_targets_the_active_hunk_line(self):
-        # Behavior: 当用户在file detail中打开line、change、actions、open时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中打开或定位「打开 hunk targets the active hunk 行」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(open_cmd="editor {fileline}")
         change = FileChange("src/Sample.ts", 1, 0)
         lines = [
@@ -55,7 +55,7 @@ class SelectedFileLineChangeActionTests(unittest.TestCase):
         )
         self.assertEqual(message, "Opened hunk src/Sample.ts:31")
     def test_open_line_targets_the_current_added_line(self):
-        # Behavior: 当用户在file action中打开line、change、actions、open时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中打开或定位「打开 行 targets the 当前 added 行」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(open_cmd="editor {fileline}")
         change = FileChange("src/Sample.ts", 1, 0)
         lines = [
@@ -87,7 +87,7 @@ class SelectedFileLineChangeActionTests(unittest.TestCase):
         )
         self.assertEqual(message, "Opened line src/Sample.ts:32")
     def test_copy_selected_line_copies_current_new_file_anchor(self):
-        # Behavior: 当用户在file action中复制line、change、actions、copy时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中复制「复制 选中 行 复制 当前 new 文件 anchor」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         args = argparse_namespace(copy_cmd="copy-tool")
         change = FileChange("src/Sample.ts", 1, 0)
         lines = [
@@ -111,7 +111,7 @@ class SelectedFileLineChangeActionTests(unittest.TestCase):
         copy_text.assert_called_once_with("src/Sample.ts:32", "copy-tool")
         self.assertEqual(message, "Copied line src/Sample.ts:32")
     def test_copy_selected_change_renders_current_added_row(self):
-        # Behavior: 当用户在file action中复制line、change、actions、copy时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中复制「复制 选中 change 渲染 当前 added row」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         args = argparse_namespace(copy_cmd="copy-tool")
         change = FileChange("src/Sample.ts", 1, 0)
         lines = [
@@ -140,7 +140,7 @@ class SelectedFileLineChangeActionTests(unittest.TestCase):
         self.assertIn("- kind: added", copied)
         self.assertIn("        32 | +second", copied)
     def test_copy_selected_change_renders_current_deleted_row(self):
-        # Behavior: 当用户在file action中复制line、change、actions、copy时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中复制「复制 选中 change 渲染 当前 已删除 row」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         args = argparse_namespace(copy_cmd="copy-tool")
         change = FileChange("src/Sample.ts", 0, 1)
         lines = [
@@ -169,7 +169,7 @@ class SelectedFileLineChangeActionTests(unittest.TestCase):
         self.assertIn("  20      | -gone", copied)
         self.assertNotIn("- anchor:", copied)
     def test_copy_selected_hunk_renders_only_active_hunk(self):
-        # Behavior: 当用户在file detail中复制line、change、actions、copy时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中复制「复制 选中 hunk 渲染 只读 active hunk」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         args = argparse_namespace(copy_cmd="copy-tool")
         change = FileChange("src/Sample.ts", 1, 0)
         lines = [

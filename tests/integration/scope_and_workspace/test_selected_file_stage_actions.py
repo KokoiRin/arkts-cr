@@ -22,7 +22,7 @@ def argparse_namespace(**kwargs):
 class SelectedFileStageActionTests(unittest.TestCase):
 
     def test_stage_selected_path_is_available_for_local_scopes(self):
-        # Behavior: 当用户在scope home中选择stage、actions、stage、path时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中选择「暂存 选中 路径 is available for 本地 范围」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -39,7 +39,7 @@ class SelectedFileStageActionTests(unittest.TestCase):
         self.assertEqual(message, "Staged src/Sample.ts")
         stage.assert_called_once_with("src/Sample.ts")
     def test_stage_selected_path_rejects_read_only_scopes(self):
-        # Behavior: 当用户在scope home中选择stage、actions、stage、path时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中选择「暂存 选中 路径 rejects 读取 只读 范围」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -56,7 +56,7 @@ class SelectedFileStageActionTests(unittest.TestCase):
         )
         stage.assert_not_called()
     def test_unstage_selected_path_is_available_for_local_scopes(self):
-        # Behavior: 当用户在scope home中选择stage、actions、unstage、path时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中选择「取消暂存 选中 路径 is available for 本地 范围」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=True,
             all_changes=False,

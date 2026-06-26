@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 
 class ReviewNoteSaveCommandTests(unittest.TestCase):
     def test_browser_command_executor_saves_review_notes_default_path(self):
-        # Behavior: 当用户在review note中保存评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中保存「BrowserCommandExecutor 保存 review notes 默认 路径」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -82,7 +82,7 @@ class ReviewNoteSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_saves_review_notes_requested_path(self):
-        # Behavior: 当用户在review note中保存评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中保存「BrowserCommandExecutor 保存 review notes requested 路径」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -118,7 +118,7 @@ class ReviewNoteSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_does_not_save_empty_review_notes(self):
-        # Behavior: 当用户在review note遇到评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中保存「BrowserCommandExecutor 不会 保存 空态 review notes」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -142,7 +142,7 @@ class ReviewNoteSaveCommandTests(unittest.TestCase):
         self.assertFalse(target.exists())
         self.assertIn("No review notes to save.", state.status_message)
     def test_browser_command_executor_reports_save_review_notes_failures(self):
-        # Behavior: 当用户在review note遇到失败反馈、评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中保存「BrowserCommandExecutor 提示 保存 review notes failures」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(

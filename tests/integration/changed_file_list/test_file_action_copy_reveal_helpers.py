@@ -22,7 +22,7 @@ def argparse_namespace(**kwargs):
 
 class FileActionCopyRevealHelperTests(unittest.TestCase):
     def test_file_action_helpers_discover_macos_clipboard_and_reveal_commands(self):
-        # Behavior: 当用户在file action中验证action、copy、reveal、helpers时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中打开或定位「File Actions 辅助逻辑 discover macos clipboard and 定位 命令」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.file_actions import clipboard_command, reveal_command
 
         def fake_which(name):
@@ -38,7 +38,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
                     ["open", "-R", "/tmp/Sample.ts"],
                 )
     def test_file_action_helpers_report_missing_platform_commands(self):
-        # Behavior: 当用户在file action遇到缺失状态时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中处理异常「File Actions 辅助逻辑 提示 缺失 platform 命令」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.file_actions import copy_text, open_path, reveal_path
 
         with patch("cr.ui.file_actions.open_command_source") as source:
@@ -61,7 +61,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
                 "No file browser command found (missing).",
             )
     def test_file_action_helpers_use_configured_copy_command(self):
-        # Behavior: 当用户在file action中复制action、copy、reveal、helpers时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中复制「File Actions 辅助逻辑 使用 配置的 复制 命令」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.file_actions import copy_text
 
         with patch("cr.ui.file_actions.subprocess.run") as run:
@@ -75,7 +75,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
             check=True,
         )
     def test_file_action_helpers_include_source_in_failures(self):
-        # Behavior: 当用户在file action遇到失败反馈时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中处理异常「File Actions 辅助逻辑 包含 源码 in failures」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.file_actions import copy_text, reveal_path
 
         with patch(
@@ -100,7 +100,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
         )
         self.assertIn("missing reveal", reveal_result)
     def test_file_action_helpers_use_configured_reveal_command(self):
-        # Behavior: 当用户在file action中验证action、copy、reveal、helpers时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中打开或定位「File Actions 辅助逻辑 使用 配置的 定位 命令」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.file_actions import reveal_path
 
         with patch("cr.ui.file_actions.subprocess.Popen") as popen:
@@ -120,7 +120,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
             ]
         )
     def test_file_action_helpers_use_environment_configuration(self):
-        # Behavior: 当用户在file action中验证配置时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中执行操作「File Actions 辅助逻辑 使用 environment 配置」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.file_actions import (
             configured_copy_command,
             configured_reveal_command,

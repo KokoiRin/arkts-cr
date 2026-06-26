@@ -5,7 +5,7 @@ from cr.ui import problem_context
 
 class ProblemContextBehaviorTests(unittest.TestCase):
     def test_problem_context_includes_problem_source_task_output_and_diff_sections(self):
-        # Behavior: 当用户在task problem中验证问题上下文、任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中输出「Problem Context 包含 问题 源码 Task Output and diff sections」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         text = problem_context.problem_context_markdown(
             anchor="src/Foo.ets:5",
             problem_text="src/Foo.ets:5:1\nSeverity: error\nbad call",

@@ -21,7 +21,7 @@ def argparse_namespace(**kwargs):
 class SelectedDiffCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_copies_selected_diff_snippet(self):
-        # Behavior: 当用户在产品行为中复制diff、copies、diff、snippet时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中复制「BrowserCommandExecutor 复制 选中 diff snippet」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(copy_cmd="copy-tool")
@@ -48,7 +48,7 @@ class SelectedDiffCommandTests(unittest.TestCase):
         self.assertIn("Copied diff for src/Sample.ts", output.getvalue())
 
     def test_browser_command_executor_copies_selected_diff_in_raw_status(self):
-        # Behavior: 当用户在产品行为中复制diff、copies、diff、raw时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中复制「BrowserCommandExecutor 复制 选中 diff in raw status」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(copy_cmd="copy-tool")
@@ -72,7 +72,7 @@ class SelectedDiffCommandTests(unittest.TestCase):
         self.assertIn("Copied diff for src/Sample.ts", state.status_message)
 
     def test_browser_command_executor_saves_selected_diff_snippet(self):
-        # Behavior: 当用户在产品行为中保存diff、saves、diff、snippet时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中保存「BrowserCommandExecutor 保存 选中 diff snippet」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -104,7 +104,7 @@ class SelectedDiffCommandTests(unittest.TestCase):
         )
 
     def test_browser_command_executor_saves_selected_diff_in_raw_status(self):
-        # Behavior: 当用户在产品行为中保存diff、saves、diff、raw时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中保存「BrowserCommandExecutor 保存 选中 diff in raw status」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()

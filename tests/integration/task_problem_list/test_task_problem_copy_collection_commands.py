@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemCopyCollectionCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_does_not_copy_empty_task_problems(self):
-        # Behavior: 当用户在task problem遇到任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中复制「BrowserCommandExecutor 不会 复制 空态 task 问题」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
@@ -57,7 +57,7 @@ class TaskProblemCopyCollectionCommandTests(unittest.TestCase):
         copy_text.assert_not_called()
         self.assertIn("No task problems to copy.", state.status_message)
     def test_browser_command_executor_copies_all_task_problems(self):
-        # Behavior: 当用户在task problem中复制任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中复制「BrowserCommandExecutor 复制 全部 task 问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -103,7 +103,7 @@ class TaskProblemCopyCollectionCommandTests(unittest.TestCase):
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied 2 task problems.", state.status_message)
     def test_browser_command_executor_copies_filtered_task_problems(self):
-        # Behavior: 当用户在task problem中复制任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中复制「BrowserCommandExecutor 复制 filtered task 问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -147,7 +147,7 @@ class TaskProblemCopyCollectionCommandTests(unittest.TestCase):
         self.assertNotIn("src/Two.ets", copied)
         self.assertIn("Copied 1 task problems.", state.status_message)
     def test_browser_command_executor_copies_queried_task_problems(self):
-        # Behavior: 当用户在task problem中复制任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中复制「BrowserCommandExecutor 复制 queried task 问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -191,7 +191,7 @@ class TaskProblemCopyCollectionCommandTests(unittest.TestCase):
         self.assertNotIn("src/One.ets", copied)
         self.assertIn("Copied 1 task problems.", state.status_message)
     def test_browser_command_executor_copies_sorted_task_problems(self):
-        # Behavior: 当用户在task problem中复制任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中复制「BrowserCommandExecutor 复制 sorted task 问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 class CommitPickerRenderingTests(unittest.TestCase):
 
     def test_browse_screen_recent_commits_stays_scope_picker(self):
-        # Behavior: 当用户在scope home中验证提交选择器、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Commit Picker中排序或选择「browse screen 最近 commit stays 范围 picker」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -59,7 +59,7 @@ class CommitPickerRenderingTests(unittest.TestCase):
         self.assertIn("Scope: recent commits", text)
         self.assertNotIn("Scope: recent commits > Files", text)
     def test_commit_picker_rows_show_change_summary(self):
-        # Behavior: 当用户在commit picker中展示提交选择器、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Commit Picker中查看「Commit Picker rows 显示 change summary」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         state = BrowserState(
             [],
             commits=[
@@ -85,7 +85,7 @@ class CommitPickerRenderingTests(unittest.TestCase):
         self.assertIn("2 files, +10 -3", "\n".join(lines))
         self.assertIn("Example change", "\n".join(lines))
     def test_commit_picker_filter_shows_matches_and_count(self):
-        # Behavior: 当用户在commit picker中展示提交选择器、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Commit Picker中查看「Commit Picker 过滤 显示 匹配 and count」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         state = BrowserState(
             [],
             commits=[
@@ -123,7 +123,7 @@ class CommitPickerRenderingTests(unittest.TestCase):
         self.assertIn("Feature login", text)
         self.assertNotIn("Docs only", text)
     def test_commit_picker_filter_empty_state(self):
-        # Behavior: 当用户在commit picker遇到空状态、提交选择器、渲染时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Commit Picker中过滤「Commit Picker 过滤 空态 状态」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         state = BrowserState(
             [],
             commits=[
@@ -148,7 +148,7 @@ class CommitPickerRenderingTests(unittest.TestCase):
         self.assertIn("No recent commits match filter: missing (1 total).", text)
         self.assertIn("Press c to clear the filter.", text)
     def test_browse_screen_selected_commit_files_show_product_breadcrumb(self):
-        # Behavior: 当用户在commit picker中展示提交选择器、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Commit Picker中查看「browse screen 选中 commit 文件 显示 product breadcrumb」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

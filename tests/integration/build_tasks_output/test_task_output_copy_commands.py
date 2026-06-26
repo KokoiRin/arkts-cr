@@ -35,7 +35,7 @@ def argparse_namespace(**kwargs):
 class TaskOutputCopyCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_copies_task_output(self):
-        # Behavior: 当用户在task output中复制任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中复制「BrowserCommandExecutor 复制 Task Output」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -72,7 +72,7 @@ class TaskOutputCopyCommandTests(unittest.TestCase):
         self.assertEqual(copy.call_args.args[1], "copy-tool")
         self.assertIn("Copied task output.", output.getvalue())
     def test_browser_command_executor_copies_task_output_tail(self):
-        # Behavior: 当用户在task output中复制任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中复制「BrowserCommandExecutor 复制 Task Output tail」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -110,7 +110,7 @@ class TaskOutputCopyCommandTests(unittest.TestCase):
         self.assertEqual(copy.call_args.args[1], "copy-tool")
         self.assertIn("Copied task output tail.", output.getvalue())
     def test_browser_command_executor_copies_task_output_match(self):
-        # Behavior: 当用户在task output中复制任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中复制「BrowserCommandExecutor 复制 Task Output match」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

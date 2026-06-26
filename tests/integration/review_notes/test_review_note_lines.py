@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 
 class ReviewNotesTests(unittest.TestCase):
     def test_review_note_lines_order_current_changes_before_extra_notes(self):
-        # Behavior: 当用户在review note中验证评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中打开或定位「Review Notes 行 order 当前 changes before extra notes」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         lines = review_notes.review_note_lines(
             [
                 FileChange("src/First.ts", 1, 0),
@@ -54,7 +54,7 @@ class ReviewNotesTests(unittest.TestCase):
         )
 
     def test_review_note_lines_filter_by_path_or_note_text(self):
-        # Behavior: 当用户在review note中过滤评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中打开或定位「Review Notes 行 过滤 by 路径 or note text」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         lines = review_notes.review_note_lines(
             [
                 FileChange("src/SampleView.ts", 1, 0),
@@ -76,7 +76,7 @@ class ReviewNotesTests(unittest.TestCase):
         )
 
     def test_review_note_lines_show_empty_states(self):
-        # Behavior: 当用户在review note遇到空状态、评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中打开或定位「Review Notes 行 显示 空态 states」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         self.assertEqual(
             review_notes.review_note_lines([FileChange("src/Sample.ts", 1, 0)], {}),
             ["Review notes: none"],
@@ -91,7 +91,7 @@ class ReviewNotesTests(unittest.TestCase):
         )
 
     def test_copy_review_notes_copies_filtered_lines(self):
-        # Behavior: 当用户在review note中复制评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中复制「复制 review notes 复制 filtered 行」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         copied: list[tuple[str, str | None]] = []
 
         def copy_text(text, copy_cmd=None):
@@ -111,7 +111,7 @@ class ReviewNotesTests(unittest.TestCase):
         self.assertIn('Review notes matching "lifecycle":', copied[0][0])
 
     def test_copy_review_notes_skips_empty_or_unmatched_notes(self):
-        # Behavior: 当用户在review note遇到评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中复制「复制 review notes skips 空态 or unmatched notes」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         copied: list[str] = []
 
         def copy_text(text, copy_cmd=None):

@@ -31,7 +31,7 @@ def argparse_namespace(**kwargs):
 class ScopeHomeDisplayTests(unittest.TestCase):
 
     def test_browse_screen_scope_home_shows_review_scope_entries(self):
-        # Behavior: 当用户在scope home中展示范围首页时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「browse screen Scope Home 显示 review 范围 entries」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -58,7 +58,7 @@ class ScopeHomeDisplayTests(unittest.TestCase):
         self.assertIn("Explicit range", text)
         self.assertIn(": range OLD..NEW", text)
     def test_scope_home_screen_shows_live_scope_counts(self):
-        # Behavior: 当用户在scope home中展示范围首页时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中查看「Scope Home screen 显示 live 范围 counts」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         state = BrowserState(
             [],
             page=BrowserPage.SCOPE_HOME,

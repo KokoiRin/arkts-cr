@@ -49,7 +49,7 @@ def argparse_namespace(**kwargs):
 
 class TaskOutputHistoryTests(unittest.TestCase):
     def test_task_panel_collects_background_output(self):
-        # Behavior: 当用户在task output中验证任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中输出「Task Panel collects background 输出」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = (
@@ -79,7 +79,7 @@ class TaskOutputHistoryTests(unittest.TestCase):
             self.assertIn("compile line 1", text)
             self.assertIn("compile line 2", text)
     def test_test_task_collects_background_output_and_history(self):
-        # Behavior: 当用户在task output中验证任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中输出「test task collects background 输出 and 历史」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"print('test line')\""
@@ -113,7 +113,7 @@ class TaskOutputHistoryTests(unittest.TestCase):
             self.assertIn("test line", text)
             self.assertEqual(state.task_history[0].kind, "test")
     def test_task_panel_renders_recent_task_history(self):
-        # Behavior: 当用户在task output中渲染任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中查看「Task Panel 渲染 最近 task 历史」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
         build = TaskState(
@@ -137,7 +137,7 @@ class TaskOutputHistoryTests(unittest.TestCase):
         self.assertIn("Recent: build failed (1) ./build.sh", text)
         self.assertIn("compile line", text)
     def test_completed_build_records_task_history_once(self):
-        # Behavior: 当用户在task output中验证任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「completed build records task 历史 once」时，系统应保存、恢复或重置预期状态 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
         state = BrowserState(
@@ -158,7 +158,7 @@ class TaskOutputHistoryTests(unittest.TestCase):
         self.assertEqual(state.task_history[0].status, "succeeded")
         self.assertEqual(state.task_history[0].returncode, 0)
     def test_stop_without_running_build_does_not_record_task_history(self):
-        # Behavior: 当用户在task output遇到缺少前置条件、任务输出时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「stop 不包含 running build 不会 record task 历史」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         state = BrowserState([])
 
         _stop_task(state)
@@ -166,7 +166,7 @@ class TaskOutputHistoryTests(unittest.TestCase):
 
         self.assertEqual(state.task_history, [])
     def test_browse_screen_task_panel_includes_task_history(self):
-        # Behavior: 当用户在task output中验证任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中执行操作「browse screen Task Panel 包含 task 历史」时，系统应保存、恢复或重置预期状态 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

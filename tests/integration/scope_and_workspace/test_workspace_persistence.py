@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 
 class WorkspacePersistenceTests(unittest.TestCase):
     def test_workspace_state_uses_git_cr_path_and_skips_explicit_scopes(self):
-        # Behavior: 当用户在scope home中验证工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中执行操作「工作区状态 使用 Git cr 路径 and skips explicit 范围」时，系统应保存、恢复或重置预期状态 [Requirement: TODO]
         repo = Path("/tmp/sample-repo")
         default_args = argparse_namespace(
             staged=False,
@@ -58,7 +58,7 @@ class WorkspacePersistenceTests(unittest.TestCase):
         self.assertFalse(workspace_persistence.should_save_workspace_state(path_args))
 
     def test_workspace_state_persists_review_progress_filter_and_notes(self):
-        # Behavior: 当用户在review note中过滤工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「工作区状态 persists review progress 过滤 and notes」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             (repo / ".git").mkdir()
@@ -101,7 +101,7 @@ class WorkspacePersistenceTests(unittest.TestCase):
         self.assertNotIn("action_bar", loaded)
 
     def test_workspace_state_ignores_invalid_json_version_or_schema(self):
-        # Behavior: 当用户在workspace中验证工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中处理异常「工作区状态 忽略 非法 JSON version or schema」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             path = repo / ".git" / "cr" / "browse-state.json"
@@ -120,7 +120,7 @@ class WorkspacePersistenceTests(unittest.TestCase):
             self.assertIsNone(workspace_persistence.load_workspace_state(repo))
 
     def test_browser_workspace_state_saves_under_git_dir(self):
-        # Behavior: 当用户在workspace中保存工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中保存「browser 工作区状态 保存 under Git dir」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             (repo / ".git").mkdir()
@@ -157,7 +157,7 @@ class WorkspacePersistenceTests(unittest.TestCase):
             self.assertNotIn("task_history", data)
 
     def test_browser_workspace_state_does_not_persist_task_history(self):
-        # Behavior: 当用户在workspace中不执行工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中执行操作「browser 工作区状态 不会 persist task 历史」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             (repo / ".git").mkdir()
@@ -189,7 +189,7 @@ class WorkspacePersistenceTests(unittest.TestCase):
             self.assertNotIn("task_history", data)
 
     def test_browser_workspace_state_saves_and_restores_progress_markers(self):
-        # Behavior: 当用户在workspace中保存工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中保存「browser 工作区状态 保存 and 恢复 progress markers」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             (repo / ".git").mkdir()
@@ -228,7 +228,7 @@ class WorkspacePersistenceTests(unittest.TestCase):
             )
 
     def test_browser_workspace_state_saves_and_restores_review_notes(self):
-        # Behavior: 当用户在review note中保存评审备注、工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中保存「browser 工作区状态 保存 and 恢复 review notes」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             (repo / ".git").mkdir()
@@ -264,7 +264,7 @@ class WorkspacePersistenceTests(unittest.TestCase):
             )
 
     def test_browser_workspace_state_restores_scope_filter_and_selected_path(self):
-        # Behavior: 当用户在scope home中过滤工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中过滤「browser 工作区状态 恢复 范围 过滤 and 选中 路径」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             state_path = _browser_workspace_state_path(repo)
@@ -315,7 +315,7 @@ class WorkspacePersistenceTests(unittest.TestCase):
             self.assertEqual(state.mode, "file")
 
     def test_browser_workspace_state_falls_back_to_index_when_path_is_missing(self):
-        # Behavior: 当用户在workspace遇到缺失状态、工作区时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中处理异常「browser 工作区状态 回退 返回 to index when 路径 is 缺失」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemPageOpeningTests(unittest.TestCase):
 
     def test_browser_command_executor_opens_selected_task_problem(self):
-        # Behavior: 当用户在task problem中打开任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中打开或定位「BrowserCommandExecutor 打开 选中 Task Problems」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -75,7 +75,7 @@ class TaskProblemPageOpeningTests(unittest.TestCase):
         open_path.assert_called_once_with(second, 22, "editor {fileline}")
         self.assertIn("Opened problem src/Two.ets:22", state.status_message)
     def test_browser_command_executor_opens_filtered_task_problem(self):
-        # Behavior: 当用户在task problem中打开任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中打开或定位「BrowserCommandExecutor 打开 filtered Task Problems」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -119,7 +119,7 @@ class TaskProblemPageOpeningTests(unittest.TestCase):
         open_path.assert_called_once_with(second, 22, "editor {fileline}")
         self.assertIn("Opened problem src/Two.ets:22", state.status_message)
     def test_browser_command_executor_opens_grouped_task_problem(self):
-        # Behavior: 当用户在task problem中打开任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中打开或定位「BrowserCommandExecutor 打开 grouped Task Problems」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -164,7 +164,7 @@ class TaskProblemPageOpeningTests(unittest.TestCase):
         open_path.assert_called_once_with(second, 22, "editor {fileline}")
         self.assertIn("Opened problem src/Two.ets:22", state.status_message)
     def test_browser_command_executor_opens_queried_task_problem(self):
-        # Behavior: 当用户在task problem中打开任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中打开或定位「BrowserCommandExecutor 打开 queried Task Problems」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -208,7 +208,7 @@ class TaskProblemPageOpeningTests(unittest.TestCase):
         open_path.assert_called_once_with(second, 22, "editor {fileline}")
         self.assertIn("Opened problem src/Two.ets:22", state.status_message)
     def test_browser_command_executor_steps_source_file_task_problems(self):
-        # Behavior: 当用户在source file中验证源码文件、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中执行操作「BrowserCommandExecutor steps Source File task 问题」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -262,7 +262,7 @@ class TaskProblemPageOpeningTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
     def test_browser_command_executor_views_selected_task_problem_source(self):
-        # Behavior: 当用户在task problem中选择任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中打开或定位「BrowserCommandExecutor 查看 选中 Task Problems 源码」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -306,7 +306,7 @@ class TaskProblemPageOpeningTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
     def test_browser_command_executor_views_sorted_task_problem_source(self):
-        # Behavior: 当用户在task problem中验证任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中打开或定位「BrowserCommandExecutor 查看 sorted Task Problems 源码」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -348,7 +348,7 @@ class TaskProblemPageOpeningTests(unittest.TestCase):
         self.assertEqual(state.source_file_path, "src/Two.ets")
         self.assertEqual(state.source_file_line, 2)
     def test_browser_command_executor_reports_no_task_problem_to_view(self):
-        # Behavior: 当用户在task problem遇到任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中打开或定位「BrowserCommandExecutor 提示 无 Task Problems to 查看」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)

@@ -5,7 +5,7 @@ from cr.review.hunks import render_diff_hunks
 
 class HunkRenderTests(unittest.TestCase):
     def test_renders_hunks_without_git_file_headers(self):
-        # Behavior: 当用户在file detail遇到缺少前置条件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中查看「渲染 hunk 省略 Git 文件头」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         diff = """\
 diff --git a/src/pages/Home.ets b/src/pages/Home.ets
 index 1111111..2222222 100644
@@ -30,7 +30,7 @@ index 1111111..2222222 100644
         self.assertFalse(any(line.startswith("index ") for line in lines))
 
     def test_truncates_long_hunks(self):
-        # Behavior: 当用户在file detail中验证hunks、truncates、long、hunks时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中解析「截断 过长 hunk」时，系统应产出正确的结构化结果 [Requirement: TODO]
         diff = "@@ -1 +1 @@\n" + "\n".join(f"+line {index}" for index in range(5))
 
         lines = render_diff_hunks(diff, max_lines=3)

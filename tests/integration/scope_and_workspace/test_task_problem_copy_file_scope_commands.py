@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemCopyFileScopeCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_copies_selected_file_task_problems(self):
-        # Behavior: 当用户在scope home中复制任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中复制「BrowserCommandExecutor 复制 选中文件 task 问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -77,7 +77,7 @@ class TaskProblemCopyFileScopeCommandTests(unittest.TestCase):
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied 2 task problems for src/One.ets.", state.status_message)
     def test_browser_command_executor_copies_visible_selected_file_task_problems(self):
-        # Behavior: 当用户在scope home中复制任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中复制「BrowserCommandExecutor 复制 可见 选中文件 task 问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -124,7 +124,7 @@ class TaskProblemCopyFileScopeCommandTests(unittest.TestCase):
         self.assertNotIn("src/Two.ets", copied)
         self.assertIn("Copied 1 task problems for src/One.ets.", state.status_message)
     def test_browser_command_executor_copies_file_detail_current_file_task_problems(self):
-        # Behavior: 当用户在scope home中复制文件详情、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中复制「BrowserCommandExecutor 复制 File Detail 当前文件 task 问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -174,7 +174,7 @@ class TaskProblemCopyFileScopeCommandTests(unittest.TestCase):
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied 2 task problems for src/One.ets.", state.status_message)
     def test_browser_command_executor_reports_file_detail_current_file_without_task_problems(self):
-        # Behavior: 当用户在scope home遇到缺少前置条件、文件详情、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中处理异常「BrowserCommandExecutor 提示 File Detail 当前文件 不包含 task 问题」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -212,7 +212,7 @@ class TaskProblemCopyFileScopeCommandTests(unittest.TestCase):
         copy_text.assert_not_called()
         self.assertIn("No task problems for src/One.ets.", state.status_message)
     def test_browser_command_executor_reports_empty_selected_file_task_problems(self):
-        # Behavior: 当用户在scope home遇到任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中选择「BrowserCommandExecutor 提示 空态 选中文件 task 问题」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)

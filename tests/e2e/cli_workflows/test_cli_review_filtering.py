@@ -9,7 +9,7 @@ from tests.cli_test_support import CliTestCase
 class CliReviewFilteringTests(CliTestCase):
 
     def test_cli_omits_untracked_binary_and_large_file_contents(self):
-        # Behavior: 当用户在CLI review中验证过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中执行操作「cli 省略 未跟踪 二进制 and 大 文件 contents」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             readme = repo / "README.md"
@@ -42,7 +42,7 @@ class CliReviewFilteringTests(CliTestCase):
             self.assertIn("content omitted", "\n".join(files["asset.bin"]["hunks"]))
             self.assertIn("too large for inline diff", "\n".join(files["large.txt"]["hunks"]))
     def test_cli_flags_lockfile_config_and_generated_risks(self):
-        # Behavior: 当用户在CLI review中验证过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中执行操作「cli flags lockfile config and generated risks」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             lockfile = repo / "package-lock.json"
@@ -87,7 +87,7 @@ class CliReviewFilteringTests(CliTestCase):
             self.assertEqual(risks["tsconfig.json"], ["config"])
             self.assertEqual(risks["src/generated/client.ts"], ["generated"])
     def test_cli_review_sorts_large_reviews_by_risk_or_churn(self):
-        # Behavior: 当用户在CLI review中验证过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中打开或定位「CLI review 排序 大 reviews by 风险 or 改动量」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             readme = repo / "README.md"
@@ -138,7 +138,7 @@ export function app(): string {
             data = json.loads(json_review.stdout)
             self.assertEqual(data["files"][0]["path"], "package-lock.json")
     def test_cli_review_picks_one_file_by_summary_index(self):
-        # Behavior: 当用户在CLI review中验证过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中打开或定位「CLI review 选择 one 文件 by summary index」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             readme = repo / "README.md"
@@ -190,7 +190,7 @@ export function app(): string {
             self.assertEqual(bad_pick.returncode, 2)
             self.assertIn("--pick must be between 1 and 3", bad_pick.stderr)
     def test_cli_review_tracks_seen_files_and_filters_remaining(self):
-        # Behavior: 当用户在CLI review中过滤过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中打开或定位「CLI review 跟踪 已看 文件 and 过滤 剩余」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             readme = repo / "README.md"
@@ -254,7 +254,7 @@ export function app(): string {
             self.assertEqual(prompt.returncode, 0, prompt.stderr)
             self.assertIn("state: seen", prompt.stdout)
     def test_cli_filters_to_code_files_and_path_prefixes(self):
-        # Behavior: 当用户在CLI review中过滤过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中过滤「cli 过滤 to code 文件 and 路径 prefixes」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             page = repo / "src" / "pages" / "Sample.ets"
@@ -306,7 +306,7 @@ export function app(): string {
             self.assertIn("src/utils/helper.ts", code_diff.stdout)
             self.assertNotIn("README.md", code_diff.stdout)
     def test_code_filter_does_not_show_doc_only_stats(self):
-        # Behavior: 当用户在CLI review中展示过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中查看「code 过滤 不会 显示 doc 只读 stats」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             readme = repo / "README.md"
@@ -325,7 +325,7 @@ export function app(): string {
             self.assertIn("No working tree changes.", diff.stdout)
             self.assertNotIn("README.md", diff.stdout)
     def test_cli_marks_deleted_code_files_without_fake_symbols(self):
-        # Behavior: 当用户在CLI review遇到缺少前置条件、过滤时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中标记「cli 标记 已删除 code 文件 不生成伪造符号」时，系统应产出正确的结构化结果 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             helper = repo / "src" / "utils" / "helper.ts"

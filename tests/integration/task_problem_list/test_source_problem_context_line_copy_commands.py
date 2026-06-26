@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 class SourceProblemContextLineCopyCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_copies_source_page_problem_context(self):
-        # Behavior: 当用户在task problem中复制问题上下文时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中复制「BrowserCommandExecutor 复制 源码 page Problem Context」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -84,7 +84,7 @@ class SourceProblemContextLineCopyCommandTests(unittest.TestCase):
         self.assertNotIn("## Task Output", copied)
         self.assertIn("# File Diff: src/Foo.ets", copied)
     def test_browser_command_executor_copies_source_page_problem_context_with_current_problem(self):
-        # Behavior: 当用户在task problem中复制当前问题、问题上下文时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中复制「BrowserCommandExecutor 复制 源码 page Problem Context with 当前问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -153,7 +153,7 @@ class SourceProblemContextLineCopyCommandTests(unittest.TestCase):
         self.assertIn("  3  compile failed", copied)
         self.assertIn("# File Diff: src/Foo.ets", copied)
     def test_browser_command_executor_does_not_use_stale_source_problem_for_context(self):
-        # Behavior: 当用户在task problem遇到过期状态、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中执行操作「BrowserCommandExecutor 不会 使用 stale 源码 问题 for 上下文」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -217,7 +217,7 @@ class SourceProblemContextLineCopyCommandTests(unittest.TestCase):
         self.assertNotIn("other bad", copied)
         self.assertIn("# File Diff: src/Foo.ets", copied)
     def test_browser_command_executor_copies_problem_context_without_diff(self):
-        # Behavior: 当用户在task problem遇到缺少前置条件、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中复制「BrowserCommandExecutor 复制 Problem Context 不包含 diff」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

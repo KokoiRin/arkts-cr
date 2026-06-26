@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 class FileDetailProblemContextSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_file_detail_problem_context(self):
-        # Behavior: 当用户在file detail中保存问题上下文、文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中保存「BrowserCommandExecutor 保存 File Detail Problem Context」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -86,7 +86,7 @@ class FileDetailProblemContextSaveCommandTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertIn("Saved problem context to tmp/file-detail.md.", state.status_message)
     def test_browser_command_executor_saves_file_detail_problem_context_with_current_problem(self):
-        # Behavior: 当用户在file detail中保存当前问题、问题上下文、文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中保存「BrowserCommandExecutor 保存 File Detail Problem Context with 当前问题」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

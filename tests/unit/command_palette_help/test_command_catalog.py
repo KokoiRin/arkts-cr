@@ -7,7 +7,7 @@ from cr.ui.terminal import TerminalStyle
 
 class CommandCatalogTests(unittest.TestCase):
     def test_command_help_groups_commands_by_workflow(self):
-        # Behavior: 当用户在产品行为中验证catalog、help、groups、workflow时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Command Palette / Help中执行操作「命令 帮助 groups 命令 by workflow」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         groups = command_catalog.command_catalog()
         lines = command_catalog.command_list_lines(TerminalStyle(False), max_lines=140)
         text = "\n".join(lines)
@@ -69,7 +69,7 @@ class CommandCatalogTests(unittest.TestCase):
         self.assertIn("problems group none", text)
 
     def test_executable_palette_entries_include_actions_not_parameter_templates(self):
-        # Behavior: 当用户在产品行为中验证catalog、executable、palette、entries时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Command Palette / Help中执行操作「executable palette entries 包含 动作 不 parameter templates」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         commands = [entry.command for entry in command_catalog.command_palette_entries()]
         scope_filtered = [
             entry.command
@@ -147,7 +147,7 @@ class CommandCatalogTests(unittest.TestCase):
         self.assertLess(file_filtered.index("file actions"), file_filtered.index("open"))
 
     def test_command_palette_screen_renders_filter_selection_and_scroll(self):
-        # Behavior: 当用户在command palette中渲染命令面板、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Command Palette / Help中查看「Command Palette screen 渲染 过滤 选择 and scroll」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         screen = command_catalog.command_palette_screen_lines(
             query="build",
             selected=0,
@@ -163,13 +163,13 @@ class CommandCatalogTests(unittest.TestCase):
         self.assertIn("> ", text)
 
     def test_command_query_empty_or_question_mark_opens_command_list(self):
-        # Behavior: 当用户在产品行为遇到catalog、query、empty、or时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Command Palette / Help中打开或定位「命令 查询 空态 or question 标记 打开 命令 list」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         self.assertEqual(_normalize_command_query(""), "commands")
         self.assertEqual(_normalize_command_query("?"), "commands")
         self.assertEqual(_normalize_command_query(" build "), "build")
 
     def test_command_list_lines_group_commands_by_purpose(self):
-        # Behavior: 当用户在产品行为中验证catalog、list、lines、group时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Command Palette / Help中查看「命令 list 行 group 命令 by purpose」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         lines = _browse_command_lines(TerminalStyle(False), max_lines=120)
         text = "\n".join(lines)
 

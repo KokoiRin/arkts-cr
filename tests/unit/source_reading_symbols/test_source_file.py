@@ -7,7 +7,7 @@ from cr.ui import source_file
 
 class SourceFileBehaviorTests(unittest.TestCase):
     def test_source_view_windows_the_target_line_inside_repo_file(self):
-        # Behavior: 当用户在source file中验证源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中打开或定位「源码查看 围绕目标行显示 仓库 文件」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             source = repo / "src" / "Foo.ets"
@@ -34,7 +34,7 @@ class SourceFileBehaviorTests(unittest.TestCase):
         self.assertTrue(view.rows[2].is_target)
 
     def test_source_view_clamps_line_and_reports_missing_or_non_utf8_files(self):
-        # Behavior: 当用户在source file遇到缺失状态、源码文件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Source File中打开或定位「源码查看 clamps 行 and 提示 缺失 or non utf8 文件」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             source = repo / "src" / "Foo.ets"
@@ -72,7 +72,7 @@ class SourceFileBehaviorTests(unittest.TestCase):
         self.assertEqual(non_utf8.error, "Source file is not UTF-8 text.")
 
     def test_source_content_reads_lines_and_reports_missing_files(self):
-        # Behavior: 当用户在source file遇到缺失状态、源码文件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Source File中查看「源码 内容读取 行 and 提示 缺失 文件」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             source = repo / "src" / "Foo.ets"
@@ -87,7 +87,7 @@ class SourceFileBehaviorTests(unittest.TestCase):
         self.assertEqual(missing.error, "Source file not found.")
 
     def test_source_context_markdown_centers_target_and_can_include_symbol_label(self):
-        # Behavior: 当用户在source file中验证源码上下文、源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中标记「源码 上下文 Markdown 围绕目标行居中 and 可以 包含 符号 label」时，系统应产出正确的结构化结果 [Requirement: TODO]
         content = source_file.SourceFileContent(
             "src/Foo.ets",
             [f"line {index}" for index in range(1, 11)],
@@ -119,7 +119,7 @@ class SourceFileBehaviorTests(unittest.TestCase):
         self.assertNotIn("line 3", labeled)
 
     def test_source_range_selection_marks_rows_and_renders_ordered_markdown(self):
-        # Behavior: 当用户在source file中渲染源码文件、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中查看「源码 range 选择 标记 rows and 渲染 ordered Markdown」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         content = source_file.SourceFileContent(
             "src/Foo.ets",
             [f"line {index}" for index in range(1, 8)],

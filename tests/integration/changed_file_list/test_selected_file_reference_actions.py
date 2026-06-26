@@ -22,7 +22,7 @@ def argparse_namespace(**kwargs):
 class SelectedFileReferenceActionTests(unittest.TestCase):
 
     def test_copy_selected_path_returns_status_message(self):
-        # Behavior: 当用户在file action中复制reference、actions、copy、path时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中复制「复制 选中 路径 返回 status message」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         with patch(
             "cr.ui.selected_file_actions.file_actions.copy_text",
             return_value=None,
@@ -35,7 +35,7 @@ class SelectedFileReferenceActionTests(unittest.TestCase):
         self.assertEqual(message, "Copied src/Sample.ts")
         copy.assert_called_once_with("src/Sample.ts", "copy-tool")
     def test_copy_anchor_points_to_the_first_changed_line(self):
-        # Behavior: 当用户在file action中复制reference、actions、copy、anchor时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中复制「复制 anchor points to the first changed 行」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         args = argparse_namespace(
             staged=True,
             all_changes=False,

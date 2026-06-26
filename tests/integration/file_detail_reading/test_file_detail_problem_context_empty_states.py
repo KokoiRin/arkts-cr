@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 class FileDetailProblemContextEmptyStateTests(unittest.TestCase):
 
     def test_browser_command_executor_reports_file_detail_problem_context_without_new_line(self):
-        # Behavior: 当用户在file detail遇到空状态、缺少前置条件、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中处理异常「BrowserCommandExecutor 提示 File Detail Problem Context 不包含 new 行」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(

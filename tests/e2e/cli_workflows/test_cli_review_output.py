@@ -9,7 +9,7 @@ from tests.cli_test_support import CliTestCase
 class CliReviewOutputTests(CliTestCase):
 
     def test_cli_diff_outline_and_review_in_temp_repo(self):
-        # Behavior: 当用户在source file中验证cli、output、cli、diff时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中打开或定位「cli diff outline and review in 临时 仓库」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "Sample.ets"
@@ -112,7 +112,7 @@ struct SamplePage {
             summary_data = json.loads(json_summary.stdout)
             self.assertEqual(summary_data["files"][0]["hunks"], [])
     def test_cli_can_emit_clickable_file_links(self):
-        # Behavior: 当用户在CLI review中验证cli、output、cli、can时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中输出「cli 可以输出 可点击 文件 链接」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -155,7 +155,7 @@ struct SamplePage {
             self.assertNotIn("\033]8;;", vscode_browse.stdout)
             self.assertIn("Sample.ts", vscode_browse.stdout)
     def test_cli_review_accepts_configurable_hunk_context(self):
-        # Behavior: 当用户在file detail中验证cli、output、cli、accepts时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中打开或定位「CLI review 接受 可配置 hunk 上下文」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "Sample.ets"
@@ -218,7 +218,7 @@ struct SamplePage {
             self.assertEqual(bad_context.returncode, 2)
             self.assertIn("context must be >= 0", bad_context.stderr)
     def test_cli_compacts_deep_paths_and_can_color_diff_hunks(self):
-        # Behavior: 当用户在file detail中验证cli、output、cli、compacts时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中执行操作「cli 压缩 深层 路径 and 可以 着色 diff hunk」时，系统应产出正确的结构化结果 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "a" / "b" / "c" / "d" / "e" / "f" / "Sample.ts"
@@ -250,7 +250,7 @@ struct SamplePage {
             self.assertEqual(default_review.returncode, 0, default_review.stderr)
             self.assertNotIn("\033[", default_review.stdout)
     def test_cli_review_shows_first_changed_line_anchor(self):
-        # Behavior: 当用户在CLI review中展示cli、output、cli、shows时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中打开或定位「CLI review 显示 first changed 行 anchor」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "Sample.ets"
@@ -301,7 +301,7 @@ struct SamplePage {
             self.assertEqual(data["files"][0]["first_changed_line"], 7)
             self.assertEqual(data["files"][0]["anchor"], "Sample.ets:7")
     def test_cli_review_emits_prompt_ready_markdown_package(self):
-        # Behavior: 当用户在CLI review中验证cli、output、cli、emits时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中打开或定位「CLI review 输出 提示词 ready Markdown 包」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             page = repo / "src" / "pages" / "Sample.ets"

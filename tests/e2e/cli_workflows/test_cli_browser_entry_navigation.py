@@ -10,7 +10,7 @@ from tests.cli_test_support import CliTestCase
 class CliBrowserEntryNavigationTests(CliTestCase):
 
     def test_cli_defaults_to_interactive_browser(self):
-        # Behavior: 当用户在CLI browser中验证导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中执行操作「cli 默认 to interactive browser」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "pages" / "Sample.ets"
@@ -39,7 +39,7 @@ class CliBrowserEntryNavigationTests(CliTestCase):
             self.assertIn("Sample.ets", session.stdout)
             self.assertIn("cr:list>", session.stdout)
     def test_cli_defaults_to_browser_when_options_are_passed(self):
-        # Behavior: 当用户在CLI browser中验证导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中执行操作「cli 默认 to browser when options are passed」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -58,7 +58,7 @@ class CliBrowserEntryNavigationTests(CliTestCase):
             self.assertIn("交互式代码审查", session.stdout)
             self.assertIn("Sample.ts", session.stdout)
     def test_cli_interactive_browser_opens_file_and_navigates(self):
-        # Behavior: 当用户在CLI browser中打开导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中打开或定位「cli interactive browser 打开 文件 and 导航」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             first = repo / "src" / "First.ts"
@@ -91,7 +91,7 @@ class CliBrowserEntryNavigationTests(CliTestCase):
             self.assertIn("+export const first = 'new'", session.stdout)
             self.assertIn("Changed files", session.stdout)
     def test_cli_browser_command_list_is_discoverable_in_line_mode(self):
-        # Behavior: 当用户在CLI browser中验证导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中执行操作「CLI browser 命令 list is discoverable in line-mode」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -120,7 +120,7 @@ class CliBrowserEntryNavigationTests(CliTestCase):
             self.assertIn("cr:commands>", session.stdout)
             self.assertIn("Changed files", session.stdout)
     def test_cli_interactive_browser_filters_files_in_line_mode(self):
-        # Behavior: 当用户在CLI browser中过滤导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中过滤「cli interactive browser 过滤 文件 in line-mode」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             first = repo / "src" / "First.ts"
@@ -155,7 +155,7 @@ class CliBrowserEntryNavigationTests(CliTestCase):
             self.assertIn("-export const second = 'old'", session.stdout)
             self.assertIn("+export const second = 'new'", session.stdout)
     def test_cli_interactive_browser_can_open_current_file(self):
-        # Behavior: 当用户在CLI browser中打开导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在CLI 工作流中打开或定位「cli interactive browser 可以打开 当前文件」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"

@@ -49,7 +49,7 @@ def argparse_namespace(**kwargs):
 
 class TaskCommandConfigurationTests(unittest.TestCase):
     def test_browser_command_executor_shows_task_diagnostics_without_starting_task(self):
-        # Behavior: 当用户在产品行为遇到缺少前置条件、配置时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中查看「BrowserCommandExecutor 显示 task diagnostics 不包含 starting task」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
@@ -80,7 +80,7 @@ class TaskCommandConfigurationTests(unittest.TestCase):
         self.assertIn("Task commands:", output.getvalue())
         self.assertIn("build: missing", output.getvalue())
     def test_browser_command_executor_shows_task_schema_help_without_starting_task(self):
-        # Behavior: 当用户在产品行为遇到缺少前置条件、配置时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中查看「BrowserCommandExecutor 显示 task schema 帮助 不包含 starting task」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
@@ -107,7 +107,7 @@ class TaskCommandConfigurationTests(unittest.TestCase):
         help_lines.assert_called_once_with()
         self.assertIn("Task preset file: .cr/tasks.json", output.getvalue())
     def test_browser_frame_module_owns_task_panel_presentation_implementation(self):
-        # Behavior: 当用户在产品行为中验证配置时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中执行操作「browser frame module owns Task Panel presentation implementation」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         browser_source = Path(browser_module.__file__).read_text(encoding="utf-8")
         frame_source = Path(frame_module.__file__).read_text(encoding="utf-8")
 
@@ -121,7 +121,7 @@ class TaskCommandConfigurationTests(unittest.TestCase):
         self.assertNotIn("def task_panel_lines", browser_source)
         self.assertNotIn("def draw_task_panel_only", browser_source)
     def test_background_task_runtime_uses_task_state_names(self):
-        # Behavior: 当用户在task output中验证配置时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中执行操作「background task runtime 使用 task 状态 names」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
 
         self.assertTrue(hasattr(browser_module, "TaskState"))
@@ -133,7 +133,7 @@ class TaskCommandConfigurationTests(unittest.TestCase):
         self.assertIn("def _task_panel_lines", source)
         self.assertNotIn("def _build_panel_lines", source)
     def test_build_command_detects_douyin_harmony_repo(self):
-        # Behavior: 当用户在task output中验证配置时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「build 命令 detects douyin harmony 仓库」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "DouyinHarmony"
             repo.mkdir()
@@ -148,7 +148,7 @@ class TaskCommandConfigurationTests(unittest.TestCase):
                 ["./custom", "build"],
             )
     def test_task_command_resolves_configured_test_and_lint_commands(self):
-        # Behavior: 当用户在产品行为中验证配置时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「task 命令 resolves 配置的 test and lint 命令」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             args = argparse_namespace(
@@ -167,7 +167,7 @@ class TaskCommandConfigurationTests(unittest.TestCase):
                 ["npm", "run", "lint"],
             )
     def test_task_command_does_not_guess_test_or_lint_commands(self):
-        # Behavior: 当用户在产品行为中不执行配置时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「task 命令 不会 guess test or lint 命令」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             args = argparse_namespace(build_cmd=None, test_cmd=None, lint_cmd=None)
@@ -175,7 +175,7 @@ class TaskCommandConfigurationTests(unittest.TestCase):
             self.assertIsNone(_task_command(repo, args, "test"))
             self.assertIsNone(_task_command(repo, args, "lint"))
     def test_lint_task_without_command_shows_configuration_hint(self):
-        # Behavior: 当用户在产品行为遇到缺少前置条件、配置时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中查看「lint task 不包含 命令 显示 配置 hint」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             args = argparse_namespace(

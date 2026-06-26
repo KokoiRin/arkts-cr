@@ -34,7 +34,7 @@ def argparse_namespace(**kwargs):
 class SourceFileSymbolEmptyStateTests(unittest.TestCase):
 
     def test_browser_command_executor_reports_copy_source_symbol_without_symbol(self):
-        # Behavior: 当用户在source file遇到空状态、缺少前置条件、源码文件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Source File中复制「BrowserCommandExecutor 提示 复制 源码 符号 不包含 符号」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

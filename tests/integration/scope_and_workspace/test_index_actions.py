@@ -38,7 +38,7 @@ def _run(cwd, *args):
 
 class IndexActionTests(unittest.TestCase):
     def test_browser_command_executor_stages_selected_file_and_refreshes_scope(self):
-        # Behavior: 当用户在scope home中选择index、actions、stages、refreshes时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中选择「BrowserCommandExecutor 暂存 选中文件 and refreshes 范围」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -81,7 +81,7 @@ class IndexActionTests(unittest.TestCase):
         self.assertIn("Staged src/Old.ts", output.getvalue())
 
     def test_browser_command_executor_stage_failure_does_not_refresh_scope(self):
-        # Behavior: 当用户在scope home遇到失败反馈时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中暂存「BrowserCommandExecutor 暂存 失败 不会 刷新 范围」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -113,7 +113,7 @@ class IndexActionTests(unittest.TestCase):
         self.assertIn("Stage failed: cannot stage file", output.getvalue())
 
     def test_browser_command_executor_unstages_selected_file_and_refreshes_scope(self):
-        # Behavior: 当用户在scope home中选择index、actions、unstages、refreshes时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中选择「BrowserCommandExecutor 取消暂存 选中文件 and refreshes 范围」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -148,7 +148,7 @@ class IndexActionTests(unittest.TestCase):
         self.assertIn("Unstaged src/Staged.ts", output.getvalue())
 
     def test_browser_command_executor_stage_reports_empty_selection(self):
-        # Behavior: 当用户在file action遇到选择时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中选择「BrowserCommandExecutor 暂存 提示 空态 选择」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([])
@@ -170,7 +170,7 @@ class IndexActionTests(unittest.TestCase):
         self.assertIn("No changed file to stage.", output.getvalue())
 
     def test_browser_command_executor_unstage_reports_empty_selection(self):
-        # Behavior: 当用户在file action遇到选择时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中选择「BrowserCommandExecutor 取消暂存 提示 空态 选择」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([])
@@ -192,7 +192,7 @@ class IndexActionTests(unittest.TestCase):
         self.assertIn("No changed file to unstage.", output.getvalue())
 
     def test_git_stage_and_unstage_path_update_index(self):
-        # Behavior: 当用户在file action中验证index、actions、git、stage时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中暂存「Git 暂存 and 取消暂存 路径 update index」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "Sample.ts"

@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 class CommitPickerSelectionTests(unittest.TestCase):
 
     def test_commit_picker_opens_the_selected_filtered_commit(self):
-        # Behavior: 当用户在commit picker中打开提交选择器、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Commit Picker中打开或定位「Commit Picker 打开 the 选中 filtered commit」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         commits = [
             CommitSummary(
                 commit="1111111111111111",
@@ -55,7 +55,7 @@ class CommitPickerSelectionTests(unittest.TestCase):
         )
         self.assertIsNone(commit_picker.selected_commit(commits, selected=9))
     def test_commit_picker_number_selects_filtered_commit(self):
-        # Behavior: 当用户在commit picker中过滤提交选择器、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Commit Picker中过滤「Commit Picker number 选择 filtered commit」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(

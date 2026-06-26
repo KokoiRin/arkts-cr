@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemContextCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_copies_task_problem_context_with_diff(self):
-        # Behavior: 当用户在task problem中复制问题上下文、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中复制「BrowserCommandExecutor 复制 Task Problems 上下文 with diff」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -102,7 +102,7 @@ class TaskProblemContextCommandTests(unittest.TestCase):
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied problem context src/Foo.ets:5", state.status_message)
     def test_browser_command_executor_copies_selected_task_output_problem_context(self):
-        # Behavior: 当用户在task problem中复制问题上下文、任务输出、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中复制「BrowserCommandExecutor 复制 选中 Task Output Problem Context」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -157,7 +157,7 @@ class TaskProblemContextCommandTests(unittest.TestCase):
         self.assertNotIn("first bad", copied)
         self.assertIn("Copied problem context src/Two.ets:2", state.status_message)
     def test_browser_command_executor_saves_selected_task_output_problem_context(self):
-        # Behavior: 当用户在task problem中保存问题上下文、任务输出、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中保存「BrowserCommandExecutor 保存 选中 Task Output Problem Context」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -205,7 +205,7 @@ class TaskProblemContextCommandTests(unittest.TestCase):
         self.assertIn("> 2  src/Two.ets:2:1 error TS2: second bad", text)
         self.assertIn("Saved problem context to tmp/task-first.md", state.status_message)
     def test_browser_command_executor_saves_task_problem_context(self):
-        # Behavior: 当用户在task problem中保存问题上下文、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中保存「BrowserCommandExecutor 保存 Task Problems 上下文」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

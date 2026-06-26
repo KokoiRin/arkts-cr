@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 class ProblemDiffCopyCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_copies_selected_task_problem_diff(self):
-        # Behavior: 当用户在task problem中复制任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中复制「BrowserCommandExecutor 复制 选中 Task Problems diff」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -93,7 +93,7 @@ class ProblemDiffCopyCommandTests(unittest.TestCase):
         self.assertEqual(build_data.call_args.args[0][0].path, "src/Two.ets")
         self.assertIn("Copied problem diff src/Two.ets:2.", state.status_message)
     def test_browser_command_executor_copies_file_detail_current_row_problem_diff(self):
-        # Behavior: 当用户在file detail中复制文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中复制「BrowserCommandExecutor 复制 File Detail 当前 row 问题 diff」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -169,7 +169,7 @@ class ProblemDiffCopyCommandTests(unittest.TestCase):
         self.assertEqual(state.problem_selected, 1)
         self.assertIn("Copied problem diff src/One.ets:4.", state.status_message)
     def test_browser_command_executor_does_not_copy_file_detail_row_problem_diff_without_problem(self):
-        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中复制「BrowserCommandExecutor 不会 复制 File Detail row 问题 diff 不包含 问题」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -230,7 +230,7 @@ class ProblemDiffCopyCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_does_not_copy_problem_diff_without_changed_file(self):
-        # Behavior: 当用户在task problem遇到缺少前置条件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中复制「BrowserCommandExecutor 不会 复制 问题 diff 不包含 Changed Files」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

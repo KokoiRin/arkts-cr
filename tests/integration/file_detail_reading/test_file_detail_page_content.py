@@ -38,7 +38,7 @@ def argparse_namespace(**kwargs):
 class FileDetailPageContentTests(unittest.TestCase):
 
     def test_browse_file_screen_scrolls_long_content(self):
-        # Behavior: 当用户在file detail中验证文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中执行操作「browse 文件 screen scrolls long content」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             context=0,
             staged=False,
@@ -78,7 +78,7 @@ class FileDetailPageContentTests(unittest.TestCase):
         self.assertIn("line 11", lower)
         self.assertIn("showing 11-14/20", lower[-1])
     def test_browse_file_screen_shows_review_queue_dock(self):
-        # Behavior: 当用户在file detail中展示文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中打开或定位「browse 文件 screen 显示 review queue dock」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         args = argparse_namespace(
             context=0,
             staged=False,
@@ -123,7 +123,7 @@ class FileDetailPageContentTests(unittest.TestCase):
         self.assertIn("unstaged", text)
         self.assertIn("+5 -1", text)
     def test_browse_file_screen_omits_review_queue_dock_when_short(self):
-        # Behavior: 当用户在file detail中验证文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中打开或定位「browse 文件 screen 省略 review queue dock when short」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             context=0,
             staged=False,
@@ -156,7 +156,7 @@ class FileDetailPageContentTests(unittest.TestCase):
         self.assertNotIn("Changed files", text)
         self.assertIn("showing 1-4/20", lines[-1])
     def test_browse_file_lines_show_seen_or_todo_status(self):
-        # Behavior: 当用户在file detail中展示文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中查看「browse 文件 行 显示 已看 or todo status」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         args = argparse_namespace(
             context=0,
             staged=False,
@@ -191,7 +191,7 @@ class FileDetailPageContentTests(unittest.TestCase):
         self.assertIn("todo", todo_lines[0])
         self.assertIn("seen", seen_lines[0])
     def test_browse_lines_show_review_notes(self):
-        # Behavior: 当用户在file detail中展示文件详情、评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中打开或定位「browse 行 显示 review notes」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         args = argparse_namespace(
             context=0,
             staged=False,

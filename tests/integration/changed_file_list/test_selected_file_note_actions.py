@@ -22,7 +22,7 @@ def argparse_namespace(**kwargs):
 class SelectedFileNoteActionTests(unittest.TestCase):
 
     def test_set_selected_review_note_updates_workspace_and_clears_file_cache(self):
-        # Behavior: 当用户在review note中选择评审备注、工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中打开或定位「set 选中 Review Notes updates workspace and clears 文件 cache」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
         state.file_line_cache["cached"] = ["old"]
 
@@ -39,7 +39,7 @@ class SelectedFileNoteActionTests(unittest.TestCase):
         )
         self.assertEqual(state.file_line_cache, {})
     def test_change_note_describes_the_current_added_row(self):
-        # Behavior: 当用户在review note中验证note、actions、change、note时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中执行操作「change note describes the 当前 added row」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 0)],
             review_notes={"src/Sample.ts": "file level note"},
@@ -68,7 +68,7 @@ class SelectedFileNoteActionTests(unittest.TestCase):
         self.assertEqual(state.workspace.review_notes, state.review_notes)
         self.assertEqual(state.file_line_cache, {})
     def test_change_note_describes_the_current_deleted_row(self):
-        # Behavior: 当用户在review note中验证note、actions、change、note时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Changed Files中执行操作「change note describes the 当前 已删除 row」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         state = BrowserState([FileChange("src/Sample.ts", 0, 1)])
         lines = [
             "File 1/1  src/Sample.ts",

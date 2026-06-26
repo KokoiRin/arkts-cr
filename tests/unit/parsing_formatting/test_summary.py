@@ -6,7 +6,7 @@ from cr.vcs.git import FileChange
 
 class ReviewSummaryTests(unittest.TestCase):
     def test_renders_totals_and_one_line_per_file(self):
-        # Behavior: 当用户在产品行为中渲染summary、renders、totals、one时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在底层解析与格式化中查看「渲染 totals and one 行 per 文件」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         changes = [
             FileChange("src/pages/Home.ets", 5, 2),
             FileChange("README.md", 1, 1),

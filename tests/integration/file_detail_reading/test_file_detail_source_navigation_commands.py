@@ -33,7 +33,7 @@ def argparse_namespace(**kwargs):
 
 class FileDetailSourceNavigationCommandTests(unittest.TestCase):
     def test_browser_command_executor_views_current_file_detail_source_line(self):
-        # Behavior: 当用户在file detail中验证文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中打开或定位「BrowserCommandExecutor 查看 当前文件 detail 源码 行」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -69,7 +69,7 @@ class FileDetailSourceNavigationCommandTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 2)
     def test_browser_command_executor_views_current_file_detail_source_symbol(self):
-        # Behavior: 当用户在file detail中验证文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中打开或定位「BrowserCommandExecutor 查看 当前文件 detail 源码 符号」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -131,7 +131,7 @@ class FileDetailSourceNavigationCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_reports_view_source_without_new_line(self):
-        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中打开或定位「BrowserCommandExecutor 提示 查看 源码 不包含 new 行」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -162,7 +162,7 @@ class FileDetailSourceNavigationCommandTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 2)
         self.assertIn("No current new-file line in File Detail.", state.status_message)
     def test_browser_command_executor_reports_view_source_symbol_without_new_line(self):
-        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中打开或定位「BrowserCommandExecutor 提示 查看 源码 符号 不包含 new 行」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -195,7 +195,7 @@ class FileDetailSourceNavigationCommandTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 2)
         self.assertIn("No current new-file line in File Detail.", state.status_message)
     def test_browser_command_executor_views_source_symbol_line_without_symbol(self):
-        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中打开或定位「BrowserCommandExecutor 查看 源码 符号 行 不包含 符号」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -237,7 +237,7 @@ class FileDetailSourceNavigationCommandTests(unittest.TestCase):
         self.assertEqual(state.source_selection_end, 0)
         self.assertIn("No source symbol at current line.", state.status_message)
     def test_browser_command_executor_reports_view_source_outside_file_detail(self):
-        # Behavior: 当用户在file detail遇到文件详情、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中打开或定位「BrowserCommandExecutor 提示 查看 源码 outside File Detail」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([FileChange("src/Sample.ts", 1, 0)])

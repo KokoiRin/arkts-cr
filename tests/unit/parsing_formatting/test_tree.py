@@ -6,7 +6,7 @@ from cr.vcs.git import FileChange
 
 class ChangeTreeTests(unittest.TestCase):
     def test_renders_changed_files_as_directory_tree(self):
-        # Behavior: 当用户在产品行为中渲染tree、renders、changed、directory时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在底层解析与格式化中查看「渲染 changed 文件 as directory tree」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         changes = [
             FileChange("src/pages/Home.ets", 5, 2),
             FileChange("src/components/Button.ts", 1, 0),
@@ -23,7 +23,7 @@ class ChangeTreeTests(unittest.TestCase):
         self.assertIn("      └─ Home.ets +5 -2", text)
 
     def test_compacts_deep_tree_to_nearby_changed_directory(self):
-        # Behavior: 当用户在产品行为中验证tree、compacts、deep、tree时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在底层解析与格式化中执行操作「压缩 深层 tree to nearby changed directory」时，系统应产出正确的结构化结果 [Requirement: TODO]
         changes = [
             FileChange(
                 "business_modules/CreativeTools/Camp/camera_kmp_impl/src/"
@@ -41,7 +41,7 @@ class ChangeTreeTests(unittest.TestCase):
         self.assertNotIn("business_modules", text)
 
     def test_uses_common_directory_for_multiple_deep_changes(self):
-        # Behavior: 当用户在产品行为中验证tree、uses、common、directory时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在底层解析与格式化中执行操作「使用 common directory for multiple 深层 changes」时，系统应产出稳定、可读的格式化结果 [Requirement: TODO]
         changes = [
             FileChange("a/b/c/d/e/src/pages/Home.ets", 5, 2),
             FileChange("a/b/c/d/e/src/components/Button.ts", 1, 0),
@@ -55,7 +55,7 @@ class ChangeTreeTests(unittest.TestCase):
         self.assertNotIn("└─ a", text)
 
     def test_formats_renamed_files_for_humans(self):
-        # Behavior: 当用户在产品行为中验证tree、formats、renamed、humans时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在底层解析与格式化中执行操作「formats renamed 文件 for humans」时，系统应产出稳定、可读的格式化结果 [Requirement: TODO]
         change = FileChange("src/newName.ts", 0, 0, status="renamed", old_path="src/oldName.ts")
 
         self.assertEqual(

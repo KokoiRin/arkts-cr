@@ -10,7 +10,7 @@ from tests.cli_test_support import CliTestCase
 class CliBrowserScopeWorkflowTests(CliTestCase):
 
     def test_cli_browser_shows_recent_commits_when_no_worktree_changes(self):
-        # Behavior: 当用户在scope home中展示cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中查看「CLI browser 显示 最近 commit when 无 worktree changes」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -47,7 +47,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("-export const sample = 'old'", session.stdout)
             self.assertIn("+export const sample = 'from commit'", session.stdout)
     def test_cli_browser_can_switch_from_worktree_to_recent_commits(self):
-        # Behavior: 当用户在scope home中切换cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中切换「CLI browser 可以 切换 from worktree to 最近 commit」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -85,7 +85,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("-export const sample = 'committed'", session.stdout)
             self.assertIn("+export const sample = 'working tree'", session.stdout)
     def test_cli_browser_filters_recent_commits_in_line_mode(self):
-        # Behavior: 当用户在scope home中过滤cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中过滤「CLI browser 过滤 最近 commit in line-mode」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -121,7 +121,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("login flow", session.stdout)
             self.assertIn("+export const sample = 'login'", session.stdout)
     def test_cli_browser_can_open_scope_home_in_line_mode(self):
-        # Behavior: 当用户在scope home中打开范围首页时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「CLI browser 可以打开 Scope Home in line-mode」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -144,7 +144,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("Staged", session.stdout)
             self.assertIn("cr:scopes>", session.stdout)
     def test_cli_browser_back_from_commit_file_returns_to_commit_file_list(self):
-        # Behavior: 当用户在scope home中验证cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中执行操作「CLI browser 返回 from commit 文件 返回 to commit 文件 list」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             alpha = repo / "src" / "Alpha.ts"
@@ -176,7 +176,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("+export const alpha = 'committed'", session.stdout)
             self.assertIn("+export const beta = 'committed'", session.stdout)
     def test_cli_browser_can_switch_review_scopes_in_line_mode(self):
-        # Behavior: 当用户在scope home中切换cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「CLI browser 可以 切换 review 范围 in line-mode」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -209,7 +209,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("Scope: worktree", session.stdout)
             self.assertIn("-export const sample = 'staged'", session.stdout)
     def test_cli_browser_can_switch_to_base_and_range_scopes(self):
-        # Behavior: 当用户在scope home中切换cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中切换「CLI browser 可以 切换 to base and range 范围」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"

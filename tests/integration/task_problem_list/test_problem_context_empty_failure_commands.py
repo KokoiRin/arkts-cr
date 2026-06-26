@@ -30,7 +30,7 @@ def argparse_namespace(**kwargs):
 class ProblemContextEmptyFailureCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_reports_empty_problem_context_copy(self):
-        # Behavior: 当用户在task problem遇到失败反馈、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中复制「BrowserCommandExecutor 提示 空态 Problem Context 复制」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
@@ -50,7 +50,7 @@ class ProblemContextEmptyFailureCommandTests(unittest.TestCase):
         copy_text.assert_not_called()
         self.assertIn("No problem context to copy.", state.status_message)
     def test_browser_command_executor_reports_missing_problem_context_source(self):
-        # Behavior: 当用户在task problem遇到缺失状态、失败反馈、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中处理异常「BrowserCommandExecutor 提示 缺失 Problem Context 源码」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -79,7 +79,7 @@ class ProblemContextEmptyFailureCommandTests(unittest.TestCase):
         copy_text.assert_not_called()
         self.assertIn("Source file not found.", state.status_message)
     def test_browser_command_executor_reports_empty_problem_context_save(self):
-        # Behavior: 当用户在task problem遇到失败反馈、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中保存「BrowserCommandExecutor 提示 空态 Problem Context 保存」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
@@ -99,7 +99,7 @@ class ProblemContextEmptyFailureCommandTests(unittest.TestCase):
         save_text.assert_not_called()
         self.assertIn("No problem context to save.", state.status_message)
     def test_browser_command_executor_reports_problem_context_save_failure(self):
-        # Behavior: 当用户在task problem遇到失败反馈、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中保存「BrowserCommandExecutor 提示 Problem Context 保存 失败」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

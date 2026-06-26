@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemPageFilterTests(unittest.TestCase):
 
     def test_browser_command_executor_opens_task_problems_page(self):
-        # Behavior: 当用户在task problem中打开任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中打开或定位「BrowserCommandExecutor 打开 task 问题 page」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -57,7 +57,7 @@ class TaskProblemPageFilterTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
     def test_browser_command_executor_filters_task_problems_by_severity(self):
-        # Behavior: 当用户在task problem中过滤任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中过滤「BrowserCommandExecutor 过滤 task 问题 by severity」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -93,7 +93,7 @@ class TaskProblemPageFilterTests(unittest.TestCase):
         self.assertEqual(state.problem_filter, "")
         self.assertEqual(state.problem_sort, "severity")
     def test_browser_command_executor_filters_task_problems_by_query(self):
-        # Behavior: 当用户在task problem中过滤任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中过滤「BrowserCommandExecutor 过滤 task 问题 by 查询」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -130,7 +130,7 @@ class TaskProblemPageFilterTests(unittest.TestCase):
         self.assertTrue(clear_query.needs_redraw)
         self.assertEqual(state.problem_query, "")
     def test_browser_command_executor_sorts_task_problems_by_severity(self):
-        # Behavior: 当用户在task problem中验证任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中排序或选择「BrowserCommandExecutor 排序 task 问题 by severity」时，系统应只呈现符合条件的结果，并保持相关选择规则稳定 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -162,7 +162,7 @@ class TaskProblemPageFilterTests(unittest.TestCase):
         self.assertTrue(sort_by_output.handled)
         self.assertEqual(state.problem_sort, "output")
     def test_browser_command_executor_groups_task_problems_by_file(self):
-        # Behavior: 当用户在task problem中验证任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Problems中执行操作「BrowserCommandExecutor groups task 问题 by 文件」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(

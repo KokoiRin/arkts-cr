@@ -32,7 +32,7 @@ class BrowserReviewNoteStateTests(unittest.TestCase):
     def test_browser_state_review_note_lines_order_current_changes_before_extra_notes(
         self,
     ):
-        # Behavior: 当用户在review note中查看当前变更和额外备注顺序时，系统应优先展示当前变更备注 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中打开或定位「browser 状态 Review Notes 行 order 当前 changes before extra notes」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         state = BrowserState(
             [
                 FileChange("src/Second.ts", 2, 1),
@@ -60,7 +60,7 @@ class BrowserReviewNoteStateTests(unittest.TestCase):
         )
 
     def test_browser_state_review_note_lines_filter_by_note_and_path(self):
-        # Behavior: 当用户在review note中过滤评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中打开或定位「browser 状态 Review Notes 行 过滤 by note and 路径」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         state = BrowserState(
             [
                 FileChange("src/Second.ts", 2, 1),
@@ -83,7 +83,7 @@ class BrowserReviewNoteStateTests(unittest.TestCase):
         )
 
     def test_browser_state_review_note_lines_filter_empty_state(self):
-        # Behavior: 当用户在review note遇到空状态、评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中打开或定位「browser 状态 Review Notes 行 过滤 空态 状态」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         self.assertEqual(
             _review_note_lines(
                 BrowserState(
@@ -96,7 +96,7 @@ class BrowserReviewNoteStateTests(unittest.TestCase):
         )
 
     def test_browser_state_review_note_lines_show_empty_state(self):
-        # Behavior: 当用户在review note遇到空状态、评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Notes中打开或定位「browser 状态 Review Notes 行 显示 空态 状态」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         self.assertEqual(
             _review_note_lines(BrowserState([FileChange("src/Sample.ts", 1, 0)])),
             ["Review notes: none"],

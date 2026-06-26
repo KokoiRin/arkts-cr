@@ -49,7 +49,7 @@ def argparse_namespace(**kwargs):
 
 class TaskStopLifecycleTests(unittest.TestCase):
     def test_build_start_records_process_group_id(self):
-        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「build start records process group id」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"import time; time.sleep(10)\""
@@ -72,7 +72,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
                 if state.task.process.stdout is not None:
                     state.task.process.stdout.close()
     def test_build_stop_terminates_child_processes(self):
-        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「build stop terminates child processes」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             script = repo / "build.py"
@@ -125,7 +125,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
                     state.task.process.terminate()
                     state.task.process.wait(timeout=1)
     def test_build_stop_falls_back_when_process_group_stop_fails(self):
-        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「build stop 回退 返回 when process group stop fails」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"import time; time.sleep(10)\""
@@ -159,7 +159,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
                 if state.task is not None and state.task.running:
                     state.task.process.kill()
     def test_poll_escalates_stopped_build_to_process_group_kill(self):
-        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「poll escalates stopped build to process group kill」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         class RunningProcess:
             stdout = None
 
@@ -185,7 +185,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
         self.assertTrue(build.stop_escalated)
         self.assertIn("Build did not stop; force killing process group.", build.lines)
     def test_poll_does_not_escalate_stopped_build_within_grace_period(self):
-        # Behavior: 当用户在task output中不执行生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「poll 不会 escalate stopped build within grace period」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         class RunningProcess:
             stdout = None
 
@@ -211,7 +211,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
         self.assertFalse(build.stop_escalated)
         self.assertEqual(build.lines, [])
     def test_poll_escalates_stopped_build_only_once(self):
-        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「poll escalates stopped build 只读 once」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         class RunningProcess:
             stdout = None
 
@@ -237,7 +237,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
             1,
         )
     def test_poll_escalates_stopped_build_without_process_group_to_process_kill(self):
-        # Behavior: 当用户在task output遇到缺少前置条件、生命周期时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「poll escalates stopped build 不包含 process group to process kill」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         class RunningProcess:
             stdout = None
 
@@ -268,7 +268,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
         self.assertTrue(build.stop_escalated)
         self.assertIn("Build did not stop; force killing build process.", build.lines)
     def test_build_stop_records_stop_request_time(self):
-        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中运行任务「build stop records stop request time」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"import time; time.sleep(10)\""
@@ -293,7 +293,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
                 if state.task.process.stdout is not None:
                     state.task.process.stdout.close()
     def test_build_stop_marks_stopped_not_failed(self):
-        # Behavior: 当用户在task output中标记生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中标记「build stop 标记 stopped 不 失败」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"import time; time.sleep(10)\""
@@ -320,7 +320,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
             self.assertEqual(_task_status(state.task), "stopped")
             self.assertIn("Build stopped.", state.task.lines)
     def test_build_stop_without_running_build_shows_feedback(self):
-        # Behavior: 当用户在task output遇到缺少前置条件、生命周期时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中查看「build stop 不包含 running build 显示 feedback」时，系统应展示正确内容、层级和状态提示 [Requirement: TODO]
         state = BrowserState([])
 
         _stop_task(state)

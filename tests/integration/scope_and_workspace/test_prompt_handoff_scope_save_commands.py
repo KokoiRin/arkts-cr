@@ -29,7 +29,7 @@ def argparse_namespace(**kwargs):
 class PromptHandoffScopeSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_visible_scope_prompt_default_path(self):
-        # Behavior: 当用户在scope home中保存提示词交接时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中保存「BrowserCommandExecutor 保存 可见 范围 提示词 默认 路径」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -115,7 +115,7 @@ class PromptHandoffScopeSaveCommandTests(unittest.TestCase):
                 output.getvalue(),
             )
     def test_browser_command_executor_does_not_save_empty_scope_prompt(self):
-        # Behavior: 当用户在scope home遇到提示词交接时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中保存「BrowserCommandExecutor 不会 保存 空态 范围 提示词」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

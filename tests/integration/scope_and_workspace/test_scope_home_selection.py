@@ -31,7 +31,7 @@ def argparse_namespace(**kwargs):
 class ScopeHomeSelectionTests(unittest.TestCase):
 
     def test_scope_home_enter_switches_to_staged_scope(self):
-        # Behavior: 当用户在scope home中切换范围首页、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中切换「Scope Home enter 切换 to 已暂存 范围」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -73,7 +73,7 @@ class ScopeHomeSelectionTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn(("list", True, False), frames)
     def test_scope_home_enter_opens_recent_commits(self):
-        # Behavior: 当用户在scope home中打开范围首页、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「Scope Home enter 打开 最近 commit」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -133,7 +133,7 @@ class ScopeHomeSelectionTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn("commits", frames)
     def test_home_key_still_jumps_to_first_file_instead_of_opening_scope_home(self):
-        # Behavior: 当用户在scope home中打开范围首页、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「home key still 跳转 to first 文件 instead of 打开 Scope Home」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",

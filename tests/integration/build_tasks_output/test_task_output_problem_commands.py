@@ -34,7 +34,7 @@ def argparse_namespace(**kwargs):
 
 class TaskOutputProblemCommandTests(unittest.TestCase):
     def test_browser_command_executor_opens_task_output_page(self):
-        # Behavior: 当用户在task problem中打开任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中打开或定位「BrowserCommandExecutor 打开 Task Output page」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -62,7 +62,7 @@ class TaskOutputProblemCommandTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertEqual(state.file_scroll, 12)
     def test_browser_command_executor_moves_task_output_problem_selection(self):
-        # Behavior: 当用户在task problem中选择任务输出、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中选择「BrowserCommandExecutor 移动 Task Output 问题 选择」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -110,7 +110,7 @@ class TaskOutputProblemCommandTests(unittest.TestCase):
         self.assertEqual(state.problem_selected, 0)
         self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
     def test_browser_command_executor_views_selected_task_output_problem_source(self):
-        # Behavior: 当用户在task problem中选择任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中打开或定位「BrowserCommandExecutor 查看 选中 Task Output 问题 源码」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -155,7 +155,7 @@ class TaskOutputProblemCommandTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
     def test_browser_command_executor_reports_task_output_view_without_problem(self):
-        # Behavior: 当用户在task problem遇到缺少前置条件、任务输出时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中打开或定位「BrowserCommandExecutor 提示 Task Output 查看 不包含 问题」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -180,7 +180,7 @@ class TaskOutputProblemCommandTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
         self.assertIn("No task problem to view.", state.status_message)
     def test_browser_command_executor_scrolls_task_output_page(self):
-        # Behavior: 当用户在task problem中验证任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Task Panel / Task Output中输出「BrowserCommandExecutor scrolls Task Output page」时，系统应正确更新任务状态、输出、问题和历史记录 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

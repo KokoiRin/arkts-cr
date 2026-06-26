@@ -33,7 +33,7 @@ def argparse_namespace(**kwargs):
 
 class SourceFileFindSymbolNavigationTests(unittest.TestCase):
     def test_browser_command_executor_finds_text_in_source_file_page(self):
-        # Behavior: 当用户在source file中查找源码文件、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中执行操作「BrowserCommandExecutor finds text in Source File page」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -70,7 +70,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(state.task_find_text, "task-query")
         self.assertIn('Found "TARGET" at line 2.', state.status_message)
     def test_browser_command_executor_repeats_source_file_find_matches(self):
-        # Behavior: 当用户在source file中验证源码文件、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中执行操作「BrowserCommandExecutor repeats Source File find 匹配」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -113,7 +113,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(state.source_find_text, "target")
         self.assertIn('Found "target" at line 1.', state.status_message)
     def test_browser_command_executor_jumps_source_file_symbols(self):
-        # Behavior: 当用户在source file中跳转源码文件、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Source File中导航「BrowserCommandExecutor 跳转 Source File 符号」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -166,7 +166,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(state.source_file_scroll, -1)
         self.assertIn("已跳到源码符号 struct Foo > method build src/Foo.ets:2.", state.status_message)
     def test_browser_command_executor_reports_source_symbol_jump_empty_states(self):
-        # Behavior: 当用户在source file遇到空状态、源码文件、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Source File中导航「BrowserCommandExecutor 提示 源码 符号 跳转 空态 states」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -202,7 +202,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(no_symbol_message, "没有可跳转的源码符号。")
         self.assertIn("Source file not found.", state.status_message)
     def test_browser_command_executor_reports_source_symbol_jump_boundaries(self):
-        # Behavior: 当用户在source file遇到源码文件、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Source File中导航「BrowserCommandExecutor 提示 源码 符号 跳转 boundaries」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -249,7 +249,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(state.source_file_scroll, 1)
         self.assertEqual(state.status_message, "已经在最后一个源码符号。")
     def test_browser_command_executor_reports_source_file_find_empty_states(self):
-        # Behavior: 当用户在source file遇到空状态、源码文件、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在Source File中处理异常「BrowserCommandExecutor 提示 Source File find 空态 states」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

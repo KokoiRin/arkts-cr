@@ -31,7 +31,7 @@ def argparse_namespace(**kwargs):
 class ScopeHomeCommandTests(unittest.TestCase):
 
     def test_scope_home_command_opens_scope_home(self):
-        # Behavior: 当用户在scope home中打开范围首页时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「Scope Home 命令 打开 Scope Home」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -73,7 +73,7 @@ class ScopeHomeCommandTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn("scopes", frames)
     def test_scope_home_command_loads_scope_counts(self):
-        # Behavior: 当用户在scope home中加载范围首页时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中执行操作「Scope Home 命令 loads 范围 counts」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -98,7 +98,7 @@ class ScopeHomeCommandTests(unittest.TestCase):
         self.assertEqual(state.scope_counts["worktree"], 2)
         load_counts.assert_called_once_with(args)
     def test_scope_home_refresh_reloads_scope_counts(self):
-        # Behavior: 当用户在scope home中加载范围首页时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中执行操作「Scope Home 刷新 reloads 范围 counts」时，系统应完成对应产品行为，并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -127,7 +127,7 @@ class ScopeHomeCommandTests(unittest.TestCase):
         self.assertEqual(state.scope_counts["worktree"], 4)
         load_counts.assert_called_once_with(args)
     def test_scope_home_count_loader_counts_review_scope_candidates(self):
-        # Behavior: 当用户在scope home中加载范围首页时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在Review Scope 与工作区中打开或定位「Scope Home count loader counts review 范围 candidates」时，系统应进入正确页面或位置，并维护可预期的返回关系 [Requirement: TODO]
         args = argparse_namespace(paths=["src"], code=True, untracked=True)
 
         def changed_files(paths, staged=False, all_changes=False, include_untracked=False):

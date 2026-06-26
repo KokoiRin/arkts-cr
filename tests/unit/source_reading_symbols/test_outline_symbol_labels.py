@@ -38,7 +38,7 @@ interface Store {
 class OutlineSymbolLabelTests(unittest.TestCase):
 
     def test_symbol_label_identifies_current_nested_or_top_level_symbol(self):
-        # Behavior: 当系统处理source file的outline、symbol、labels、symbol时，系统应识别出正确结果 [Requirement: TODO]
+        # Behavior: 当用户在Source File中解析「符号 label identifies 当前 nested or top level 符号」时，系统应产出正确的结构化结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [
@@ -63,7 +63,7 @@ class OutlineSymbolLabelTests(unittest.TestCase):
         self.assertEqual(function, "function helper")
         self.assertEqual(outside, "")
     def test_symbol_label_identifies_field_arrow_function_symbols(self):
-        # Behavior: 当系统处理source file的outline、symbol、labels、symbol时，系统应识别出正确结果 [Requirement: TODO]
+        # Behavior: 当用户在Source File中解析「符号 label identifies field arrow function 符号」时，系统应产出正确的结构化结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [
@@ -90,7 +90,7 @@ class OutlineSymbolLabelTests(unittest.TestCase):
         self.assertEqual(typed_field_arrow, "struct FeedCard > method makeModel")
         self.assertEqual(top_level_arrow, "function load")
     def test_symbol_label_identifies_override_and_accessor_members(self):
-        # Behavior: 当系统处理source file的outline、symbol、labels、symbol时，系统应识别出正确结果 [Requirement: TODO]
+        # Behavior: 当用户在Source File中解析「符号 label identifies override and accessor members」时，系统应产出正确的结构化结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [
@@ -117,7 +117,7 @@ class OutlineSymbolLabelTests(unittest.TestCase):
         self.assertEqual(getter, "class FeedCard > method title")
         self.assertEqual(setter, "class FeedCard > method title")
     def test_symbol_label_identifies_generic_symbols(self):
-        # Behavior: 当系统处理source file的outline、symbol、labels、symbol时，系统应识别出正确结果 [Requirement: TODO]
+        # Behavior: 当用户在Source File中解析「符号 label identifies generic 符号」时，系统应产出正确的结构化结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [
@@ -149,7 +149,7 @@ class OutlineSymbolLabelTests(unittest.TestCase):
         self.assertEqual(generic_function, "function parseModel")
         self.assertEqual(top_level_arrow, "function loadModel")
     def test_symbol_label_identifies_declaration_only_symbols(self):
-        # Behavior: 当系统处理source file的outline、symbol、labels、symbol时，系统应识别出正确结果 [Requirement: TODO]
+        # Behavior: 当用户在Source File中解析「符号 label identifies declaration 只读 符号」时，系统应产出正确的结构化结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [
@@ -183,7 +183,7 @@ class OutlineSymbolLabelTests(unittest.TestCase):
         self.assertEqual(first_interface_method, "interface Renderer > method mount")
         self.assertEqual(second_interface_method, "interface Renderer > method unmount")
     def test_symbol_label_identifies_exported_arrow_function_symbols(self):
-        # Behavior: 当系统处理source file的outline、symbol、labels、symbol时，系统应识别出正确结果 [Requirement: TODO]
+        # Behavior: 当用户在Source File中解析「符号 label identifies exported arrow function 符号」时，系统应产出正确的结构化结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [
@@ -203,7 +203,7 @@ class OutlineSymbolLabelTests(unittest.TestCase):
         self.assertEqual(exported_const, "function loadModel")
         self.assertEqual(exported_let, "function normalize")
     def test_symbol_label_identifies_default_export_symbols(self):
-        # Behavior: 当系统处理source file的outline、symbol、labels、symbol时，系统应识别出正确结果 [Requirement: TODO]
+        # Behavior: 当用户在Source File中解析「符号 label identifies 默认 export 符号」时，系统应产出正确的结构化结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [
@@ -225,7 +225,7 @@ class OutlineSymbolLabelTests(unittest.TestCase):
         self.assertEqual(method, "class FeedStore > method hydrate")
         self.assertEqual(default_function, "function createStore")
     def test_symbol_label_identifies_enum_symbols(self):
-        # Behavior: 当系统处理source file的outline、symbol、labels、symbol时，系统应识别出正确结果 [Requirement: TODO]
+        # Behavior: 当用户在Source File中解析「符号 label identifies enum 符号」时，系统应产出正确的结构化结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [

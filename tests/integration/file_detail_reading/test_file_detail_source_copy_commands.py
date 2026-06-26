@@ -33,7 +33,7 @@ def argparse_namespace(**kwargs):
 
 class FileDetailSourceCopyCommandTests(unittest.TestCase):
     def test_browser_command_executor_copies_file_detail_source_context(self):
-        # Behavior: 当用户在file detail中复制源码上下文、文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中复制「BrowserCommandExecutor 复制 File Detail 源码 上下文」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -96,7 +96,7 @@ class FileDetailSourceCopyCommandTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 2)
         self.assertIn("Copied source context src/Sample.ts:4.", state.status_message)
     def test_browser_command_executor_reports_file_detail_copy_source_without_new_line(self):
-        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中复制「BrowserCommandExecutor 提示 File Detail 复制 源码 不包含 new 行」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -130,7 +130,7 @@ class FileDetailSourceCopyCommandTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertIn("No current new-file line in File Detail.", state.status_message)
     def test_browser_command_executor_does_not_use_selected_problem_for_file_detail_context(self):
-        # Behavior: 当用户在file detail中选择文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中选择「BrowserCommandExecutor 不会 使用 选中 问题 for File Detail 上下文」时，系统应给出明确反馈，并保持当前状态安全可恢复 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -202,7 +202,7 @@ class FileDetailSourceCopyCommandTests(unittest.TestCase):
         self.assertNotIn("other bad", copied)
         self.assertIn("# File Diff: src/Sample.ts", copied)
     def test_browser_command_executor_copies_file_detail_source_symbol(self):
-        # Behavior: 当用户在file detail中复制文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中复制「BrowserCommandExecutor 复制 File Detail 源码 符号」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -266,7 +266,7 @@ class FileDetailSourceCopyCommandTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.FILE_DETAIL)
         self.assertIn("Copied source symbol src/Sample.ts:2-6.", state.status_message)
     def test_browser_command_executor_reports_file_detail_copy_symbol_without_new_line(self):
-        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
+        # Behavior: 当用户在File Detail中复制「BrowserCommandExecutor 提示 File Detail 复制 符号 不包含 new 行」时，系统应生成正确的上下文内容，并交给复制或保存动作 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(

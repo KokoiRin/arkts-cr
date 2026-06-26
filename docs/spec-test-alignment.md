@@ -5,7 +5,8 @@ the behavior-oriented test suite.
 
 ## Current Sources
 
-- Canonical product spec: `openspec/specs/ai-change-workbench/spec.md`
+- Canonical product specs: `openspec/specs/README.md` and the domain specs
+  under `openspec/specs/*/spec.md`
 - Behavior map: `docs/test-behavior-map.md`
 - Test taxonomy: `docs/test-taxonomy.md`
 - Test suite: `tests/unit/`, `tests/integration/`, `tests/e2e/`
@@ -23,6 +24,23 @@ the behavior-oriented test suite.
 
 The two sides are broadly aligned at the product-area level, but they are not
 yet fully traceable at the individual scenario level.
+
+## Spec Domains
+
+| Spec | Requirements | Test domain |
+| --- | ---: | --- |
+| `cli-review-workflows` | 5 | `tests/e2e/cli_workflows/` |
+| `review-scope-workspace` | 26 | `tests/integration/scope_and_workspace/`, `tests/e2e/scope_and_workspace/` |
+| `changed-files-and-actions` | 32 | `tests/integration/changed_file_list/` |
+| `file-detail-reading` | 21 | `tests/unit/file_detail_reading/`, `tests/integration/file_detail_reading/` |
+| `source-reading-symbols` | 41 | `tests/unit/source_reading_symbols/`, `tests/integration/source_reading_symbols/` |
+| `task-panel-output` | 43 | `tests/integration/build_tasks_output/`, `tests/e2e/build_tasks_output/` |
+| `task-problems` | 38 | `tests/unit/task_problem_list/`, `tests/integration/task_problem_list/` |
+| `prompt-context-handoff` | 4 | `tests/integration/context_copy_save/` plus selected handoff cases in other domains |
+| `review-notes` | 11 | `tests/integration/review_notes/` |
+| `command-palette-help` | 19 | `tests/unit/command_palette_help/`, `tests/integration/command_palette_help/` |
+| `tui-frame-navigation` | 18 | `tests/unit/tui_navigation/`, `tests/integration/tui_navigation/` |
+| `workbench-architecture` | 13 | supporting architecture assertions across test domains |
 
 ## Aligned Areas
 
@@ -54,6 +72,10 @@ requirements for:
 - `CLI package exposes the cr command`
 
 These requirements correspond to existing tests rather than new behavior.
+
+The previous monolithic `ai-change-workbench` spec has also been split into
+domain specs. New product requirements should land in the closest domain spec;
+cross-cutting module ownership rules belong in `workbench-architecture`.
 
 ## Remaining Gaps
 
@@ -104,8 +126,8 @@ or test changes.
 
 For future changes:
 
-1. Update `openspec/specs/ai-change-workbench/spec.md` for user-visible product
-   contracts.
+1. Update the closest `openspec/specs/<domain>/spec.md` for user-visible
+   product contracts.
 2. Add or update tests at the lowest appropriate pyramid layer.
 3. Update `docs/test-behavior-map.md` after changing Behavior comments.
 4. Update this alignment document when a new domain appears or a gap is closed.

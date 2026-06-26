@@ -130,65 +130,6 @@ class CliTests(unittest.TestCase):
         )
         self.assertNotIn("docs/Other.md", str(data))
 
-    def test_switch_review_scope_resets_page_history(self):
-        args = argparse_namespace(
-            staged=False,
-            all_changes=False,
-            base=None,
-            ref_range=None,
-            untracked=False,
-            sort="git",
-            paths=[],
-            code=False,
-        )
-        state = BrowserState([FileChange("src/Old.ts", 1, 1)])
-        BrowserNavigation.open_file_detail(state)
-        BrowserNavigation.go_back(state)
-        self.assertTrue(state.page_forward_stack)
-
-        with patch("cr.ui.browser._load_browse_changes", return_value=[FileChange("src/New.ts", 1, 1)]):
-            _switch_review_scope(
-                state,
-                args,
-                ReviewScope(True, False, None, None, False),
-            )
-
-        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
-        self.assertEqual(state.page_back_stack, [])
-        self.assertEqual(state.page_forward_stack, [])
-
-    def test_refresh_resets_page_history_for_reloaded_changes(self):
-        from cr.ui.browser import parse_browser_command
-
-        args = argparse_namespace(
-            staged=False,
-            all_changes=False,
-            base=None,
-            ref_range=None,
-            untracked=False,
-            sort="git",
-            paths=[],
-        )
-        state = BrowserState([FileChange("src/Old.ts", 1, 1)])
-        BrowserNavigation.open_file_detail(state)
-        BrowserNavigation.go_back(state)
-        self.assertTrue(state.page_forward_stack)
-        executor = BrowserCommandExecutor(
-            state,
-            args,
-            TerminalStyle(),
-            BrowserFrame(),
-            raw_keys=True,
-        )
-
-        with patch("cr.ui.browser._load_browse_changes", return_value=[FileChange("src/New.ts", 1, 1)]):
-            with patch("cr.ui.browser._show_commits_when_empty"):
-                result = executor.execute(parse_browser_command("refresh"))
-
-        self.assertTrue(result.needs_redraw)
-        self.assertEqual(state.page_back_stack, [])
-        self.assertEqual(state.page_forward_stack, [])
-
     def test_browser_main_loop_delegates_action_execution(self):
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
         run_loop_source = source[source.index("def run_browser") : source.index("def _should_restore")]

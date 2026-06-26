@@ -49,6 +49,7 @@ def argparse_namespace(**kwargs):
 
 class TaskBrowserEntrypointTests(unittest.TestCase):
     def test_browser_test_command_starts_background_test_task(self):
+        # Behavior: 当用户在产品行为中启动entrypoints、starts、background时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",

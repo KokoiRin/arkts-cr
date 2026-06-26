@@ -22,6 +22,7 @@ def argparse_namespace(**kwargs):
 class SelectedFileDiffActionTests(unittest.TestCase):
 
     def test_copy_diff_handoff_contains_only_the_selected_file(self):
+        # Behavior: 当用户在prompt handoff中复制diff、actions、copy、diff时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -65,6 +66,7 @@ class SelectedFileDiffActionTests(unittest.TestCase):
         self.assertIn("+new", copied_text)
         copy.assert_called_once_with(copied_text, "copy-tool")
     def test_copy_selected_diff_snippet_reports_empty_selection(self):
+        # Behavior: 当用户在file action遇到选择时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         args = argparse_namespace(copy_cmd="copy-tool")
         state = BrowserState([])
 
@@ -74,6 +76,7 @@ class SelectedFileDiffActionTests(unittest.TestCase):
         self.assertEqual(message, "No changed file to copy diff.")
         copy.assert_not_called()
     def test_save_selected_diff_snippet_writes_default_handoff_file(self):
+        # Behavior: 当用户在prompt handoff中保存diff、actions、save、diff时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             args = argparse_namespace()
@@ -99,6 +102,7 @@ class SelectedFileDiffActionTests(unittest.TestCase):
                 "# File Diff: docs/Second.md\n\n```diff\n+new\n```",
             )
     def test_save_selected_diff_snippet_reports_empty_selection(self):
+        # Behavior: 当用户在file action遇到选择时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         args = argparse_namespace()
         state = BrowserState([])
 
@@ -113,6 +117,7 @@ class SelectedFileDiffActionTests(unittest.TestCase):
             self.assertEqual(message, "No changed file to save diff.")
             self.assertFalse((repo / ".cr").exists())
     def test_save_selected_diff_snippet_reports_write_failure(self):
+        # Behavior: 当用户在file action遇到失败反馈时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         args = argparse_namespace()
         state = BrowserState([FileChange("docs/Second.md", 2, 1)])
 

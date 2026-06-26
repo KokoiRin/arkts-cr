@@ -35,6 +35,7 @@ def argparse_namespace(**kwargs):
 class TaskOutputSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_task_output(self):
+        # Behavior: 当用户在task output中保存任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -69,6 +70,7 @@ class TaskOutputSaveCommandTests(unittest.TestCase):
             self.assertIn("# Build output", target.read_text(encoding="utf-8"))
             self.assertIn("Saved task output to tmp/task.md", output.getvalue())
     def test_browser_command_executor_saves_task_output_tail(self):
+        # Behavior: 当用户在task output中保存任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -109,6 +111,7 @@ class TaskOutputSaveCommandTests(unittest.TestCase):
                 output.getvalue(),
             )
     def test_browser_command_executor_saves_task_output_match_default_path(self):
+        # Behavior: 当用户在task output中保存任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

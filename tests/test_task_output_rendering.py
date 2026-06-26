@@ -34,6 +34,7 @@ def argparse_namespace(**kwargs):
 
 class TaskOutputRenderingTests(unittest.TestCase):
     def test_browse_screen_renders_task_output_page(self):
+        # Behavior: 当用户在task output中渲染任务输出、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -69,6 +70,7 @@ class TaskOutputRenderingTests(unittest.TestCase):
         self.assertIn("compile line", text)
         self.assertIn("cr:task> ", text)
     def test_task_output_page_tick_redraws_main_content_not_panel_only(self):
+        # Behavior: 当用户在task output中验证任务输出、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",

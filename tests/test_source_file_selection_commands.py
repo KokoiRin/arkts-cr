@@ -33,6 +33,7 @@ def argparse_namespace(**kwargs):
 
 class SourceFileSelectionCommandTests(unittest.TestCase):
     def test_browser_command_executor_sets_and_clears_source_selection(self):
+        # Behavior: 当用户在source file中选择源码文件、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -70,6 +71,7 @@ class SourceFileSelectionCommandTests(unittest.TestCase):
         self.assertEqual(state.source_selection_end, 0)
         self.assertIn("Source selection cleared.", state.status_message)
     def test_browser_command_executor_selects_source_range_from_mark_to_current_line(self):
+        # Behavior: 当用户在source file中选择源码文件、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -101,6 +103,7 @@ class SourceFileSelectionCommandTests(unittest.TestCase):
         self.assertEqual(state.source_mark_line, 0)
         self.assertIn("Source mark cleared.", state.status_message)
     def test_browser_command_executor_reports_source_select_to_without_mark(self):
+        # Behavior: 当用户在source file遇到缺少前置条件、源码文件、选择时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -123,6 +126,7 @@ class SourceFileSelectionCommandTests(unittest.TestCase):
         self.assertEqual((state.source_selection_start, state.source_selection_end), (0, 0))
         self.assertIn("Set a source mark before selecting to it.", state.status_message)
     def test_browser_command_executor_selects_current_source_symbol(self):
+        # Behavior: 当用户在source file中选择源码文件、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -167,6 +171,7 @@ class SourceFileSelectionCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_reports_source_symbol_selection_without_source_page(self):
+        # Behavior: 当用户在source file遇到缺少前置条件、源码文件、选择时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.CHANGED_FILES)
@@ -188,6 +193,7 @@ class SourceFileSelectionCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_reports_source_symbol_selection_without_symbol(self):
+        # Behavior: 当用户在source file遇到缺少前置条件、源码文件、选择时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -219,6 +225,7 @@ class SourceFileSelectionCommandTests(unittest.TestCase):
         self.assertEqual((state.source_selection_start, state.source_selection_end), (7, 9))
         self.assertIn("No source symbol at current line.", state.status_message)
     def test_browser_command_executor_reports_source_selection_without_source_page(self):
+        # Behavior: 当用户在source file遇到缺少前置条件、源码文件、选择时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.CHANGED_FILES)
@@ -236,6 +243,7 @@ class SourceFileSelectionCommandTests(unittest.TestCase):
         self.assertEqual(state.source_selection_start, 0)
         self.assertIn("Open a source file before selecting source.", state.status_message)
     def test_browser_command_executor_copies_selected_source_symbol_range(self):
+        # Behavior: 当用户在source file中复制源码文件、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

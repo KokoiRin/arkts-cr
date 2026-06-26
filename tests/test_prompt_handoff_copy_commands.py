@@ -28,6 +28,7 @@ def argparse_namespace(**kwargs):
 
 class PromptHandoffCopyCommandTests(unittest.TestCase):
     def test_browser_command_executor_copies_visible_scope_prompt(self):
+        # Behavior: 当用户在scope home中复制提示词交接时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -115,6 +116,7 @@ class PromptHandoffCopyCommandTests(unittest.TestCase):
         )
         self.assertIn("Copied prompt for 1 file", output.getvalue())
     def test_browser_command_executor_copies_selected_file_prompt(self):
+        # Behavior: 当用户在prompt handoff中复制提示词交接时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -190,6 +192,7 @@ class PromptHandoffCopyCommandTests(unittest.TestCase):
         )
         self.assertIn("Copied prompt for 1 file", output.getvalue())
     def test_browser_command_executor_does_not_copy_empty_scope_prompt(self):
+        # Behavior: 当用户在scope home遇到提示词交接时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -224,6 +227,7 @@ class PromptHandoffCopyCommandTests(unittest.TestCase):
         copy.assert_not_called()
         self.assertIn("No changed files to copy prompt.", output.getvalue())
     def test_browser_command_executor_does_not_copy_missing_file_prompt(self):
+        # Behavior: 当用户在prompt handoff遇到缺失状态、提示词交接时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -258,6 +262,7 @@ class PromptHandoffCopyCommandTests(unittest.TestCase):
         copy.assert_not_called()
         self.assertIn("No changed file to copy prompt.", output.getvalue())
     def test_browser_command_executor_surfaces_prompt_copy_failure(self):
+        # Behavior: 当用户在prompt handoff遇到失败反馈、提示词交接时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -297,6 +302,7 @@ class PromptHandoffCopyCommandTests(unittest.TestCase):
         self.assertFalse(result.needs_redraw)
         self.assertIn("Copy failed using CLI command: copy-tool", output.getvalue())
     def test_browser_command_executor_copies_prompt_in_raw_status(self):
+        # Behavior: 当用户在prompt handoff中复制提示词交接时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(

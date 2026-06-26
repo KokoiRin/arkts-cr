@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 class ProblemContextEmptyFailureCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_reports_empty_problem_context_copy(self):
+        # Behavior: 当用户在task problem遇到失败反馈、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
@@ -49,6 +50,7 @@ class ProblemContextEmptyFailureCommandTests(unittest.TestCase):
         copy_text.assert_not_called()
         self.assertIn("No problem context to copy.", state.status_message)
     def test_browser_command_executor_reports_missing_problem_context_source(self):
+        # Behavior: 当用户在task problem遇到缺失状态、失败反馈、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -77,6 +79,7 @@ class ProblemContextEmptyFailureCommandTests(unittest.TestCase):
         copy_text.assert_not_called()
         self.assertIn("Source file not found.", state.status_message)
     def test_browser_command_executor_reports_empty_problem_context_save(self):
+        # Behavior: 当用户在task problem遇到失败反馈、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.TASK_PROBLEMS)
@@ -96,6 +99,7 @@ class ProblemContextEmptyFailureCommandTests(unittest.TestCase):
         save_text.assert_not_called()
         self.assertIn("No problem context to save.", state.status_message)
     def test_browser_command_executor_reports_problem_context_save_failure(self):
+        # Behavior: 当用户在task problem遇到失败反馈、问题上下文时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

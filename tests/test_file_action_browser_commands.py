@@ -22,6 +22,7 @@ def argparse_namespace(**kwargs):
 
 class FileActionBrowserCommandTests(unittest.TestCase):
     def test_browser_command_executor_copies_selected_path(self):
+        # Behavior: 当用户在file action中复制action、copies、path时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
@@ -43,6 +44,7 @@ class FileActionBrowserCommandTests(unittest.TestCase):
         copy.assert_called_once_with("src/Sample.ts", "copy-tool")
         self.assertIn("Copied src/Sample.ts", output.getvalue())
     def test_browser_command_executor_copies_selected_anchor(self):
+        # Behavior: 当用户在file action中复制action、copies、anchor时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -79,6 +81,7 @@ class FileActionBrowserCommandTests(unittest.TestCase):
         copy.assert_called_once_with("src/Sample.ts:12", None)
         self.assertIn("Copied src/Sample.ts:12", output.getvalue())
     def test_browser_command_executor_anchor_falls_back_to_path_without_line(self):
+        # Behavior: 当用户在file action遇到缺少前置条件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -105,6 +108,7 @@ class FileActionBrowserCommandTests(unittest.TestCase):
         self.assertTrue(result.handled)
         copy.assert_called_once_with("asset.bin", None)
     def test_browser_command_executor_opens_selected_file(self):
+        # Behavior: 当用户在file action中打开action、opens时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -143,6 +147,7 @@ class FileActionBrowserCommandTests(unittest.TestCase):
         open_path.assert_called_once_with(repo_file, 12, "code -g {fileline}")
         self.assertIn("Opened src/Sample.ts:12", output.getvalue())
     def test_browser_command_executor_reveals_selected_file(self):
+        # Behavior: 当用户在file action中选择action、reveals时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
@@ -166,6 +171,7 @@ class FileActionBrowserCommandTests(unittest.TestCase):
         reveal.assert_called_once_with(repo_file, "reveal-tool --file {file}")
         self.assertIn("Revealed src/Sample.ts", output.getvalue())
     def test_browser_command_executor_shows_file_action_diagnostics(self):
+        # Behavior: 当用户在file action中展示action、shows、action、diagnostics时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -196,6 +202,7 @@ class FileActionBrowserCommandTests(unittest.TestCase):
         self.assertIn("copy: cli copy-tool", text)
         self.assertIn("reveal: cli reveal-tool", text)
     def test_browser_file_actions_report_when_no_changed_file_is_available(self):
+        # Behavior: 当用户在file action中验证action、actions、report、no时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([])
@@ -221,6 +228,7 @@ class FileActionBrowserCommandTests(unittest.TestCase):
         self.assertIn("No changed file to copy.", output.getvalue())
         self.assertIn("No changed file to reveal.", output.getvalue())
     def test_browse_parser_accepts_file_action_command_configuration(self):
+        # Behavior: 当系统处理file action的配置时，系统应解析出正确结果 [Requirement: TODO]
         from cr.cli import _build_parser
 
         parser = _build_parser()

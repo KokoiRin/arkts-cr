@@ -38,6 +38,7 @@ def argparse_namespace(**kwargs):
 class SourceFilePageContentTests(unittest.TestCase):
 
     def test_source_file_screen_renders_source_rows_and_error(self):
+        # Behavior: 当用户在source file中渲染源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         view = source_file.SourceFileView(
             path="src/Foo.ets",
             target_line=2,

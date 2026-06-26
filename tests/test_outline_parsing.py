@@ -38,6 +38,7 @@ interface Store {
 class OutlineParsingTests(unittest.TestCase):
 
     def test_parses_arkts_structure(self):
+        # Behavior: 当系统处理source file的outline、parsing、parses、arkts时，系统应解析出正确结果 [Requirement: TODO]
         symbols = parse_outline(SAMPLE)
 
         self.assertEqual(symbols[0].kind, "struct")
@@ -52,18 +53,21 @@ class OutlineParsingTests(unittest.TestCase):
         self.assertEqual(symbols[2].kind, "interface")
         self.assertEqual(symbols[2].children[0].name, "load")
     def test_renders_tree(self):
+        # Behavior: 当用户在source file中渲染outline、parsing、renders、tree时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         text = render_outline("Sample.ets", parse_outline(SAMPLE), {"build"})
 
         self.assertIn("struct Page", text)
         self.assertIn("method build *", text)
         self.assertIn("function formatName", text)
     def test_maps_changed_lines_to_methods(self):
+        # Behavior: 当系统处理source file的outline、parsing、maps、changed时，系统应映射出正确结果 [Requirement: TODO]
         symbols = parse_outline(SAMPLE)
 
         self.assertEqual(modified_symbols(symbols, {11}), ["build"])
         self.assertEqual(modified_symbols(symbols, {17}), ["formatName"])
         self.assertEqual(modified_symbols(symbols, set()), ["unknown"])
     def test_parses_override_and_accessor_members(self):
+        # Behavior: 当系统处理source file的outline、parsing、parses、override时，系统应解析出正确结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [
@@ -89,6 +93,7 @@ class OutlineParsingTests(unittest.TestCase):
         self.assertEqual(modified_symbols(symbols, {3}), ["aboutToAppear"])
         self.assertEqual(modified_symbols(symbols, {6}), ["title"])
     def test_parses_generic_function_like_symbols(self):
+        # Behavior: 当系统处理source file的outline、parsing、parses、generic时，系统应解析出正确结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [
@@ -119,6 +124,7 @@ class OutlineParsingTests(unittest.TestCase):
         self.assertEqual(modified_symbols(symbols, {3}), ["createModel"])
         self.assertEqual(modified_symbols(symbols, {10}), ["parseModel"])
     def test_parses_enum_blocks_as_symbols(self):
+        # Behavior: 当系统处理source file的outline、parsing、parses、enum时，系统应解析出正确结果 [Requirement: TODO]
         symbols = parse_outline(
             "\n".join(
                 [

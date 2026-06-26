@@ -38,6 +38,7 @@ def argparse_namespace(**kwargs):
 class TaskOutputPageContentTests(unittest.TestCase):
 
     def test_task_output_screen_renders_current_task(self):
+        # Behavior: 当用户在task output中渲染任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
         state = BrowserState(
@@ -64,6 +65,7 @@ class TaskOutputPageContentTests(unittest.TestCase):
         self.assertIn("start tests", text)
         self.assertIn("failed test", text)
     def test_task_output_screen_renders_selected_problem(self):
+        # Behavior: 当用户在task problem中渲染任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
         state = BrowserState(
@@ -98,6 +100,7 @@ class TaskOutputPageContentTests(unittest.TestCase):
 
         self.assertIn("Problem: 2/2 src/Two.ets:2:4", text)
     def test_task_output_screen_renders_empty_state(self):
+        # Behavior: 当用户在task output遇到空状态、任务输出时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         state = BrowserState([])
 
         lines = page_content.task_output_screen_lines(

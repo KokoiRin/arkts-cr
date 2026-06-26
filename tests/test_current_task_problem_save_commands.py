@@ -29,6 +29,7 @@ def argparse_namespace(**kwargs):
 class CurrentTaskProblemSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_selected_task_problem_default_path(self):
+        # Behavior: 当用户在task problem中保存任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -81,6 +82,7 @@ class CurrentTaskProblemSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_saves_source_file_current_task_problem(self):
+        # Behavior: 当用户在source file中保存源码文件、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -128,6 +130,7 @@ class CurrentTaskProblemSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_does_not_save_stale_source_file_problem(self):
+        # Behavior: 当用户在source file遇到过期状态、源码文件、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -168,6 +171,7 @@ class CurrentTaskProblemSaveCommandTests(unittest.TestCase):
         self.assertFalse(saved.exists())
         self.assertIn("No current source problem to save.", state.status_message)
     def test_browser_command_executor_saves_file_detail_current_row_task_problem(self):
+        # Behavior: 当用户在file detail中保存文件详情、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

@@ -7,6 +7,7 @@ from cr.ui.commands import BrowserCommandAction, parse_browser_command
 
 class BrowserCommandParserTests(unittest.TestCase):
     def test_command_aliases_and_parameters_map_to_stable_actions(self):
+        # Behavior: 当用户在产品行为中验证aliases、parameters、map、stable时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         cases = [
             ("q", BrowserCommandAction.QUIT, ""),
             ("quit", BrowserCommandAction.QUIT, ""),
@@ -144,12 +145,14 @@ class BrowserCommandParserTests(unittest.TestCase):
                 self.assertEqual(parsed.value, expected_value)
 
     def test_raw_slash_is_not_a_filter_command(self):
+        # Behavior: 当用户在产品行为中过滤raw、slash、not、a时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         parsed = parse_browser_command("/src/ui", raw_keys=True)
 
         self.assertEqual(parsed.action, BrowserCommandAction.UNKNOWN)
         self.assertEqual(parsed.value, "/src/ui")
 
     def test_browser_main_loop_delegates_to_command_parser(self):
+        # Behavior: 当系统处理产品行为的main、loop、delegates、parser时，系统应解析出正确结果 [Requirement: TODO]
         source = Path(browser_module.__file__).read_text(encoding="utf-8")
 
         self.assertIn("parse_browser_command(command, raw_keys=raw_keys)", source)

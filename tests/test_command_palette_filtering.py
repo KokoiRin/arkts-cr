@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 
 class CommandPaletteFilteringTests(unittest.TestCase):
     def test_command_palette_filter_matches_command_group_and_description(self):
+        # Behavior: 当用户在command palette中过滤命令面板、过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         build_state = BrowserState([], page="commands", command_filter_text="build")
         stage_state = BrowserState([], page="commands", command_filter_text="scope")
         reopen_state = BrowserState([], page="commands", command_filter_text="editor")
@@ -47,6 +48,7 @@ class CommandPaletteFilteringTests(unittest.TestCase):
             [entry.command for entry in _filtered_command_palette_entries(reopen_state)],
         )
     def test_command_palette_filter_ranks_command_matches_before_description_matches(self):
+        # Behavior: 当用户在command palette中过滤命令面板、过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         unfiltered = [
             entry.command
             for entry in _filtered_command_palette_entries(
@@ -70,6 +72,7 @@ class CommandPaletteFilteringTests(unittest.TestCase):
         self.assertLess(scope_filtered.index("scopes"), scope_filtered.index("staged"))
         self.assertLess(file_filtered.index("file actions"), file_filtered.index("open"))
     def test_command_palette_search_keeps_the_changed_file_filter(self):
+        # Behavior: 当用户在command palette中过滤命令面板、过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -121,6 +124,7 @@ class CommandPaletteFilteringTests(unittest.TestCase):
         self.assertIn(("commands", "Sample", ""), frames)
         self.assertEqual(frames[-1], ("commands", "Sample", "build"))
     def test_command_palette_clear_keeps_file_filter(self):
+        # Behavior: 当用户在command palette中过滤命令面板、过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         state = BrowserState(
             [FileChange("src/Sample.ts", 1, 1)],
             page="commands",

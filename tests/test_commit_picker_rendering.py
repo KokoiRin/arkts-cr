@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 class CommitPickerRenderingTests(unittest.TestCase):
 
     def test_browse_screen_recent_commits_stays_scope_picker(self):
+        # Behavior: 当用户在scope home中验证提交选择器、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -58,6 +59,7 @@ class CommitPickerRenderingTests(unittest.TestCase):
         self.assertIn("Scope: recent commits", text)
         self.assertNotIn("Scope: recent commits > Files", text)
     def test_commit_picker_rows_show_change_summary(self):
+        # Behavior: 当用户在commit picker中展示提交选择器、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         state = BrowserState(
             [],
             commits=[
@@ -83,6 +85,7 @@ class CommitPickerRenderingTests(unittest.TestCase):
         self.assertIn("2 files, +10 -3", "\n".join(lines))
         self.assertIn("Example change", "\n".join(lines))
     def test_commit_picker_filter_shows_matches_and_count(self):
+        # Behavior: 当用户在commit picker中展示提交选择器、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         state = BrowserState(
             [],
             commits=[
@@ -120,6 +123,7 @@ class CommitPickerRenderingTests(unittest.TestCase):
         self.assertIn("Feature login", text)
         self.assertNotIn("Docs only", text)
     def test_commit_picker_filter_empty_state(self):
+        # Behavior: 当用户在commit picker遇到空状态、提交选择器、渲染时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         state = BrowserState(
             [],
             commits=[
@@ -144,6 +148,7 @@ class CommitPickerRenderingTests(unittest.TestCase):
         self.assertIn("No recent commits match filter: missing (1 total).", text)
         self.assertIn("Press c to clear the filter.", text)
     def test_browse_screen_selected_commit_files_show_product_breadcrumb(self):
+        # Behavior: 当用户在commit picker中展示提交选择器、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

@@ -31,6 +31,7 @@ def argparse_namespace(**kwargs):
 class ScopeHomeSelectionTests(unittest.TestCase):
 
     def test_scope_home_enter_switches_to_staged_scope(self):
+        # Behavior: 当用户在scope home中切换范围首页、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -72,6 +73,7 @@ class ScopeHomeSelectionTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn(("list", True, False), frames)
     def test_scope_home_enter_opens_recent_commits(self):
+        # Behavior: 当用户在scope home中打开范围首页、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -131,6 +133,7 @@ class ScopeHomeSelectionTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn("commits", frames)
     def test_home_key_still_jumps_to_first_file_instead_of_opening_scope_home(self):
+        # Behavior: 当用户在scope home中打开范围首页、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",

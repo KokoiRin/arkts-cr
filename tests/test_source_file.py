@@ -7,6 +7,7 @@ from cr.ui import source_file
 
 class SourceFileBehaviorTests(unittest.TestCase):
     def test_source_view_windows_the_target_line_inside_repo_file(self):
+        # Behavior: 当用户在source file中验证源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             source = repo / "src" / "Foo.ets"
@@ -33,6 +34,7 @@ class SourceFileBehaviorTests(unittest.TestCase):
         self.assertTrue(view.rows[2].is_target)
 
     def test_source_view_clamps_line_and_reports_missing_or_non_utf8_files(self):
+        # Behavior: 当用户在source file遇到缺失状态、源码文件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             source = repo / "src" / "Foo.ets"
@@ -70,6 +72,7 @@ class SourceFileBehaviorTests(unittest.TestCase):
         self.assertEqual(non_utf8.error, "Source file is not UTF-8 text.")
 
     def test_source_content_reads_lines_and_reports_missing_files(self):
+        # Behavior: 当用户在source file遇到缺失状态、源码文件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             source = repo / "src" / "Foo.ets"
@@ -84,6 +87,7 @@ class SourceFileBehaviorTests(unittest.TestCase):
         self.assertEqual(missing.error, "Source file not found.")
 
     def test_source_context_markdown_centers_target_and_can_include_symbol_label(self):
+        # Behavior: 当用户在source file中验证源码上下文、源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         content = source_file.SourceFileContent(
             "src/Foo.ets",
             [f"line {index}" for index in range(1, 11)],
@@ -115,6 +119,7 @@ class SourceFileBehaviorTests(unittest.TestCase):
         self.assertNotIn("line 3", labeled)
 
     def test_source_range_selection_marks_rows_and_renders_ordered_markdown(self):
+        # Behavior: 当用户在source file中渲染源码文件、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         content = source_file.SourceFileContent(
             "src/Foo.ets",
             [f"line {index}" for index in range(1, 8)],

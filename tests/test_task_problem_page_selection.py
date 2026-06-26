@@ -29,6 +29,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemPageSelectionTests(unittest.TestCase):
 
     def test_browser_command_executor_moves_task_problem_selection(self):
+        # Behavior: 当用户在task problem中选择任务问题、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -73,6 +74,7 @@ class TaskProblemPageSelectionTests(unittest.TestCase):
         self.assertEqual(selected_after_end, 2)
         self.assertEqual(state.problem_selected, 0)
     def test_browser_command_executor_jumps_to_next_task_problem_file(self):
+        # Behavior: 当用户在task problem中跳转任务问题、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -113,6 +115,7 @@ class TaskProblemPageSelectionTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
         self.assertEqual(state.problem_selected, 2)
     def test_browser_command_executor_jumps_to_previous_task_problem_file(self):
+        # Behavior: 当用户在task problem中跳转任务问题、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -153,6 +156,7 @@ class TaskProblemPageSelectionTests(unittest.TestCase):
         self.assertTrue(result.needs_redraw)
         self.assertEqual(state.problem_selected, 1)
     def test_browser_command_executor_jumps_between_visible_task_problem_files(self):
+        # Behavior: 当用户在task problem中跳转任务问题、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -191,6 +195,7 @@ class TaskProblemPageSelectionTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertEqual(state.problem_selected, 1)
     def test_browser_command_executor_keeps_task_problem_selection_at_file_edges(self):
+        # Behavior: 当用户在task problem中选择任务问题、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

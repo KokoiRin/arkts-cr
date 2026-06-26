@@ -34,6 +34,7 @@ def argparse_namespace(**kwargs):
 class SourceFileSymbolCopyCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_copies_source_enum_symbol(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -86,6 +87,7 @@ class SourceFileSymbolCopyCommandTests(unittest.TestCase):
         self.assertIn("  Loading = 'loading',", copied[0])
         self.assertNotIn("function after", copied[0])
     def test_browser_command_executor_copies_source_file_symbol_directly(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -139,6 +141,7 @@ class SourceFileSymbolCopyCommandTests(unittest.TestCase):
         self.assertEqual((state.source_selection_start, state.source_selection_end), (7, 8))
         self.assertIn("Copied source symbol src/Foo.ets:2-5.", state.status_message)
     def test_browser_command_executor_copies_source_field_arrow_symbol(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -190,6 +193,7 @@ class SourceFileSymbolCopyCommandTests(unittest.TestCase):
         self.assertNotIn("other() {", copied)
         self.assertIn("Copied source symbol src/Foo.ets:2-4.", state.status_message)
     def test_browser_command_executor_copies_source_accessor_symbol(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -240,6 +244,7 @@ class SourceFileSymbolCopyCommandTests(unittest.TestCase):
         self.assertNotIn("other() {", copied)
         self.assertIn("Copied source symbol src/Foo.ets:2-4.", state.status_message)
     def test_browser_command_executor_copies_source_generic_method_symbol(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

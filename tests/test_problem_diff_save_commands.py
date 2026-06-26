@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 class ProblemDiffSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_task_output_problem_diff_default_path(self):
+        # Behavior: 当用户在task problem中保存任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -85,6 +86,7 @@ class ProblemDiffSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_saves_file_detail_current_row_problem_diff(self):
+        # Behavior: 当用户在file detail中保存文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -157,6 +159,7 @@ class ProblemDiffSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_does_not_save_stale_source_file_problem_diff(self):
+        # Behavior: 当用户在source file遇到过期状态、源码文件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -197,6 +200,7 @@ class ProblemDiffSaveCommandTests(unittest.TestCase):
         self.assertTrue(result.needs_redraw)
         self.assertIn("No current source problem diff to save.", state.status_message)
     def test_browser_command_executor_saves_source_file_current_problem_diff(self):
+        # Behavior: 当用户在source file中保存当前问题、源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

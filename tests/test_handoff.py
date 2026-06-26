@@ -7,6 +7,7 @@ from cr.ui import handoff as handoff_module
 
 class HandoffSaveBehaviorTests(unittest.TestCase):
     def test_prompt_handoff_saves_scope_and_file_prompts_to_repo_relative_paths(self):
+        # Behavior: 当用户在scope home中保存提示词交接时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             relative = handoff_module.save_prompt_text(
@@ -30,6 +31,7 @@ class HandoffSaveBehaviorTests(unittest.TestCase):
             self.assertEqual(absolute.path.read_text(encoding="utf-8"), "file prompt")
 
     def test_diff_handoff_saves_default_and_requested_paths(self):
+        # Behavior: 当用户在prompt handoff中保存handoff、diff、handoff、saves时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             default = handoff_module.save_diff_text("default diff", repo)
@@ -50,6 +52,7 @@ class HandoffSaveBehaviorTests(unittest.TestCase):
             )
 
     def test_task_output_handoff_saves_default_and_requested_paths(self):
+        # Behavior: 当用户在task output中保存任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             default = handoff_module.save_task_output_text("default task", repo)
@@ -70,6 +73,7 @@ class HandoffSaveBehaviorTests(unittest.TestCase):
             )
 
     def test_problem_context_handoff_saves_default_and_requested_paths(self):
+        # Behavior: 当用户在task problem中保存问题上下文时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             default = handoff_module.save_problem_context_text(
@@ -96,6 +100,7 @@ class HandoffSaveBehaviorTests(unittest.TestCase):
             )
 
     def test_task_problem_handoff_saves_default_and_requested_paths(self):
+        # Behavior: 当用户在task problem中保存任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             default = handoff_module.save_task_problem_text(
@@ -122,6 +127,7 @@ class HandoffSaveBehaviorTests(unittest.TestCase):
             )
 
     def test_problem_diff_handoff_saves_default_and_requested_paths(self):
+        # Behavior: 当用户在task problem中保存handoff、problem、diff、handoff时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             default = handoff_module.save_problem_diff_text(
@@ -148,6 +154,7 @@ class HandoffSaveBehaviorTests(unittest.TestCase):
             )
 
     def test_review_notes_handoff_saves_default_and_requested_paths(self):
+        # Behavior: 当用户在prompt handoff中保存评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             default = handoff_module.save_review_notes_text(

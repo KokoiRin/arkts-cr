@@ -49,6 +49,7 @@ def argparse_namespace(**kwargs):
 
 class TaskStopLifecycleTests(unittest.TestCase):
     def test_build_start_records_process_group_id(self):
+        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"import time; time.sleep(10)\""
@@ -71,6 +72,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
                 if state.task.process.stdout is not None:
                     state.task.process.stdout.close()
     def test_build_stop_terminates_child_processes(self):
+        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             script = repo / "build.py"
@@ -123,6 +125,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
                     state.task.process.terminate()
                     state.task.process.wait(timeout=1)
     def test_build_stop_falls_back_when_process_group_stop_fails(self):
+        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"import time; time.sleep(10)\""
@@ -156,6 +159,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
                 if state.task is not None and state.task.running:
                     state.task.process.kill()
     def test_poll_escalates_stopped_build_to_process_group_kill(self):
+        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         class RunningProcess:
             stdout = None
 
@@ -181,6 +185,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
         self.assertTrue(build.stop_escalated)
         self.assertIn("Build did not stop; force killing process group.", build.lines)
     def test_poll_does_not_escalate_stopped_build_within_grace_period(self):
+        # Behavior: 当用户在task output中不执行生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         class RunningProcess:
             stdout = None
 
@@ -206,6 +211,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
         self.assertFalse(build.stop_escalated)
         self.assertEqual(build.lines, [])
     def test_poll_escalates_stopped_build_only_once(self):
+        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         class RunningProcess:
             stdout = None
 
@@ -231,6 +237,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
             1,
         )
     def test_poll_escalates_stopped_build_without_process_group_to_process_kill(self):
+        # Behavior: 当用户在task output遇到缺少前置条件、生命周期时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         class RunningProcess:
             stdout = None
 
@@ -261,6 +268,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
         self.assertTrue(build.stop_escalated)
         self.assertIn("Build did not stop; force killing build process.", build.lines)
     def test_build_stop_records_stop_request_time(self):
+        # Behavior: 当用户在task output中验证生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"import time; time.sleep(10)\""
@@ -285,6 +293,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
                 if state.task.process.stdout is not None:
                     state.task.process.stdout.close()
     def test_build_stop_marks_stopped_not_failed(self):
+        # Behavior: 当用户在task output中标记生命周期时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             command = f"{sys.executable} -c \"import time; time.sleep(10)\""
@@ -311,6 +320,7 @@ class TaskStopLifecycleTests(unittest.TestCase):
             self.assertEqual(_task_status(state.task), "stopped")
             self.assertIn("Build stopped.", state.task.lines)
     def test_build_stop_without_running_build_shows_feedback(self):
+        # Behavior: 当用户在task output遇到缺少前置条件、生命周期时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         state = BrowserState([])
 
         _stop_task(state)

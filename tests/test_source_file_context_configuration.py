@@ -34,6 +34,7 @@ def argparse_namespace(**kwargs):
 class SourceFileContextConfigurationTest(unittest.TestCase):
 
     def test_browser_command_executor_sets_source_context_lines(self):
+        # Behavior: 当用户在source file中验证源码上下文、源码文件、配置时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(

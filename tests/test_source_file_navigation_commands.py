@@ -33,6 +33,7 @@ def argparse_namespace(**kwargs):
 
 class SourceFileNavigationCommandTests(unittest.TestCase):
     def test_browser_command_executor_views_source_file_diff(self):
+        # Behavior: 当用户在source file中验证源码文件、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -75,6 +76,7 @@ class SourceFileNavigationCommandTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
     def test_browser_command_executor_reports_source_file_diff_without_changed_file(self):
+        # Behavior: 当用户在source file遇到缺少前置条件、源码文件、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -109,6 +111,7 @@ class SourceFileNavigationCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_scrolls_and_opens_source_file_page(self):
+        # Behavior: 当用户在source file中打开源码文件、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

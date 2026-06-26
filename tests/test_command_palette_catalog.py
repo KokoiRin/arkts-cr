@@ -30,11 +30,13 @@ def argparse_namespace(**kwargs):
 
 class CommandPaletteCatalogTests(unittest.TestCase):
     def test_command_palette_lists_selected_file_index_actions(self):
+        # Behavior: 当用户在command palette中选择命令面板时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         commands = {entry.command for entry in command_catalog.command_palette_entries()}
 
         self.assertIn("stage", commands)
         self.assertIn("unstage", commands)
     def test_command_palette_lists_source_filter_actions(self):
+        # Behavior: 当用户在command palette中过滤命令面板时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         commands = {entry.command for entry in command_catalog.command_palette_entries()}
 
         self.assertIn("source staged", commands)
@@ -42,6 +44,7 @@ class CommandPaletteCatalogTests(unittest.TestCase):
         self.assertIn("source mixed", commands)
         self.assertIn("source all", commands)
     def test_command_palette_entries_include_only_executable_commands(self):
+        # Behavior: 当用户在command palette中验证命令面板时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         entries = _command_palette_entries()
         commands = [entry.command for entry in entries]
 

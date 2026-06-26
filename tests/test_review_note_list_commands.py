@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 
 class ReviewNoteListCommandTests(unittest.TestCase):
     def test_browser_command_executor_shows_review_notes_without_navigation(self):
+        # Behavior: 当用户在review note遇到缺少前置条件、评审备注、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -67,6 +68,7 @@ class ReviewNoteListCommandTests(unittest.TestCase):
         self.assertIn("1. src/First.ts: check lifecycle edge case", text)
         self.assertIn("2. docs/Old.md: stale follow-up", text)
     def test_browser_command_executor_filters_review_notes_without_navigation(self):
+        # Behavior: 当用户在review note遇到缺少前置条件、评审备注、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -106,6 +108,7 @@ class ReviewNoteListCommandTests(unittest.TestCase):
         self.assertIn("2. docs/Old.md: stale lifecycle follow-up", text)
         self.assertNotIn("src/Second.ts", text)
     def test_browser_command_executor_filters_review_notes_by_path_case_insensitive(self):
+        # Behavior: 当用户在review note中过滤评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -128,6 +131,7 @@ class ReviewNoteListCommandTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertIn("src/SampleView.ts", output.getvalue())
     def test_browser_command_executor_shows_empty_filtered_review_notes(self):
+        # Behavior: 当用户在review note遇到评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -150,6 +154,7 @@ class ReviewNoteListCommandTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertIn('Review notes matching "owner": none', output.getvalue())
     def test_browser_command_executor_shows_review_notes_in_raw_status(self):
+        # Behavior: 当用户在review note中展示评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -179,6 +184,7 @@ class ReviewNoteListCommandTests(unittest.TestCase):
         self.assertIn("Review notes:", state.status_message)
         self.assertIn("src/First.ts: check lifecycle edge case", state.status_message)
     def test_browser_command_executor_filters_review_notes_in_raw_status(self):
+        # Behavior: 当用户在review note中过滤评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()

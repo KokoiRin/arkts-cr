@@ -25,6 +25,7 @@ def argparse_namespace(**kwargs):
 
 class BrowserFrameTests(unittest.TestCase):
     def test_task_panel_lines_include_current_task_and_recent_history(self):
+        # Behavior: 当用户在navigation中验证frame、panel、lines、include时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         process.wait(timeout=1)
         task = TaskState(["./build.sh"], process, lines=["compile line"], returncode=0)
@@ -56,6 +57,7 @@ class BrowserFrameTests(unittest.TestCase):
         self.assertIn("compile line", text)
 
     def test_partial_task_panel_refresh_draws_without_full_clear_once(self):
+        # Behavior: 当用户在产品行为遇到缺少前置条件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         task = TaskState(["true"], process, lines=["compile line"])
         browser_frame = frame.BrowserFrame(
@@ -96,6 +98,7 @@ class BrowserFrameTests(unittest.TestCase):
         process.wait(timeout=1)
 
     def test_partial_task_panel_refresh_refuses_dirty_frame(self):
+        # Behavior: 当用户在产品行为中刷新frame、partial、panel、refresh时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         task = TaskState(["true"], process, lines=["compile line"])
         browser_frame = frame.BrowserFrame(
@@ -123,6 +126,7 @@ class BrowserFrameTests(unittest.TestCase):
         process.wait(timeout=1)
 
     def test_terminal_line_fitting_counts_visible_width(self):
+        # Behavior: 当系统处理产品行为的frame、terminal、line、fitting时，系统应统计出正确结果 [Requirement: TODO]
         with patch(
             "cr.ui.frame.shutil.get_terminal_size",
             return_value=os.terminal_size((8, 12)),
@@ -134,6 +138,7 @@ class BrowserFrameTests(unittest.TestCase):
             )
 
     def test_screen_layout_reserves_prompt_and_task_panel_regions(self):
+        # Behavior: 当用户在产品行为中验证frame、layout、reserves、prompt时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
         build = TaskState(["true"], process, lines=["compile line"])
 
@@ -151,6 +156,7 @@ class BrowserFrameTests(unittest.TestCase):
         process.wait(timeout=1)
 
     def test_browse_screen_redraws_in_place(self):
+        # Behavior: 当用户在产品行为中验证frame、browse、redraws、place时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -175,6 +181,7 @@ class BrowserFrameTests(unittest.TestCase):
         self.assertIn("操作：Enter 打开", text)
 
     def test_browse_screen_action_bar_coexists_with_task_panel(self):
+        # Behavior: 当用户在产品行为中验证frame、browse、action、bar时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -205,6 +212,7 @@ class BrowserFrameTests(unittest.TestCase):
         self.assertIn("Build running", text)
 
     def test_browse_screen_places_task_panel_above_prompt(self):
+        # Behavior: 当用户在产品行为中验证frame、browse、places、panel时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -234,6 +242,7 @@ class BrowserFrameTests(unittest.TestCase):
         process.wait(timeout=1)
 
     def test_browse_screen_pads_short_content_before_task_panel(self):
+        # Behavior: 当用户在产品行为中验证frame、browse、pads、short时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -263,6 +272,7 @@ class BrowserFrameTests(unittest.TestCase):
         self.assertEqual(before_panel.count("\n"), 23)
 
     def test_browse_screen_shows_command_list_with_task_panel(self):
+        # Behavior: 当用户在产品行为中展示frame、browse、shows、list时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

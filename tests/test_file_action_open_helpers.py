@@ -22,6 +22,7 @@ def argparse_namespace(**kwargs):
 
 class FileActionOpenHelperTests(unittest.TestCase):
     def test_open_command_uses_configured_template(self):
+        # Behavior: 当用户在file action中打开action、open、helpers、open时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.file_actions import open_command
 
         command = open_command(
@@ -32,6 +33,7 @@ class FileActionOpenHelperTests(unittest.TestCase):
 
         self.assertEqual(command, ["code", "-g", "/tmp/space dir/Sample.ts:12"])
     def test_open_command_source_reports_cli_env_platform_and_missing(self):
+        # Behavior: 当用户在file action遇到缺失状态时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.file_actions import open_command_source
 
         with patch.dict(os.environ, {"CR_OPEN_CMD": "env-open {fileline}"}, clear=True):
@@ -56,6 +58,7 @@ class FileActionOpenHelperTests(unittest.TestCase):
         self.assertEqual(missing_source.source, "missing")
         self.assertIsNone(missing_source.command)
     def test_file_action_helpers_include_source_in_open_failures(self):
+        # Behavior: 当用户在file action遇到失败反馈时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.file_actions import open_path
 
         with patch(
@@ -67,6 +70,7 @@ class FileActionOpenHelperTests(unittest.TestCase):
         self.assertIn("Open failed (cli missing-open /tmp/Sample.ts)", message)
         self.assertIn("missing open", message)
     def test_open_command_prefers_gui_editor_with_line(self):
+        # Behavior: 当用户在file action中打开action、open、helpers、open时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.file_actions import open_command
 
         def fake_which(name):
@@ -77,6 +81,7 @@ class FileActionOpenHelperTests(unittest.TestCase):
 
         self.assertEqual(command, ["code", "-g", "/tmp/Sample.ts:7"])
     def test_open_command_falls_back_to_macos_open(self):
+        # Behavior: 当用户在file action中打开action、open、helpers、open时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.file_actions import open_command
 
         def fake_which(name):

@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 class SourceProblemContextSelectionCopyCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_copies_selected_source_problem_context(self):
+        # Behavior: 当用户在task problem中复制问题上下文、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -85,6 +86,7 @@ class SourceProblemContextSelectionCopyCommandTests(unittest.TestCase):
         self.assertNotIn("line 7", copied)
         self.assertIn("# File Diff: src/Foo.ets", copied)
     def test_browser_command_executor_copies_selected_source_problem_context_with_current_problem(self):
+        # Behavior: 当用户在task problem中复制当前问题、问题上下文、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

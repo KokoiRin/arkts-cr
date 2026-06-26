@@ -22,6 +22,7 @@ def argparse_namespace(**kwargs):
 
 class BrowserFeedbackTests(unittest.TestCase):
     def test_browse_context_line_shows_status_message(self):
+        # Behavior: 当用户在产品行为中展示feedback、browse、context、line时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -46,6 +47,7 @@ class BrowserFeedbackTests(unittest.TestCase):
         )
 
     def test_raw_key_open_feedback_stays_inside_browser_frame(self):
+        # Behavior: 当用户在产品行为中打开feedback、raw、key、open时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -101,6 +103,7 @@ class BrowserFeedbackTests(unittest.TestCase):
         self.assertIn("Opened src/Sample.ts:3", frames)
 
     def test_raw_key_invalid_selection_feedback_stays_inside_browser_frame(self):
+        # Behavior: 当用户在产品行为中选择选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -146,6 +149,7 @@ class BrowserFeedbackTests(unittest.TestCase):
         self.assertIn("Choose 1-1.", frames)
 
     def test_raw_key_unknown_command_feedback_stays_inside_browser_frame(self):
+        # Behavior: 当用户在产品行为中验证feedback、raw、key、unknown时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",

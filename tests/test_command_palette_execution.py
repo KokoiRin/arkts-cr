@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 
 class CommandPaletteExecutionTests(unittest.TestCase):
     def test_command_palette_enter_executes_selected_command_not_file_open(self):
+        # Behavior: 当用户在command palette中打开命令面板时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -76,6 +77,7 @@ class CommandPaletteExecutionTests(unittest.TestCase):
         self.assertEqual(result, 0)
         start_build.assert_called_once()
     def test_command_palette_back_restores_the_changed_file_list_selection(self):
+        # Behavior: 当用户在command palette中选择命令面板、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -121,6 +123,7 @@ class CommandPaletteExecutionTests(unittest.TestCase):
         self.assertIn(("commands", 1), frames)
         self.assertEqual(frames[-1], ("list", 1))
     def test_command_palette_enter_executes_filtered_command(self):
+        # Behavior: 当用户在command palette中过滤命令面板时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",

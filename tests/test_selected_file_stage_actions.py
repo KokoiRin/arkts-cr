@@ -22,6 +22,7 @@ def argparse_namespace(**kwargs):
 class SelectedFileStageActionTests(unittest.TestCase):
 
     def test_stage_selected_path_is_available_for_local_scopes(self):
+        # Behavior: 当用户在scope home中选择stage、actions、stage、path时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -38,6 +39,7 @@ class SelectedFileStageActionTests(unittest.TestCase):
         self.assertEqual(message, "Staged src/Sample.ts")
         stage.assert_called_once_with("src/Sample.ts")
     def test_stage_selected_path_rejects_read_only_scopes(self):
+        # Behavior: 当用户在scope home中选择stage、actions、stage、path时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -54,6 +56,7 @@ class SelectedFileStageActionTests(unittest.TestCase):
         )
         stage.assert_not_called()
     def test_unstage_selected_path_is_available_for_local_scopes(self):
+        # Behavior: 当用户在scope home中选择stage、actions、unstage、path时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=True,
             all_changes=False,

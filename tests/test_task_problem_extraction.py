@@ -29,6 +29,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemsBehaviorTests(unittest.TestCase):
 
     def test_extracts_repo_local_problem_anchors_from_task_output(self):
+        # Behavior: 当用户在task problem中验证任务输出、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             source = repo / "src" / "Foo.ets"
@@ -53,6 +54,7 @@ class TaskProblemsBehaviorTests(unittest.TestCase):
         self.assertIsNone(problems[1].column)
 
     def test_extracts_diagnostic_facts_from_common_problem_lines(self):
+        # Behavior: 当用户在task problem中验证任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             source = repo / "src" / "Foo.ets"
@@ -88,6 +90,7 @@ class TaskProblemsBehaviorTests(unittest.TestCase):
         self.assertEqual(problems[4].message, "bad Foo1")
 
     def test_severity_filter_preserves_original_problem_order(self):
+        # Behavior: 当用户在task problem中过滤任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         problems = [
             task_problems.TaskProblem("src/A.ets", 1, None, "a", 1, severity="warning"),
             task_problems.TaskProblem("src/B.ets", 2, None, "b", 2, severity="error"),
@@ -102,6 +105,7 @@ class TaskProblemsBehaviorTests(unittest.TestCase):
         self.assertEqual(all_problems, problems)
 
     def test_severity_sort_buckets_problems_without_reordering_each_bucket(self):
+        # Behavior: 当用户在task problem遇到缺少前置条件、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         problems = [
             task_problems.TaskProblem("src/W1.ets", 1, None, "w1", 1, severity="warning"),
             task_problems.TaskProblem("src/E1.ets", 2, None, "e1", 2, severity="error"),
@@ -130,6 +134,7 @@ class TaskProblemsBehaviorTests(unittest.TestCase):
         self.assertEqual(unknown_sorted, problems)
 
     def test_text_query_matches_path_summary_severity_code_or_message(self):
+        # Behavior: 当用户在task problem中验证任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         problems = [
             task_problems.TaskProblem(
                 "src/Foo.ets",
@@ -169,6 +174,7 @@ class TaskProblemsBehaviorTests(unittest.TestCase):
         self.assertEqual(all_problems, problems)
 
     def test_severity_count_label_summarizes_visible_problem_set(self):
+        # Behavior: 当用户在task problem中验证任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         problems = [
             task_problems.TaskProblem("src/A.ets", 1, None, "a", 1, severity="warning"),
             task_problems.TaskProblem("src/B.ets", 2, None, "b", 2, severity="error"),
@@ -184,6 +190,7 @@ class TaskProblemsBehaviorTests(unittest.TestCase):
         self.assertEqual(empty, "")
 
     def test_problem_extraction_ignores_urls_missing_files_and_outside_paths(self):
+        # Behavior: 当用户在task problem遇到缺失状态、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             outside = Path(tmp).parent / "Outside.ets"
@@ -203,6 +210,7 @@ class TaskProblemsBehaviorTests(unittest.TestCase):
         self.assertEqual(problems, [])
 
     def test_problem_handoff_text_preserves_diagnostic_facts(self):
+        # Behavior: 当用户在task problem中保持任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         problems = [
             task_problems.TaskProblem(
                 path="src/Foo.ets",

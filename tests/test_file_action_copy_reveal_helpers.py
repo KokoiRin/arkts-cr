@@ -22,6 +22,7 @@ def argparse_namespace(**kwargs):
 
 class FileActionCopyRevealHelperTests(unittest.TestCase):
     def test_file_action_helpers_discover_macos_clipboard_and_reveal_commands(self):
+        # Behavior: 当用户在file action中验证action、copy、reveal、helpers时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.file_actions import clipboard_command, reveal_command
 
         def fake_which(name):
@@ -37,6 +38,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
                     ["open", "-R", "/tmp/Sample.ts"],
                 )
     def test_file_action_helpers_report_missing_platform_commands(self):
+        # Behavior: 当用户在file action遇到缺失状态时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.file_actions import copy_text, open_path, reveal_path
 
         with patch("cr.ui.file_actions.open_command_source") as source:
@@ -59,6 +61,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
                 "No file browser command found (missing).",
             )
     def test_file_action_helpers_use_configured_copy_command(self):
+        # Behavior: 当用户在file action中复制action、copy、reveal、helpers时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.file_actions import copy_text
 
         with patch("cr.ui.file_actions.subprocess.run") as run:
@@ -72,6 +75,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
             check=True,
         )
     def test_file_action_helpers_include_source_in_failures(self):
+        # Behavior: 当用户在file action遇到失败反馈时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.file_actions import copy_text, reveal_path
 
         with patch(
@@ -96,6 +100,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
         )
         self.assertIn("missing reveal", reveal_result)
     def test_file_action_helpers_use_configured_reveal_command(self):
+        # Behavior: 当用户在file action中验证action、copy、reveal、helpers时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.file_actions import reveal_path
 
         with patch("cr.ui.file_actions.subprocess.Popen") as popen:
@@ -115,6 +120,7 @@ class FileActionCopyRevealHelperTests(unittest.TestCase):
             ]
         )
     def test_file_action_helpers_use_environment_configuration(self):
+        # Behavior: 当用户在file action中验证配置时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.file_actions import (
             configured_copy_command,
             configured_reveal_command,

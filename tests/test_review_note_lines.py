@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 
 class ReviewNotesTests(unittest.TestCase):
     def test_review_note_lines_order_current_changes_before_extra_notes(self):
+        # Behavior: 当用户在review note中验证评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = review_notes.review_note_lines(
             [
                 FileChange("src/First.ts", 1, 0),
@@ -53,6 +54,7 @@ class ReviewNotesTests(unittest.TestCase):
         )
 
     def test_review_note_lines_filter_by_path_or_note_text(self):
+        # Behavior: 当用户在review note中过滤评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = review_notes.review_note_lines(
             [
                 FileChange("src/SampleView.ts", 1, 0),
@@ -74,6 +76,7 @@ class ReviewNotesTests(unittest.TestCase):
         )
 
     def test_review_note_lines_show_empty_states(self):
+        # Behavior: 当用户在review note遇到空状态、评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         self.assertEqual(
             review_notes.review_note_lines([FileChange("src/Sample.ts", 1, 0)], {}),
             ["Review notes: none"],
@@ -88,6 +91,7 @@ class ReviewNotesTests(unittest.TestCase):
         )
 
     def test_copy_review_notes_copies_filtered_lines(self):
+        # Behavior: 当用户在review note中复制评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         copied: list[tuple[str, str | None]] = []
 
         def copy_text(text, copy_cmd=None):
@@ -107,6 +111,7 @@ class ReviewNotesTests(unittest.TestCase):
         self.assertIn('Review notes matching "lifecycle":', copied[0][0])
 
     def test_copy_review_notes_skips_empty_or_unmatched_notes(self):
+        # Behavior: 当用户在review note遇到评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         copied: list[str] = []
 
         def copy_text(text, copy_cmd=None):

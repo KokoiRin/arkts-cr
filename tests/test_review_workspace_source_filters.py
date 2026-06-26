@@ -28,6 +28,7 @@ def argparse_namespace(**kwargs):
 class ReviewWorkspaceSourceFilterTests(unittest.TestCase):
 
     def test_review_workspace_source_filter_combines_with_path_and_remaining_filters(self):
+        # Behavior: 当用户在workspace中过滤工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         workspace = ReviewWorkspace(
             [
                 FileChange("src/First.ts", 1, 0, source="staged"),
@@ -47,6 +48,7 @@ class ReviewWorkspaceSourceFilterTests(unittest.TestCase):
             ["src/First.ts"],
         )
     def test_browser_state_syncs_source_filter_with_workspace(self):
+        # Behavior: 当用户在workspace中过滤工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         state = BrowserState(
             [
                 FileChange("src/First.ts", 1, 0, source="staged"),
@@ -69,6 +71,7 @@ class ReviewWorkspaceSourceFilterTests(unittest.TestCase):
             ["src/Second.ts"],
         )
     def test_review_workspace_scope_switch_clears_source_filter(self):
+        # Behavior: 当用户在scope home中过滤工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=True,

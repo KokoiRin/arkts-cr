@@ -29,6 +29,7 @@ def argparse_namespace(**kwargs):
 class PromptHandoffSaveFeedbackTests(unittest.TestCase):
 
     def test_browser_command_executor_surfaces_prompt_save_failure(self):
+        # Behavior: 当用户在prompt handoff遇到失败反馈、提示词交接时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -74,6 +75,7 @@ class PromptHandoffSaveFeedbackTests(unittest.TestCase):
                 output.getvalue(),
             )
     def test_browser_command_executor_saves_prompt_in_raw_status(self):
+        # Behavior: 当用户在prompt handoff中保存提示词交接时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

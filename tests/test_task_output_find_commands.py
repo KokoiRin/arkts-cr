@@ -34,6 +34,7 @@ def argparse_namespace(**kwargs):
 
 class TaskOutputFindCommandTests(unittest.TestCase):
     def test_browser_command_executor_finds_text_in_task_output(self):
+        # Behavior: 当用户在task output中查找任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -68,6 +69,7 @@ class TaskOutputFindCommandTests(unittest.TestCase):
         self.assertEqual(state.file_find_text, "file-query")
         self.assertIn('Found "target" at line 2.', state.status_message)
     def test_browser_command_executor_repeats_task_output_find_matches(self):
+        # Behavior: 当用户在task output中验证任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -109,6 +111,7 @@ class TaskOutputFindCommandTests(unittest.TestCase):
         self.assertEqual(state.task_find_text, "target")
         self.assertIn('Found "target" at line 1.', state.status_message)
     def test_browser_command_executor_reports_task_output_find_empty_states(self):
+        # Behavior: 当用户在task output遇到空状态、任务输出时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState([], page=BrowserPage.TASK_OUTPUT)

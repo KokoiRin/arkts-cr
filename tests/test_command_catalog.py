@@ -7,6 +7,7 @@ from cr.ui.terminal import TerminalStyle
 
 class CommandCatalogTests(unittest.TestCase):
     def test_command_help_groups_commands_by_workflow(self):
+        # Behavior: 当用户在产品行为中验证catalog、help、groups、workflow时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         groups = command_catalog.command_catalog()
         lines = command_catalog.command_list_lines(TerminalStyle(False), max_lines=140)
         text = "\n".join(lines)
@@ -68,6 +69,7 @@ class CommandCatalogTests(unittest.TestCase):
         self.assertIn("problems group none", text)
 
     def test_executable_palette_entries_include_actions_not_parameter_templates(self):
+        # Behavior: 当用户在产品行为中验证catalog、executable、palette、entries时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         commands = [entry.command for entry in command_catalog.command_palette_entries()]
         scope_filtered = [
             entry.command
@@ -145,6 +147,7 @@ class CommandCatalogTests(unittest.TestCase):
         self.assertLess(file_filtered.index("file actions"), file_filtered.index("open"))
 
     def test_command_palette_screen_renders_filter_selection_and_scroll(self):
+        # Behavior: 当用户在command palette中渲染命令面板、选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         screen = command_catalog.command_palette_screen_lines(
             query="build",
             selected=0,
@@ -160,11 +163,13 @@ class CommandCatalogTests(unittest.TestCase):
         self.assertIn("> ", text)
 
     def test_command_query_empty_or_question_mark_opens_command_list(self):
+        # Behavior: 当用户在产品行为遇到catalog、query、empty、or时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         self.assertEqual(_normalize_command_query(""), "commands")
         self.assertEqual(_normalize_command_query("?"), "commands")
         self.assertEqual(_normalize_command_query(" build "), "build")
 
     def test_command_list_lines_group_commands_by_purpose(self):
+        # Behavior: 当用户在产品行为中验证catalog、list、lines、group时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = _browse_command_lines(TerminalStyle(False), max_lines=120)
         text = "\n".join(lines)
 

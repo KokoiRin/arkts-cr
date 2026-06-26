@@ -5,6 +5,7 @@ from cr.ui import file_detail_navigation
 
 class FileDetailNavigationBehaviorTests(unittest.TestCase):
     def test_hunk_navigation_moves_between_rendered_hunk_headers(self):
+        # Behavior: 当用户在file detail中渲染文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  purpose: ArkTS page/component SamplePage",
@@ -31,6 +32,7 @@ class FileDetailNavigationBehaviorTests(unittest.TestCase):
         self.assertEqual(previous.message, "Moved to hunk 1/2.")
 
     def test_hunk_navigation_reports_edges_and_empty_diff(self):
+        # Behavior: 当用户在file detail遇到文件详情、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  @@ -1 +1 @@",
@@ -52,6 +54,7 @@ class FileDetailNavigationBehaviorTests(unittest.TestCase):
         self.assertEqual(no_hunks.message, "No diff hunks in current file.")
 
     def test_hunk_navigation_clamps_scroll_to_visible_window(self):
+        # Behavior: 当用户在file detail中验证文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  context",
@@ -72,6 +75,7 @@ class FileDetailNavigationBehaviorTests(unittest.TestCase):
         self.assertEqual(result.message, "Moved to hunk 1/1.")
 
     def test_active_hunk_line_uses_nearest_rendered_hunk_header(self):
+        # Behavior: 当用户在file detail中渲染文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  purpose: sample",
@@ -91,6 +95,7 @@ class FileDetailNavigationBehaviorTests(unittest.TestCase):
         self.assertIsNone(none)
 
     def test_current_new_line_ignores_deleted_and_metadata_rows(self):
+        # Behavior: 当用户在file detail中验证文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  @@ -1,2 +10,2 @@",
@@ -115,6 +120,7 @@ class FileDetailNavigationBehaviorTests(unittest.TestCase):
         self.assertIsNone(out_of_range)
 
     def test_current_changed_row_distinguishes_added_and_deleted_rows(self):
+        # Behavior: 当用户在file detail中验证文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  @@ -1,2 +10,2 @@",
@@ -142,6 +148,7 @@ class FileDetailNavigationBehaviorTests(unittest.TestCase):
         self.assertIsNone(out_of_range)
 
     def test_active_hunk_extracts_sanitized_diff_lines_and_position(self):
+        # Behavior: 当用户在file detail中验证文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  purpose: sample",
@@ -184,6 +191,7 @@ class FileDetailNavigationBehaviorTests(unittest.TestCase):
         self.assertIsNone(none)
 
     def test_file_detail_find_matches_rendered_text_without_ansi_styles(self):
+        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  purpose: sample",
@@ -207,6 +215,7 @@ class FileDetailNavigationBehaviorTests(unittest.TestCase):
         self.assertFalse(missing.found)
 
     def test_repeated_file_detail_find_wraps_in_both_directions(self):
+        # Behavior: 当用户在file detail中验证文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  target first",
@@ -248,6 +257,7 @@ class FileDetailNavigationBehaviorTests(unittest.TestCase):
         self.assertEqual(previous_wrap.scroll, 4)
 
     def test_changed_row_navigation_wraps_between_added_and_deleted_rows(self):
+        # Behavior: 当用户在file detail中验证文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = [
             "File 1/1  src/Sample.ts",
             "  @@ -1,5 +1,5 @@",

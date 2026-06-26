@@ -34,6 +34,7 @@ def argparse_namespace(**kwargs):
 class SourceFileSymbolSaveCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_saves_file_detail_source_symbol(self):
+        # Behavior: 当用户在file detail中保存文件详情、源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

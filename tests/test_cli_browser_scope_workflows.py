@@ -10,6 +10,7 @@ from tests.cli_test_support import CliTestCase
 class CliBrowserScopeWorkflowTests(CliTestCase):
 
     def test_cli_browser_shows_recent_commits_when_no_worktree_changes(self):
+        # Behavior: 当用户在scope home中展示cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -46,6 +47,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("-export const sample = 'old'", session.stdout)
             self.assertIn("+export const sample = 'from commit'", session.stdout)
     def test_cli_browser_can_switch_from_worktree_to_recent_commits(self):
+        # Behavior: 当用户在scope home中切换cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -83,6 +85,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("-export const sample = 'committed'", session.stdout)
             self.assertIn("+export const sample = 'working tree'", session.stdout)
     def test_cli_browser_filters_recent_commits_in_line_mode(self):
+        # Behavior: 当用户在scope home中过滤cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -118,6 +121,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("login flow", session.stdout)
             self.assertIn("+export const sample = 'login'", session.stdout)
     def test_cli_browser_can_open_scope_home_in_line_mode(self):
+        # Behavior: 当用户在scope home中打开范围首页时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -140,6 +144,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("Staged", session.stdout)
             self.assertIn("cr:scopes>", session.stdout)
     def test_cli_browser_back_from_commit_file_returns_to_commit_file_list(self):
+        # Behavior: 当用户在scope home中验证cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             alpha = repo / "src" / "Alpha.ts"
@@ -171,6 +176,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("+export const alpha = 'committed'", session.stdout)
             self.assertIn("+export const beta = 'committed'", session.stdout)
     def test_cli_browser_can_switch_review_scopes_in_line_mode(self):
+        # Behavior: 当用户在scope home中切换cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -203,6 +209,7 @@ class CliBrowserScopeWorkflowTests(CliTestCase):
             self.assertIn("Scope: worktree", session.stdout)
             self.assertIn("-export const sample = 'staged'", session.stdout)
     def test_cli_browser_can_switch_to_base_and_range_scopes(self):
+        # Behavior: 当用户在scope home中切换cli、scope、workflows、cli时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"

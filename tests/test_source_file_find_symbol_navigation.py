@@ -33,6 +33,7 @@ def argparse_namespace(**kwargs):
 
 class SourceFileFindSymbolNavigationTests(unittest.TestCase):
     def test_browser_command_executor_finds_text_in_source_file_page(self):
+        # Behavior: 当用户在source file中查找源码文件、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -69,6 +70,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(state.task_find_text, "task-query")
         self.assertIn('Found "TARGET" at line 2.', state.status_message)
     def test_browser_command_executor_repeats_source_file_find_matches(self):
+        # Behavior: 当用户在source file中验证源码文件、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -111,6 +113,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(state.source_find_text, "target")
         self.assertIn('Found "target" at line 1.', state.status_message)
     def test_browser_command_executor_jumps_source_file_symbols(self):
+        # Behavior: 当用户在source file中跳转源码文件、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -163,6 +166,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(state.source_file_scroll, -1)
         self.assertIn("已跳到源码符号 struct Foo > method build src/Foo.ets:2.", state.status_message)
     def test_browser_command_executor_reports_source_symbol_jump_empty_states(self):
+        # Behavior: 当用户在source file遇到空状态、源码文件、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -198,6 +202,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(no_symbol_message, "没有可跳转的源码符号。")
         self.assertIn("Source file not found.", state.status_message)
     def test_browser_command_executor_reports_source_symbol_jump_boundaries(self):
+        # Behavior: 当用户在source file遇到源码文件、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -244,6 +249,7 @@ class SourceFileFindSymbolNavigationTests(unittest.TestCase):
         self.assertEqual(state.source_file_scroll, 1)
         self.assertEqual(state.status_message, "已经在最后一个源码符号。")
     def test_browser_command_executor_reports_source_file_find_empty_states(self):
+        # Behavior: 当用户在source file遇到空状态、源码文件、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

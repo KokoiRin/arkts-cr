@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 class ProblemDiffViewCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_views_selected_task_problem_diff(self):
+        # Behavior: 当用户在task problem中选择任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -83,6 +84,7 @@ class ProblemDiffViewCommandTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_PROBLEMS)
     def test_browser_command_executor_views_selected_task_output_problem_diff(self):
+        # Behavior: 当用户在task problem中选择任务输出时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -135,6 +137,7 @@ class ProblemDiffViewCommandTests(unittest.TestCase):
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.TASK_OUTPUT)
     def test_browser_command_executor_reports_problem_diff_without_changed_file(self):
+        # Behavior: 当用户在task problem遇到缺少前置条件时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

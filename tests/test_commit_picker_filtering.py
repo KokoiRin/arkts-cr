@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 class CommitPickerFilteringTests(unittest.TestCase):
 
     def test_commit_picker_filter_matches_scope_summary_fields(self):
+        # Behavior: 当用户在scope home中过滤提交选择器、过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         commits = [
             CommitSummary(
                 commit="abcdef1234567890",
@@ -69,6 +70,7 @@ class CommitPickerFilteringTests(unittest.TestCase):
             [commits[0]],
         )
     def test_commit_picker_filter_commands_are_isolated_from_file_filter(self):
+        # Behavior: 当用户在commit picker中过滤提交选择器、过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -103,6 +105,7 @@ class CommitPickerFilteringTests(unittest.TestCase):
         self.assertEqual(state.filter_text, "src/")
         self.assertEqual(state.commit_filter_text, "")
     def test_commit_picker_search_keeps_the_changed_file_filter(self):
+        # Behavior: 当用户在commit picker中过滤提交选择器、过滤时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",

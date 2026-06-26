@@ -9,6 +9,7 @@ from cr.ui.browser import _read_browse_command
 
 class BrowserInputTests(unittest.TestCase):
     def test_raw_key_command_read_does_not_print_newline(self):
+        # Behavior: 当用户在产品行为中不执行input、raw、key、read时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         output = StringIO()
 
         with patch("cr.ui.browser._read_raw_key", return_value="down"):
@@ -19,6 +20,7 @@ class BrowserInputTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
 
     def test_browser_input_raw_key_reader_does_not_print_newline(self):
+        # Behavior: 当用户在产品行为中不执行input、input、raw、key时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         output = StringIO()
 
         with redirect_stdout(output):
@@ -32,6 +34,7 @@ class BrowserInputTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
 
     def test_browser_input_line_mode_returns_eof_and_interrupt_sentinels(self):
+        # Behavior: 当用户在产品行为中验证input、input、line、mode时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         eof_output = StringIO()
         interrupt_output = StringIO()
 
@@ -51,6 +54,7 @@ class BrowserInputTests(unittest.TestCase):
         self.assertEqual(interrupt_output.getvalue(), "\n")
 
     def test_browser_input_idle_tick_uses_raw_idle_timeout(self):
+        # Behavior: 当用户在产品行为中验证input、input、idle、tick时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         seen_timeouts = []
 
         command = browser_input.read_browse_command(

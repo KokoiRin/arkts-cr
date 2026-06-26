@@ -22,6 +22,7 @@ def argparse_namespace(**kwargs):
 class SelectedFilePromptActionTests(unittest.TestCase):
 
     def test_prompt_handoff_contains_only_the_selected_file(self):
+        # Behavior: 当用户在prompt handoff中选择提示词交接时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

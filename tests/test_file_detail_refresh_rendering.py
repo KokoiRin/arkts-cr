@@ -33,6 +33,7 @@ def argparse_namespace(**kwargs):
 
 class FileDetailRefreshRenderingTests(unittest.TestCase):
     def test_refresh_preserves_file_detail_when_selected_file_survives(self):
+        # Behavior: 当用户在file detail中选择文件详情、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -96,6 +97,7 @@ class FileDetailRefreshRenderingTests(unittest.TestCase):
         self.assertEqual(state.page_back_stack, [])
         self.assertEqual(state.page_forward_stack, [])
     def test_refresh_returns_to_changed_files_when_file_detail_disappears(self):
+        # Behavior: 当用户在file detail中刷新文件详情、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(
@@ -135,6 +137,7 @@ class FileDetailRefreshRenderingTests(unittest.TestCase):
         self.assertEqual(state.page_forward_stack, [])
         self.assertIn("Current file no longer visible after refresh.", state.status_message)
     def test_browse_screen_file_detail_shows_product_breadcrumb(self):
+        # Behavior: 当用户在file detail中展示文件详情、渲染时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,

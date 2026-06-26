@@ -28,6 +28,7 @@ def argparse_namespace(**kwargs):
 class ReviewWorkspaceSeenFilterTests(unittest.TestCase):
 
     def test_browser_remaining_only_filters_seen_paths(self):
+        # Behavior: 当用户在workspace中过滤工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         state = BrowserState(
             [
                 FileChange("src/First.ts", 1, 0),
@@ -43,6 +44,7 @@ class ReviewWorkspaceSeenFilterTests(unittest.TestCase):
             ["src/Second.ts"],
         )
     def test_review_workspace_marks_selected_file_seen(self):
+        # Behavior: 当用户在workspace中选择工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         workspace = ReviewWorkspace(
             [
                 FileChange("src/First.ts", 1, 0),
@@ -57,6 +59,7 @@ class ReviewWorkspaceSeenFilterTests(unittest.TestCase):
         self.assertTrue(workspace.unmark_selected_seen())
         self.assertEqual(workspace.seen_paths, set())
     def test_review_workspace_mark_seen_and_advance_uses_remaining_index(self):
+        # Behavior: 当用户在workspace中验证工作区时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         workspace = ReviewWorkspace(
             [
                 FileChange("src/First.ts", 1, 0),
@@ -79,6 +82,7 @@ class ReviewWorkspaceSeenFilterTests(unittest.TestCase):
             ["src/Second.ts", "src/Third.ts"],
         )
     def test_review_workspace_mark_seen_and_advance_reports_last_file(self):
+        # Behavior: 当用户在workspace遇到工作区时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         workspace = ReviewWorkspace(
             [
                 FileChange("src/First.ts", 1, 0),

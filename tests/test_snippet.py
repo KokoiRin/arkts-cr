@@ -5,6 +5,7 @@ from cr.review.snippet import render_file_diff_snippet
 
 class FileDiffSnippetTests(unittest.TestCase):
     def test_file_diff_snippet_renders_compact_selected_file_context(self):
+        # Behavior: 当用户在file action中渲染snippet、diff、snippet、renders时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         text = render_file_diff_snippet(
             {
                 "path": "src/Sample.ets",

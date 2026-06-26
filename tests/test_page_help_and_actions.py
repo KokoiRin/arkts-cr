@@ -38,6 +38,7 @@ def argparse_namespace(**kwargs):
 class PageHelpAndActionBarTests(unittest.TestCase):
 
     def test_help_screen_explains_current_page_actions_in_chinese(self):
+        # Behavior: 当用户在产品行为中验证help、actions、help、explains时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         state = BrowserState([], page=BrowserPage.HELP, help_topic_page=BrowserPage.TASK_PROBLEMS)
 
         lines = page_content.page_help_screen_lines(
@@ -103,6 +104,7 @@ class PageHelpAndActionBarTests(unittest.TestCase):
         self.assertIn("next problem", file_detail_text)
         self.assertIn("prev problem", file_detail_text)
     def test_help_screen_lists_source_file_commands(self):
+        # Behavior: 当用户在source file中验证源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         state = BrowserState([], page=BrowserPage.HELP, help_topic_page=BrowserPage.SOURCE_FILE)
 
         text = "\n".join(
@@ -131,6 +133,7 @@ class PageHelpAndActionBarTests(unittest.TestCase):
         self.assertIn("save problem diff", text)
         self.assertIn("选择源码行范围", text)
     def test_contextual_action_bar_matches_current_page(self):
+        # Behavior: 当用户在产品行为中验证help、actions、contextual、action时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         style = TerminalStyle(False)
 
         changed_files = page_content.contextual_action_bar(
@@ -247,6 +250,7 @@ class PageHelpAndActionBarTests(unittest.TestCase):
         self.assertIn("commands 命令面板", help_bar)
         self.assertNotEqual(changed_files, file_detail)
     def test_contextual_action_bar_uses_line_fitting(self):
+        # Behavior: 当用户在产品行为中验证help、actions、contextual、action时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         fitted = page_content.contextual_action_bar(
             BrowserPage.CHANGED_FILES,
             TerminalStyle(False),

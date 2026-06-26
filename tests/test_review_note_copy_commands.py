@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 
 class ReviewNoteCopyCommandTests(unittest.TestCase):
     def test_browser_command_executor_copies_review_notes(self):
+        # Behavior: 当用户在review note中复制评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(copy_cmd="copy-tool {text}")
@@ -77,6 +78,7 @@ class ReviewNoteCopyCommandTests(unittest.TestCase):
         )
         self.assertIn("Copied 3 review notes", output.getvalue())
     def test_browser_command_executor_copies_filtered_review_notes(self):
+        # Behavior: 当用户在review note中复制评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(copy_cmd="copy-tool {text}")
@@ -123,6 +125,7 @@ class ReviewNoteCopyCommandTests(unittest.TestCase):
         )
         self.assertIn("Copied 2 matching review notes", output.getvalue())
     def test_browser_command_executor_does_not_copy_unmatched_review_notes(self):
+        # Behavior: 当用户在review note中复制评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(copy_cmd=None)
@@ -148,6 +151,7 @@ class ReviewNoteCopyCommandTests(unittest.TestCase):
         copy.assert_not_called()
         self.assertIn("No matching review notes to copy.", output.getvalue())
     def test_browser_command_executor_copies_filtered_review_notes_in_raw_status(self):
+        # Behavior: 当用户在review note中复制评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(copy_cmd=None)
@@ -174,6 +178,7 @@ class ReviewNoteCopyCommandTests(unittest.TestCase):
         self.assertTrue(frame.dirty)
         self.assertIn("Copied 1 matching review notes", state.status_message)
     def test_browser_command_executor_does_not_copy_empty_review_notes(self):
+        # Behavior: 当用户在review note遇到评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(copy_cmd=None)
@@ -196,6 +201,7 @@ class ReviewNoteCopyCommandTests(unittest.TestCase):
         copy.assert_not_called()
         self.assertIn("No review notes to copy.", output.getvalue())
     def test_browser_command_executor_reports_copy_review_notes_failures(self):
+        # Behavior: 当用户在review note遇到失败反馈、评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(copy_cmd="copy-tool {text}")
@@ -223,6 +229,7 @@ class ReviewNoteCopyCommandTests(unittest.TestCase):
         self.assertFalse(result.needs_redraw)
         self.assertIn("Copy failed (cli copy-tool): missing copy", output.getvalue())
     def test_browser_command_executor_copies_review_notes_in_raw_status(self):
+        # Behavior: 当用户在review note中复制评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(copy_cmd=None)

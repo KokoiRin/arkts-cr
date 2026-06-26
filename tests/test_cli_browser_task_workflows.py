@@ -10,6 +10,7 @@ from tests.cli_test_support import CliTestCase
 class CliBrowserTaskWorkflowTests(CliTestCase):
 
     def test_cli_interactive_browser_can_run_build_command(self):
+        # Behavior: 当用户在task output中验证cli、workflows、cli、interactive时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"
@@ -44,6 +45,7 @@ class CliBrowserTaskWorkflowTests(CliTestCase):
                 repo.resolve(),
             )
     def test_cli_interactive_browser_can_run_test_command(self):
+        # Behavior: 当用户在CLI browser中验证cli、workflows、cli、interactive时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "src" / "Sample.ts"

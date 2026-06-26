@@ -34,6 +34,7 @@ def argparse_namespace(**kwargs):
 class SourceFileContextCopyCommandsTest(unittest.TestCase):
 
     def test_browser_command_executor_copies_source_file_page_line(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(
@@ -62,6 +63,7 @@ class SourceFileContextCopyCommandsTest(unittest.TestCase):
         self.assertEqual(state.source_file_scroll, 7)
         self.assertIn("Copied source line src/Foo.ets:20", state.status_message)
     def test_browser_command_executor_copies_source_file_context(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -107,6 +109,7 @@ class SourceFileContextCopyCommandsTest(unittest.TestCase):
         self.assertEqual(state.source_file_scroll, 2)
         self.assertIn("Copied source context src/Foo.ets:5", state.status_message)
     def test_browser_command_executor_copies_source_file_context_with_symbol(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -153,6 +156,7 @@ class SourceFileContextCopyCommandsTest(unittest.TestCase):
         self.assertIn("> 3  ", copied)
         self.assertIn("Copied source context src/Foo.ets:3", state.status_message)
     def test_browser_command_executor_copies_configured_source_file_context(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -194,6 +198,7 @@ class SourceFileContextCopyCommandsTest(unittest.TestCase):
         self.assertNotIn("line 7", copied)
         self.assertIn("Copied source context src/Foo.ets:5", state.status_message)
     def test_browser_command_executor_copies_selected_source_range(self):
+        # Behavior: 当用户在source file中复制源码文件时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:

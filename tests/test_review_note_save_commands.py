@@ -30,6 +30,7 @@ def argparse_namespace(**kwargs):
 
 class ReviewNoteSaveCommandTests(unittest.TestCase):
     def test_browser_command_executor_saves_review_notes_default_path(self):
+        # Behavior: 当用户在review note中保存评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -81,6 +82,7 @@ class ReviewNoteSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_saves_review_notes_requested_path(self):
+        # Behavior: 当用户在review note中保存评审备注时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -116,6 +118,7 @@ class ReviewNoteSaveCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_does_not_save_empty_review_notes(self):
+        # Behavior: 当用户在review note遇到评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -139,6 +142,7 @@ class ReviewNoteSaveCommandTests(unittest.TestCase):
         self.assertFalse(target.exists())
         self.assertIn("No review notes to save.", state.status_message)
     def test_browser_command_executor_reports_save_review_notes_failures(self):
+        # Behavior: 当用户在review note遇到失败反馈、评审备注时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         state = BrowserState(

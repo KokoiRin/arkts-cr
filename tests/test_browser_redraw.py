@@ -23,6 +23,7 @@ def argparse_namespace(**kwargs):
 class BrowserRedrawTests(unittest.TestCase):
 
     def test_command_prompt_cancel_forces_full_browser_redraw(self):
+        # Behavior: 当用户在产品行为中验证redraw、prompt、cancel、forces时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -64,6 +65,7 @@ class BrowserRedrawTests(unittest.TestCase):
         self.assertEqual(draw.call_count, 2)
 
     def test_filter_prompt_cancel_forces_full_browser_redraw(self):
+        # Behavior: 当用户在产品行为中过滤redraw、filter、prompt、cancel时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",
@@ -105,6 +107,7 @@ class BrowserRedrawTests(unittest.TestCase):
         self.assertEqual(draw.call_count, 2)
 
     def test_task_problems_page_tick_redraws_main_content_not_panel_only(self):
+        # Behavior: 当用户在task problem中验证任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             color="never",
             links="file",

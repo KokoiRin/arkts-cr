@@ -33,6 +33,7 @@ def argparse_namespace(**kwargs):
 
 class FileDetailNavigationCommandTests(unittest.TestCase):
     def test_browser_command_executor_marks_done_and_opens_next_file_detail(self):
+        # Behavior: 当用户在file detail中打开文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -68,6 +69,7 @@ class FileDetailNavigationCommandTests(unittest.TestCase):
         self.assertIsNotNone(state.task)
         self.assertIn("Moved to src/Second.ts", state.status_message)
     def test_browser_command_executor_jumps_to_next_hunk_in_file_detail(self):
+        # Behavior: 当用户在file detail中跳转文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -112,6 +114,7 @@ class FileDetailNavigationCommandTests(unittest.TestCase):
         self.assertIsNotNone(state.task)
         self.assertIn("Moved to hunk 1/2.", state.status_message)
     def test_browser_command_executor_jumps_to_previous_hunk_in_file_detail(self):
+        # Behavior: 当用户在file detail中跳转文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -146,6 +149,7 @@ class FileDetailNavigationCommandTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 3)
         self.assertIn("Moved to hunk 2/2.", state.status_message)
     def test_browser_command_executor_jumps_between_changed_rows_in_file_detail(self):
+        # Behavior: 当用户在file detail中跳转文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -194,6 +198,7 @@ class FileDetailNavigationCommandTests(unittest.TestCase):
         self.assertIsNotNone(state.task)
         self.assertIn("Moved to change 3/3.", state.status_message)
     def test_browser_command_executor_reports_changed_row_navigation_outside_file_detail(self):
+        # Behavior: 当用户在file detail遇到文件详情、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -213,6 +218,7 @@ class FileDetailNavigationCommandTests(unittest.TestCase):
         self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
         self.assertIn("Open a file detail to jump changes.", state.status_message)
     def test_browser_command_executor_reports_changed_row_navigation_without_changed_rows(self):
+        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace()
@@ -244,6 +250,7 @@ class FileDetailNavigationCommandTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 1)
         self.assertIn("No changed rows in current file.", state.status_message)
     def test_browser_command_executor_opens_current_hunk_in_file_detail(self):
+        # Behavior: 当用户在file detail中打开文件详情、导航时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(open_cmd="editor {fileline}")
@@ -295,6 +302,7 @@ class FileDetailNavigationCommandTests(unittest.TestCase):
         self.assertIsNotNone(state.task)
         self.assertIn("Opened hunk src/Sample.ts:31", state.status_message)
     def test_browser_command_executor_reports_open_hunk_outside_file_detail(self):
+        # Behavior: 当用户在file detail遇到文件详情、导航时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         args = argparse_namespace(open_cmd=None)

@@ -29,6 +29,7 @@ def argparse_namespace(**kwargs):
 class TaskProblemCopySingleCommandTests(unittest.TestCase):
 
     def test_browser_command_executor_copies_selected_task_problem(self):
+        # Behavior: 当用户在task problem中复制任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -80,6 +81,7 @@ class TaskProblemCopySingleCommandTests(unittest.TestCase):
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied task problem.", state.status_message)
     def test_browser_command_executor_copies_source_file_current_task_problem(self):
+        # Behavior: 当用户在source file中复制源码文件、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -125,6 +127,7 @@ class TaskProblemCopySingleCommandTests(unittest.TestCase):
         copy_text.assert_called_once_with(copied, "copy-tool")
         self.assertIn("Copied source problem.", state.status_message)
     def test_browser_command_executor_does_not_copy_stale_source_file_problem(self):
+        # Behavior: 当用户在source file遇到过期状态、源码文件、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -162,6 +165,7 @@ class TaskProblemCopySingleCommandTests(unittest.TestCase):
         copy_text.assert_not_called()
         self.assertIn("No current source problem to copy.", state.status_message)
     def test_browser_command_executor_copies_file_detail_current_row_task_problem(self):
+        # Behavior: 当用户在file detail中复制文件详情、任务问题时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -227,6 +231,7 @@ class TaskProblemCopySingleCommandTests(unittest.TestCase):
         self.assertEqual(state.problem_selected, 1)
         self.assertIn("Copied file problem src/One.ets:4.", state.status_message)
     def test_browser_command_executor_does_not_copy_file_detail_row_without_problem(self):
+        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情、任务问题时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

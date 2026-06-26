@@ -38,6 +38,7 @@ def argparse_namespace(**kwargs):
 class ChangedFilePageContentTests(unittest.TestCase):
 
     def test_browse_tree_highlights_guides_and_uses_plain_white_file_names(self):
+        # Behavior: 当用户在产品行为中验证changed、content、browse、tree时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         args = argparse_namespace(
             staged=False,
             all_changes=False,
@@ -60,11 +61,13 @@ class ChangedFilePageContentTests(unittest.TestCase):
         self.assertNotIn("\033[36mSample.ts", text)
         self.assertNotIn("\033]8;;", text)
     def test_page_content_owns_prompt_labels_and_scroll_window(self):
+        # Behavior: 当用户在产品行为中验证changed、content、content、owns时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         self.assertEqual(page_content.browse_prompt(BrowserPage.SCOPE_HOME), "cr:scopes> ")
         self.assertEqual(page_content.browse_prompt(BrowserPage.FILE_DETAIL), "cr:file> ")
         self.assertEqual(page_content.ensure_window(0, 8, 20, 5), 4)
         self.assertEqual(page_content.ensure_window(4, 2, 20, 5), 2)
     def test_page_content_builds_compacted_changed_file_tree(self):
+        # Behavior: 当用户在task output中验证changed、content、content、builds时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         changes = [
             FileChange("src/pages/home/HomeView.ets", 1, 0),
             FileChange("src/pages/home/HomeModel.ets", 2, 1),
@@ -76,6 +79,7 @@ class ChangedFilePageContentTests(unittest.TestCase):
         self.assertEqual(rows[1].label, "   ├─ HomeModel.ets")
         self.assertEqual(rows[2].label, "   └─ HomeView.ets")
     def test_page_content_changed_file_rows_show_source_badges(self):
+        # Behavior: 当用户在产品行为中展示changed、content、content、changed时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         change = FileChange("src/Sample.ts", 1, 1, source="mixed")
 
         lines = page_content.browse_list_lines(
@@ -93,6 +97,7 @@ class ChangedFilePageContentTests(unittest.TestCase):
         self.assertIn("modified", row)
         self.assertIn("note", row)
     def test_page_content_changed_file_header_shows_source_summary(self):
+        # Behavior: 当用户在产品行为中展示changed、content、content、changed时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = page_content.browse_list_lines(
             [
                 FileChange("src/Staged.ts", 1, 0, source="staged"),
@@ -105,6 +110,7 @@ class ChangedFilePageContentTests(unittest.TestCase):
 
         self.assertIn("Sources: staged 1, unstaged 1, mixed 1", "\n".join(lines))
     def test_page_content_source_summary_omits_zero_and_empty_sources(self):
+        # Behavior: 当用户在产品行为遇到changed、content、content、summary时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         staged_lines = page_content.browse_list_lines(
             [FileChange("src/Staged.ts", 1, 0, source="staged")],
             argparse_namespace(),
@@ -120,6 +126,7 @@ class ChangedFilePageContentTests(unittest.TestCase):
         self.assertNotIn("unstaged 0", "\n".join(staged_lines))
         self.assertNotIn("Sources:", "\n".join(comparison_lines))
     def test_page_content_changed_file_header_shows_source_filter(self):
+        # Behavior: 当用户在产品行为中展示changed、content、content、changed时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         state = BrowserState(
             [
                 FileChange("src/Staged.ts", 1, 0, source="staged"),
@@ -137,6 +144,7 @@ class ChangedFilePageContentTests(unittest.TestCase):
 
         self.assertIn("Source: staged", "\n".join(lines))
     def test_browse_list_lines_wrapper_passes_source_filter(self):
+        # Behavior: 当用户在产品行为中过滤changed、content、browse、list时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         lines = _browse_list_lines(
             [FileChange("src/Staged.ts", 1, 0, source="staged")],
             argparse_namespace(),
@@ -147,6 +155,7 @@ class ChangedFilePageContentTests(unittest.TestCase):
 
         self.assertIn("Source: staged", "\n".join(lines))
     def test_browse_filter_matches_paths_and_clamps_selection(self):
+        # Behavior: 当用户在产品行为中过滤选择时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         changes = [
             FileChange("src/pages/Home.ets", 1, 1),
             FileChange("src/components/Button.ts", 2, 0),
@@ -174,6 +183,7 @@ class ChangedFilePageContentTests(unittest.TestCase):
         self.assertEqual(state.selected, 0)
         self.assertEqual(state.mode, "list")
     def test_browse_screen_only_measures_visible_list_rows(self):
+        # Behavior: 当用户在产品行为中验证changed、content、browse、only时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         changes = [FileChange(f"src/File{index}.ts", 1, 0) for index in range(30)]
         args = argparse_namespace(
             staged=False,

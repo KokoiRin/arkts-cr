@@ -33,6 +33,7 @@ def argparse_namespace(**kwargs):
 
 class FileDetailProblemCommandTests(unittest.TestCase):
     def test_browser_command_executor_steps_file_detail_problem_to_visible_diff_line(self):
+        # Behavior: 当用户在file detail中验证文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -85,6 +86,7 @@ class FileDetailProblemCommandTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 2)
         self.assertIn("已选择当前文件问题 1/2 src/Foo.ets:2。", state.status_message)
     def test_browser_command_executor_steps_file_detail_previous_problem(self):
+        # Behavior: 当用户在file detail中验证文件详情时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -135,6 +137,7 @@ class FileDetailProblemCommandTests(unittest.TestCase):
         self.assertEqual(state.file_scroll, 2)
         self.assertIn("已选择当前文件问题 1/2 src/Foo.ets:2。", state.status_message)
     def test_browser_command_executor_steps_file_detail_problem_without_visible_diff_line(self):
+        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
@@ -182,6 +185,7 @@ class FileDetailProblemCommandTests(unittest.TestCase):
             state.status_message,
         )
     def test_browser_command_executor_reports_file_detail_without_file_problems(self):
+        # Behavior: 当用户在file detail遇到缺少前置条件、文件详情时，系统应给出正确反馈或保持安全状态 [Requirement: TODO]
         from cr.ui.browser import parse_browser_command
 
         process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)

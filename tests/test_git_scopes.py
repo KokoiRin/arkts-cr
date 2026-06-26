@@ -10,6 +10,7 @@ from cr.vcs import git
 class GitScopeTests(unittest.TestCase):
 
     def test_git_all_changes_marks_mixed_staged_and_unstaged_sources(self):
+        # Behavior: 当用户在scope home中标记git、scopes、git、all时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "Sample.ts"
@@ -36,6 +37,7 @@ class GitScopeTests(unittest.TestCase):
         self.assertEqual(changes[0].source, "mixed")
 
     def test_git_local_scopes_mark_staged_and_unstaged_sources(self):
+        # Behavior: 当用户在scope home中验证git、scopes、git、local时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             staged_file = repo / "staged.ts"
@@ -69,6 +71,7 @@ class GitScopeTests(unittest.TestCase):
         )
 
     def test_git_recent_commits_include_change_summary(self):
+        # Behavior: 当用户在scope home中验证git、scopes、git、recent时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             first = repo / "first.ts"
@@ -99,6 +102,7 @@ class GitScopeTests(unittest.TestCase):
         self.assertEqual(commits[0].deleted, 1)
 
     def test_git_comparison_scopes_do_not_mark_local_sources(self):
+        # Behavior: 当用户在scope home中验证git、scopes、git、comparison时，系统应完成对应行为并保持页面状态正确 [Requirement: TODO]
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             sample = repo / "Sample.ts"

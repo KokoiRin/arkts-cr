@@ -117,3 +117,73 @@ class BrowserCommandExecutorTests(unittest.TestCase):
         self.assertEqual(state.help_topic_page, BrowserPage.SOURCE_FILE)
         BrowserNavigation.go_back(state)
         self.assertEqual(state.page, BrowserPage.SOURCE_FILE)
+
+    def test_browser_command_executor_applies_source_filter(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [
+                FileChange("src/Staged.ts", 1, 0, source="staged"),
+                FileChange("src/Unstaged.ts", 1, 0, source="unstaged"),
+            ],
+            selected=1,
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=True,
+        )
+
+        result = executor.execute(parse_browser_command("source staged", raw_keys=True))
+
+        self.assertTrue(result.needs_redraw)
+        self.assertEqual(state.page, BrowserPage.CHANGED_FILES)
+        self.assertEqual(state.source_filter, "staged")
+        self.assertEqual(state.selected, 0)
+        self.assertEqual(
+            [change.path for change in state.visible_changes],
+            ["src/Staged.ts"],
+        )
+
+    def test_browser_command_executor_rejects_unknown_source_filter(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState([FileChange("src/Sample.ts", 1, 0, source="staged")])
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+        output = StringIO()
+
+        with redirect_stdout(output):
+            result = executor.execute(parse_browser_command("source generated"))
+
+        self.assertTrue(result.handled)
+        self.assertEqual(state.source_filter, "")
+        self.assertIn("Unknown source filter", output.getvalue())
+
+    def test_browser_command_executor_clears_source_filter(self):
+        from cr.ui.browser import parse_browser_command
+
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 0, source="staged")],
+            source_filter="staged",
+        )
+        executor = BrowserCommandExecutor(
+            state,
+            argparse_namespace(),
+            TerminalStyle(),
+            BrowserFrame(),
+            raw_keys=False,
+        )
+
+        with redirect_stdout(StringIO()):
+            result = executor.execute(parse_browser_command("source all"))
+
+        self.assertTrue(result.handled)
+        self.assertEqual(state.source_filter, "")

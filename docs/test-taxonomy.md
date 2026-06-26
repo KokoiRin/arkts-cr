@@ -1,7 +1,11 @@
 # Test Taxonomy
 
-This document classifies the current test suite by the role each test file plays.
-The categories are mutually exclusive at file level: each file is assigned to the role it mostly serves.
+This document classifies the current test suite from two angles:
+
+1. Test-pyramid scope: how many boundaries the test crosses.
+2. Product semantics: whether the test reads like user-visible behavior.
+
+The category tables below are mutually exclusive at file level: each file is assigned to the role it mostly serves.
 
 Current snapshot:
 
@@ -9,7 +13,16 @@ Current snapshot:
 - Test cases: 569
 - Pure or near-pure unit tests: 20 files, 85 cases
 - Cross-module integration tests: 24 files, 135 cases
-- Product behavior semantic cases: 86 files, 349 cases
+- Product behavior component tests: 86 files, 349 cases
+
+Pyramid health view:
+
+- Unit or near-unit: 85 cases
+- Product behavior component tests: 349 cases
+- Cross-module integration, including CLI workflows: 135 cases
+- CLI workflow tests inside the integration layer: 42 cases
+
+This is not a healthy classic pyramid yet. The suite is currently heavy in behavior/component tests and light in unit tests. The product behavior tests are valuable because they describe what the tool should do, but many of them assert behavior through `BrowserCommandExecutor`, page rendering, or browser state instead of smaller domain modules.
 
 ## Category Definitions
 
@@ -25,11 +38,25 @@ These tests exercise multiple modules together: CLI entrypoints, browser loop re
 
 They are regression guardrails. They often protect bugs that are hard to see from a single function test.
 
-### Product Behavior Semantic Cases
+### Product Behavior Component Tests
 
 These tests directly describe user-visible behavior: selecting commits, opening files, navigating file detail/source/task pages, copying or saving context, running tasks, changing filters, using command palette actions, and seeing page content.
 
-These are the tests that should read most like the product specification.
+They are semantic cases, but most are not end-to-end tests. They are closer to component tests around browser state, command execution, and page rendering. They should read like the product specification, while the underlying parsing, selection, filtering, and formatting rules should move down into unit tests where possible.
+
+### End-To-End Boundary
+
+The closest end-to-end tests are the CLI workflow files that invoke the command as a user would. They currently account for 7 files and 42 cases:
+
+- `test_cli_browser_entry_navigation.py`
+- `test_cli_browser_scope_workflows.py`
+- `test_cli_browser_task_workflows.py`
+- `test_cli_browser_workspace_workflows.py`
+- `test_cli_review_filtering.py`
+- `test_cli_review_output.py`
+- `test_cli_review_scopes.py`
+
+These should stay few. They should cover the main user journeys, not every empty state or formatting variant.
 
 ## Pure Or Near-Pure Unit Tests
 
@@ -85,7 +112,7 @@ These are the tests that should read most like the product specification.
 | 10 | `test_task_stop_lifecycle.py` | Task stop and process-group lifecycle. |
 | 9 | `test_workspace_persistence.py` | Browser workspace persistence on disk. |
 
-## Product Behavior Semantic Cases
+## Product Behavior Component Tests
 
 | Cases | File | Main Meaning |
 | ---: | --- | --- |
@@ -180,8 +207,25 @@ These are the tests that should read most like the product specification.
 
 For product planning, do not treat all 569 cases equally.
 
-- The 349 behavior semantic cases are the product specification surface.
-- The 135 integration cases are the regression safety net for stateful workflows.
-- The 85 pure or near-pure unit tests are implementation guardrails.
+- The 349 behavior component cases are the product specification surface, but they are too large a share of the suite.
+- The 135 integration cases are the regression safety net for stateful workflows; 42 of these are close to CLI end-to-end workflows.
+- The 85 pure or near-pure unit tests are implementation guardrails, and this layer is too small for a healthy pyramid.
 
 The current suite is therefore not saying the product has 569 features. It says a much smaller product surface is protected through many page states, command aliases, empty states, and regression cases.
+
+## Rebalancing Direction
+
+The desired direction is:
+
+1. Keep a small number of CLI workflow tests for the three main journeys:
+   - choose scope or commit
+   - choose file and inspect code
+   - run a build and inspect output/problems
+2. Keep behavior component tests for page and command semantics that are genuinely user-facing.
+3. Extract dense behavior rules from command/page tests into unit-tested modules:
+   - task problem extraction and grouping
+   - source/file-detail navigation target calculation
+   - context rendering sections
+   - command availability and command catalog rules
+   - task output slicing, matching, and save/copy formatting
+4. Avoid adding new UI-level cases for every edge condition if the same rule can be tested below the command executor.

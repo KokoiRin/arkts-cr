@@ -2,12 +2,25 @@ import os
 import subprocess
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
 from io import StringIO
 from unittest.mock import patch
 
 from cr.ui import frame
+from cr.ui.browser import BrowserState, _draw_browse_screen, _screen_layout
 from cr.ui.tasks import TaskRecord, TaskState
 from cr.ui.terminal import TerminalStyle
+from cr.vcs.git import FileChange
+
+
+def argparse_namespace(**kwargs):
+    class Namespace:
+        pass
+
+    namespace = Namespace()
+    for key, value in kwargs.items():
+        setattr(namespace, key, value)
+    return namespace
 
 
 class BrowserFrameTests(unittest.TestCase):
@@ -120,6 +133,165 @@ class BrowserFrameTests(unittest.TestCase):
                 "\033[31mabcdefghi\033[0m",
             )
 
+    def test_screen_layout_reserves_prompt_and_task_panel_regions(self):
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        build = TaskState(["true"], process, lines=["compile line"])
+
+        plain = _screen_layout(None, rows=12)
+        with_task = _screen_layout(build, rows=12)
+
+        self.assertEqual(plain.prompt_row, 12)
+        self.assertEqual(plain.content_height, 11)
+        self.assertEqual(plain.task_height, 0)
+        self.assertIsNone(plain.task_start_row)
+        self.assertEqual(with_task.prompt_row, 12)
+        self.assertEqual(with_task.task_start_row, 7)
+        self.assertEqual(with_task.task_height, 5)
+        self.assertEqual(with_task.content_height, 6)
+        process.wait(timeout=1)
+
+    def test_browse_screen_redraws_in_place(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        state = BrowserState([FileChange("src/Sample.ts", 1, 1)])
+        output = StringIO()
+
+        with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+            with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                with redirect_stdout(output):
+                    _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertTrue(text.startswith("\033[2J\033[H"))
+        self.assertIn("Scope: worktree > Files", text)
+        self.assertIn("> 1", text)
+        self.assertIn("└─ src", text)
+        self.assertIn("└─ Sample.ts", text)
+        self.assertIn("操作：Enter 打开", text)
+
+    def test_browse_screen_action_bar_coexists_with_task_panel(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        process.wait(timeout=1)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            task=TaskState(["true"], process, lines=["compile line"]),
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((80, 12)),
+        ):
+            with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+                with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("操作：Enter 打开", text)
+        self.assertIn("compile line", text)
+        self.assertIn("Build running", text)
+
+    def test_browse_screen_places_task_panel_above_prompt(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            task=TaskState(["true"], process, lines=["compile line"]),
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 12)),
+        ):
+            with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+                with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        self.assertIn("compile line", text)
+        self.assertIn("\033[12;1H\033[2Kcr:list> ", text)
+        process.wait(timeout=1)
+
+    def test_browse_screen_pads_short_content_before_task_panel(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            task=TaskState(["true"], process, lines=["compile line"]),
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 30)),
+        ):
+            with patch("cr.ui.browser.git.first_changed_line", return_value=3):
+                with patch("cr.ui.browser.git.repo_path", return_value=Path("/tmp/src/Sample.ts")):
+                    with redirect_stdout(output):
+                        _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        before_panel = text.split("Build running", 1)[0]
+        process.wait(timeout=1)
+        self.assertEqual(before_panel.count("\n"), 23)
+
+    def test_browse_screen_shows_command_list_with_task_panel(self):
+        args = argparse_namespace(
+            staged=False,
+            all_changes=False,
+            base=None,
+            ref_range=None,
+            link_scheme="file",
+        )
+        process = subprocess.Popen(["true"], stdout=subprocess.DEVNULL)
+        state = BrowserState(
+            [FileChange("src/Sample.ts", 1, 1)],
+            task=TaskState(["true"], process, lines=["compile line"]),
+            page="commands",
+        )
+        output = StringIO()
+
+        with patch(
+            "cr.ui.frame.shutil.get_terminal_size",
+            return_value=os.terminal_size((100, 40)),
+        ):
+            with redirect_stdout(output):
+                _draw_browse_screen(state, args, TerminalStyle(False))
+
+        text = output.getvalue()
+        process.wait(timeout=1)
+        self.assertIn("命令面板", text)
+        self.assertIn("Enter：执行选中命令", text)
+        self.assertIn("审查范围", text)
+        self.assertIn("compile line", text)
+        self.assertIn("\033[40;1H\033[2Kcr:commands> ", text)
 
 if __name__ == "__main__":
     unittest.main()

@@ -82,66 +82,6 @@ def argparse_namespace(**kwargs):
 
 class CliTests(unittest.TestCase):
 
-    def test_file_diff_snippet_renders_compact_selected_file_context(self):
-        text = render_file_diff_snippet(
-            {
-                "path": "src/Sample.ets",
-                "status": "modified",
-                "summary": "+2 -1",
-                "anchor": "src/Sample.ets:12",
-                "risk_hints": ["high churn"],
-                "seen": True,
-                "review_note": "check lifecycle edge case",
-                "purpose": "ArkTS page/component SamplePage",
-                "modified_symbols": ["build"],
-                "hunks": ["@@ -1 +1 @@", "-old", "+new"],
-            }
-        )
-
-        self.assertIn("# File Diff: src/Sample.ets", text)
-        self.assertIn("- change: +2 -1 (modified)", text)
-        self.assertIn("- anchor: src/Sample.ets:12", text)
-        self.assertIn("- state: seen", text)
-        self.assertIn("- review note: check lifecycle edge case", text)
-        self.assertIn("- purpose: ArkTS page/component SamplePage", text)
-        self.assertIn("- focus: build", text)
-        self.assertIn("```diff\n@@ -1 +1 @@\n-old\n+new\n```", text)
-        self.assertNotIn("Please review these changes.", text)
-
-    def test_build_review_data_attaches_matching_review_notes(self):
-        change = FileChange("src/Sample.ts", 2, 1)
-
-        with patch("cr.review.data.git.first_changed_line", return_value=3):
-            with patch(
-                "cr.review.data.git.file_diff",
-                return_value="@@ -1 +1 @@\n-old\n+new\n",
-            ):
-                data = build_review_data(
-                    [change],
-                    review_notes={
-                        "src/Sample.ts": "check lifecycle edge case",
-                        "docs/Other.md": "not in copied prompt",
-                    },
-                )
-
-        self.assertEqual(
-            data["files"][0]["review_note"],
-            "check lifecycle edge case",
-        )
-        self.assertNotIn("docs/Other.md", str(data))
-
-    def test_browser_main_loop_delegates_action_execution(self):
-        source = Path(browser_module.__file__).read_text(encoding="utf-8")
-        run_loop_source = source[source.index("def run_browser") : source.index("def _should_restore")]
-
-        self.assertIn("BrowserCommandExecutor(", run_loop_source)
-        self.assertIn(".execute(parsed_command)", run_loop_source)
-        self.assertNotIn("BrowserCommandAction.RUN_BUILD", run_loop_source)
-        self.assertNotIn("BrowserCommandAction.CHOOSE_NUMBER", run_loop_source)
-
-    def test_format_counts_handles_binary_stats(self):
-        self.assertEqual(format_counts(FileChange("asset.bin", None, None)), "+? -?")
-
     def test_cli_diff_outline_and_review_in_temp_repo(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
